@@ -1,0 +1,31 @@
+# Opcional: sobe tudo em containers (útil na VPS se preferir Docker).
+# Na VPS que já tem MySQL instalado, prefira o guia "Deploy na VPS" do README.
+services:
+  db:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: ${STG_DB_PASSWORD:?defina STG_DB_PASSWORD}
+      MYSQL_DATABASE: stg
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${STG_DB_PASSWORD}"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      STG_DB_HOST: db
+      STG_DB_PASSWORD: ${STG_DB_PASSWORD}
+      STG_SECRET_KEY: ${STG_SECRET_KEY:?defina STG_SECRET_KEY}
+      STG_CORS_ORIGINS: ${STG_CORS_ORIGINS:-http://localhost}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+volumes:
+  dbdata:

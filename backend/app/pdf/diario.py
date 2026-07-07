@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import Aluno, AluTurma, DocTurma, Materia, Professor, Turma
-from .base import PdfStg
+from .base import PdfTov
 
 N_COLUNAS_AULA = 10
 
@@ -35,7 +35,7 @@ def gerar_diario(db: Session, cod_tur: int, cod_mat: int | None = None) -> bytes
         )
     )
 
-    pdf = PdfStg(titulo="Diário de Classe", orientation="L")
+    pdf = PdfTov(titulo="Diário de Classe", orientation="L")
     pdf.add_page()
     pdf.set_font("Helvetica", "", 11)
     linha_info = f"Turma: {turma.nome or cod_tur}"

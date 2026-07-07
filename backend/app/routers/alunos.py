@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db, row_to_dict
-from ..models import Aluno, AluNota, AluTurma, Cidade, Curso, Turma
+from ..models import Aluno, AluNota, AluTurma, Turma
 
 router = APIRouter(prefix="/alunos", tags=["alunos"])
 
@@ -14,37 +14,33 @@ router = APIRouter(prefix="/alunos", tags=["alunos"])
 class AlunoInput(BaseModel):
     nome: str
     endereco: str | None = None
+    complemento: str | None = None
     bairro: str | None = None
-    cod_cid: int | None = None
-    cod_nat: int | None = None
+    cidade: str | None = None
+    uf: str | None = None
     cep: str | None = None
     fone1: str | None = None
     fone2: str | None = None
     celular: str | None = None
     e_mail: str | None = None
     sexo: str | None = None
-    cod_esc: int | None = None
     dat_cad: date | None = None
-    est_civ: int | None = None
     dat_nas: date | None = None
+    est_civ: str | None = None
+    escolaridade: str | None = None
     rg: str | None = None
+    cpf: str | None = None
     profissao: str | None = None
+    nacionalidade: str | None = None
     cur_seculares: str | None = None
+    cur_teologicos: str | None = None
     igreja: str | None = None
     local_igreja: str | None = None
-    atividades: str | None = None
-    cur_teologicos: str | None = None
-    local_cur_teo: str | None = None
     nome_pastor: str | None = None
-    status: str | None = None
     membro_desde: date | None = None
-    aniversario: str | None = None
-    complemento: str | None = None
-    nacionalidade: str | None = None
-    cpf: str | None = None
-    cd_cur: int | None = None
+    atividades: str | None = None
+    status: str | None = None
     cod_tur: int | None = None
-    cod_gra: int | None = None
 
 
 @router.get("")
@@ -81,12 +77,6 @@ def obter(cod_alu: int, db: Session = Depends(get_db)):
     if not aluno:
         raise HTTPException(404, "Aluno não encontrado")
     dados = row_to_dict(aluno)
-    if aluno.cod_cid:
-        cid = db.get(Cidade, aluno.cod_cid)
-        dados["cidade_nome"] = cid.nome if cid else None
-    if aluno.cd_cur:
-        cur = db.get(Curso, aluno.cd_cur)
-        dados["curso_nome"] = cur.nome if cur else None
     if aluno.cod_tur:
         tur = db.get(Turma, aluno.cod_tur)
         dados["turma_nome"] = tur.nome if tur else None

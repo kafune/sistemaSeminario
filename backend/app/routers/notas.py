@@ -21,7 +21,6 @@ class NotaInput(BaseModel):
     semestre: str | None = None
     cursou: str | None = "S"
     dispensa: str | None = None
-    creditos: int | None = None
     cod_pro: int | None = None
     cod_tur: int | None = None
 
@@ -40,7 +39,6 @@ class LancamentoInput(BaseModel):
     cod_pro: int | None = None
     ano: str | None = None
     semestre: str | None = None
-    creditos: int | None = None
     alunos: list[LancamentoAluno]
 
 
@@ -116,7 +114,6 @@ def lancar(dados: LancamentoInput, db: Session = Depends(get_db)):
         registro.cod_pro = dados.cod_pro
         registro.ano = dados.ano
         registro.semestre = dados.semestre
-        registro.creditos = dados.creditos
         registro.status = "L"
     db.commit()
     return {"ok": True, "criados": criados, "atualizados": atualizados}

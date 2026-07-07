@@ -2,13 +2,13 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Configuracao via variaveis de ambiente (prefixo STG_) ou arquivo .env."""
+    """Configuracao via variaveis de ambiente (prefixo TOV_) ou arquivo .env."""
 
     db_host: str = "127.0.0.1"
     db_port: int = 3306
     db_user: str = "root"
     db_password: str = ""
-    db_name: str = "stg"
+    db_name: str = "tov"
 
     secret_key: str = "troque-esta-chave-no-deploy"
     token_expire_minutes: int = 60 * 12  # expediente de um dia
@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
     class Config:
-        env_prefix = "STG_"
+        env_prefix = "TOV_"
         env_file = ".env"
 
     @property

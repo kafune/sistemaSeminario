@@ -3,8 +3,8 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import Aluno, AluTurma, Cidade, Curso, Escolaridade, EstadoCivil, Turma
-from .base import PdfStg
+from ..models import Aluno, AluTurma, Turma
+from .base import PdfTov
 
 
 def gerar_lista_turma(db: Session, cod_tur: int) -> bytes:
@@ -20,7 +20,7 @@ def gerar_lista_turma(db: Session, cod_tur: int) -> bytes:
         ).scalars()
     )
 
-    pdf = PdfStg(titulo=f"Alunos da Turma: {turma.nome or cod_tur}")
+    pdf = PdfTov(titulo=f"Alunos da Turma: {turma.nome or cod_tur}")
     pdf.add_page()
     larguras = [12, 80, 30, 30, 40]
     pdf.tabela_cabecalho(
@@ -41,16 +41,12 @@ def gerar_ficha_aluno(db: Session, cod_alu: int) -> bytes:
     if not aluno:
         raise ValueError(f"Aluno {cod_alu} não encontrado")
 
-    cidade = db.get(Cidade, aluno.cod_cid) if aluno.cod_cid else None
-    curso = db.get(Curso, aluno.cd_cur) if aluno.cd_cur else None
     turma = db.get(Turma, aluno.cod_tur) if aluno.cod_tur else None
-    escolaridade = db.get(Escolaridade, aluno.cod_esc) if aluno.cod_esc else None
-    estado_civil = db.get(EstadoCivil, aluno.est_civ) if aluno.est_civ else None
 
     def d(v):
         return v.strftime("%d/%m/%Y") if v else ""
 
-    pdf = PdfStg(titulo="Ficha do Aluno")
+    pdf = PdfTov(titulo="Ficha do Aluno")
     pdf.add_page()
 
     def secao(titulo):
@@ -70,25 +66,24 @@ def gerar_ficha_aluno(db: Session, cod_alu: int) -> bytes:
     campo("Nome:", aluno.nome)
     campo("Nascimento:", d(aluno.dat_nas))
     campo("Sexo:", aluno.sexo)
-    campo("Estado civil:", estado_civil.nome if estado_civil else "")
+    campo("Estado civil:", aluno.est_civ)
     campo("RG:", aluno.rg)
     campo("CPF:", aluno.cpf)
     campo("Profissão:", aluno.profissao)
-    campo("Escolaridade:", escolaridade.nome if escolaridade else "")
+    campo("Escolaridade:", aluno.escolaridade)
     campo("Nacionalidade:", aluno.nacionalidade)
     pdf.ln(3)
 
     secao("Contato")
     campo("Endereço:", f"{aluno.endereco or ''} {aluno.complemento or ''}".strip())
     campo("Bairro:", aluno.bairro)
-    campo("Cidade:", f"{cidade.nome} - {cidade.uf}" if cidade else "")
+    campo("Cidade:", f"{aluno.cidade or ''}{' - ' + aluno.uf if aluno.uf else ''}".strip())
     campo("CEP:", aluno.cep)
     campo("Telefones:", " / ".join(x for x in [aluno.fone1, aluno.fone2, aluno.celular] if x))
     campo("E-mail:", aluno.e_mail)
     pdf.ln(3)
 
     secao("Vida acadêmica")
-    campo("Curso:", curso.nome if curso else "")
     campo("Turma:", turma.nome if turma else "")
     campo("Cadastrado em:", d(aluno.dat_cad))
     campo("Status:", aluno.status)

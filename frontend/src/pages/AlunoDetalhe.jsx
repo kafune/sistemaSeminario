@@ -82,7 +82,7 @@ export default function AlunoDetalhe() {
           <Campo rotulo="RG" valor={aluno.rg} />
           <Campo rotulo="CPF" valor={aluno.cpf} />
           <Campo rotulo="Endereço" valor={`${aluno.endereco || ''} ${aluno.bairro || ''}`.trim()} />
-          <Campo rotulo="Cidade" valor={aluno.cidade_nome} />
+          <Campo rotulo="Cidade" valor={`${aluno.cidade || ''}${aluno.uf ? ' - ' + aluno.uf : ''}`.trim()} />
           <Campo rotulo="CEP" valor={aluno.cep} />
           <Campo rotulo="Telefone" valor={aluno.fone1} />
           <Campo rotulo="Celular" valor={aluno.celular} />
@@ -90,7 +90,6 @@ export default function AlunoDetalhe() {
           <Campo rotulo="Igreja" valor={aluno.igreja} />
           <Campo rotulo="Pastor" valor={aluno.nome_pastor} />
           <Campo rotulo="Profissão" valor={aluno.profissao} />
-          <Campo rotulo="Curso" valor={aluno.curso_nome} />
           <Campo rotulo="Turma" valor={aluno.turma_nome} />
           <Campo rotulo="Status" valor={aluno.status} />
         </Grid>

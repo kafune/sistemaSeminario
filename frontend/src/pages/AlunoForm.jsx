@@ -1,46 +1,29 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Autocomplete, Button, Dialog, DialogActions, DialogContent,
+  Alert, Button, Dialog, DialogActions, DialogContent,
   DialogTitle, Grid, MenuItem, TextField,
 } from '@mui/material'
 import { api } from '../api'
 
 const VAZIO = {
-  nome: '', endereco: '', bairro: '', cod_cid: null, cep: '', fone1: '', fone2: '',
-  celular: '', e_mail: '', sexo: '', cod_esc: null, est_civ: null, dat_nas: null,
-  rg: '', cpf: '', profissao: '', igreja: '', local_igreja: '', nome_pastor: '',
-  status: 'A', nacionalidade: 'BRASILEIRO', cd_cur: null, cod_tur: null,
+  nome: '', endereco: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
+  fone1: '', celular: '', e_mail: '', sexo: '', escolaridade: '', est_civ: '',
+  dat_nas: null, rg: '', cpf: '', profissao: '', igreja: '', local_igreja: '',
+  nome_pastor: '', membro_desde: null, status: 'A', nacionalidade: 'BRASILEIRO',
+  cod_tur: null,
 }
 
 /** Formulário de aluno (criação e edição). `aluno` preenchido = edição. */
 export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
   const [form, setForm] = useState(VAZIO)
-  const [cidades, setCidades] = useState([])
-  const [cursos, setCursos] = useState([])
   const [turmas, setTurmas] = useState([])
-  const [escolaridades, setEscolaridades] = useState([])
-  const [estadosCivis, setEstadosCivis] = useState([])
   const [erro, setErro] = useState('')
 
   useEffect(() => {
     if (!aberto) return
     setErro('')
     setForm(aluno ? { ...VAZIO, ...aluno } : VAZIO)
-    Promise.all([
-      api.get('/apoio/cidades'),
-      api.get('/apoio/cursos'),
-      api.get('/turmas'),
-      api.get('/apoio/escolaridades'),
-      api.get('/apoio/estados-civis'),
-    ])
-      .then(([cid, cur, tur, esc, est]) => {
-        setCidades(cid)
-        setCursos(cur)
-        setTurmas(tur)
-        setEscolaridades(esc)
-        setEstadosCivis(est)
-      })
-      .catch((e) => setErro(e.message))
+    api.get('/turmas').then(setTurmas).catch((e) => setErro(e.message))
   }, [aberto, aluno])
 
   function campo(nome, props = {}) {
@@ -58,8 +41,8 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
     const corpo = { ...form }
     delete corpo.cod_alu
     // strings vazias viram null para campos não-texto
-    for (const k of ['dat_nas', 'cod_cid', 'cod_esc', 'est_civ', 'cd_cur', 'cod_tur']) {
-      if (corpo[k] === '' ) corpo[k] = null
+    for (const k of ['dat_nas', 'membro_desde', 'cod_tur']) {
+      if (corpo[k] === '') corpo[k] = null
     }
     try {
       const salvo = aluno
@@ -104,52 +87,21 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
           <Grid item xs={6} sm={3}>{campo('cpf', { label: 'CPF' })}</Grid>
           <Grid item xs={6} sm={3}>{campo('profissao', { label: 'Profissão' })}</Grid>
           <Grid item xs={12} sm={6}>{campo('endereco', { label: 'Endereço' })}</Grid>
+          <Grid item xs={6} sm={3}>{campo('complemento', { label: 'Complemento' })}</Grid>
           <Grid item xs={6} sm={3}>{campo('bairro', { label: 'Bairro' })}</Grid>
-          <Grid item xs={6} sm={3}>{campo('cep', { label: 'CEP' })}</Grid>
-          <Grid item xs={12} sm={6}>
-            <Autocomplete
-              size="small" options={cidades}
-              getOptionLabel={(c) => `${c.nome ?? ''}${c.uf ? ' - ' + c.uf : ''}`}
-              value={cidades.find((c) => c.cod_cid === form.cod_cid) ?? null}
-              onChange={(_, v) => setForm({ ...form, cod_cid: v ? v.cod_cid : null })}
-              renderInput={(p) => <TextField {...p} label="Cidade" />}
-            />
-          </Grid>
+          <Grid item xs={6} sm={4}>{campo('cidade', { label: 'Cidade' })}</Grid>
+          <Grid item xs={3} sm={2}>{campo('uf', { label: 'UF', inputProps: { maxLength: 2 } })}</Grid>
+          <Grid item xs={3} sm={3}>{campo('cep', { label: 'CEP' })}</Grid>
           <Grid item xs={6} sm={3}>{campo('fone1', { label: 'Telefone' })}</Grid>
           <Grid item xs={6} sm={3}>{campo('celular', { label: 'Celular' })}</Grid>
           <Grid item xs={12} sm={6}>{campo('e_mail', { label: 'E-mail' })}</Grid>
-          <Grid item xs={6} sm={3}>
-            <TextField
-              select size="small" fullWidth label="Escolaridade" value={form.cod_esc ?? ''}
-              onChange={(e) => setForm({ ...form, cod_esc: e.target.value || null })}
-            >
-              {escolaridades.map((e2) => (
-                <MenuItem key={e2.cod_esc} value={e2.cod_esc}>{e2.nome}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <TextField
-              select size="small" fullWidth label="Estado civil" value={form.est_civ ?? ''}
-              onChange={(e) => setForm({ ...form, est_civ: e.target.value || null })}
-            >
-              {estadosCivis.map((e2) => (
-                <MenuItem key={e2.cod_est} value={e2.cod_est}>{e2.nome}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
+          <Grid item xs={6} sm={3}>{campo('escolaridade', { label: 'Escolaridade' })}</Grid>
+          <Grid item xs={6} sm={3}>{campo('est_civ', { label: 'Estado civil' })}</Grid>
           <Grid item xs={12} sm={6}>{campo('igreja', { label: 'Igreja' })}</Grid>
           <Grid item xs={12} sm={6}>{campo('local_igreja', { label: 'Local da igreja' })}</Grid>
           <Grid item xs={12} sm={6}>{campo('nome_pastor', { label: 'Pastor' })}</Grid>
           <Grid item xs={6} sm={3}>
-            <TextField
-              select size="small" fullWidth label="Curso" value={form.cd_cur ?? ''}
-              onChange={(e) => setForm({ ...form, cd_cur: e.target.value || null })}
-            >
-              {cursos.map((c) => (
-                <MenuItem key={c.cod_cur} value={c.cod_cur}>{c.nome}</MenuItem>
-              ))}
-            </TextField>
+            {campo('membro_desde', { label: 'Membro desde', type: 'date', InputLabelProps: { shrink: true } })}
           </Grid>
           <Grid item xs={6} sm={3}>
             <TextField

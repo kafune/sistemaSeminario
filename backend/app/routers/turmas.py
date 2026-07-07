@@ -9,10 +9,7 @@ from ..database import get_db, row_to_dict
 from ..models import (
     Aluno,
     AluTurma,
-    Curso,
     DocTurma,
-    Grade,
-    Horario,
     Materia,
     Professor,
     Turma,
@@ -23,10 +20,9 @@ router = APIRouter(prefix="/turmas", tags=["turmas"])
 
 class TurmaInput(BaseModel):
     nome: str
-    cod_cur: int | None = None
+    curso: str | None = None
+    horario: str | None = None
     dat_ini: date | None = None
-    cod_gra: int | None = None
-    cod_hor: int | None = None
 
 
 class DocTurmaInput(BaseModel):
@@ -40,12 +36,6 @@ class DocTurmaInput(BaseModel):
 
 def _turma_dict(db: Session, turma: Turma) -> dict:
     d = row_to_dict(turma)
-    curso = db.get(Curso, turma.cod_cur) if turma.cod_cur else None
-    grade = db.get(Grade, turma.cod_gra) if turma.cod_gra else None
-    horario = db.get(Horario, turma.cod_hor) if turma.cod_hor else None
-    d["curso_nome"] = curso.nome if curso else None
-    d["grade_nome"] = grade.nome if grade else None
-    d["horario_nome"] = horario.nome if horario else None
     d["qtd_alunos"] = db.scalar(
         select(func.count()).select_from(AluTurma).where(AluTurma.cod_tur == turma.cod_tur)
     )

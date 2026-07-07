@@ -128,8 +128,7 @@ export default function TurmaDetalhe() {
       </Box>
 
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Curso: {turma.curso_nome || '—'} · Grade: {turma.grade_nome || '—'} ·
-        Horário: {turma.horario_nome || '—'} · {turma.qtd_alunos} alunos
+        Curso: {turma.curso || '—'} · Horário: {turma.horario || '—'} · {turma.qtd_alunos} alunos
       </Typography>
 
       <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ mb: 2 }}>

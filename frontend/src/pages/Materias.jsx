@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
-  IconButton, MenuItem, Paper, Snackbar, Table, TableBody, TableCell,
+  IconButton, Paper, Snackbar, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
@@ -11,7 +11,6 @@ import { api } from '../api'
 
 export default function Materias() {
   const [materias, setMaterias] = useState([])
-  const [areas, setAreas] = useState([])
   const [busca, setBusca] = useState('')
   const [form, setForm] = useState(null)
   const [msg, setMsg] = useState('')
@@ -21,7 +20,6 @@ export default function Materias() {
   }
   useEffect(() => {
     carregar()
-    api.get('/apoio/areas').then(setAreas).catch(() => {})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function salvar() {
@@ -75,7 +73,7 @@ export default function Materias() {
                 <TableCell>{m.cod_mat}</TableCell>
                 <TableCell>{m.NOME?.trim()}</TableCell>
                 <TableCell>{m.APELIDO?.trim()}</TableCell>
-                <TableCell>{m.area_nome}</TableCell>
+                <TableCell>{m.area}</TableCell>
                 <TableCell align="right">
                   <IconButton size="small" onClick={() => setForm(m)}><EditIcon fontSize="small" /></IconButton>
                   <IconButton size="small" color="error" onClick={() => excluir(m)}><DeleteIcon fontSize="small" /></IconButton>
@@ -100,10 +98,8 @@ export default function Materias() {
                   onChange={(e) => setForm({ ...form, APELIDO: e.target.value })} />
               </Grid>
               <Grid item xs={6}>
-                <TextField select size="small" fullWidth label="Área" value={form.area ?? ''}
-                  onChange={(e) => setForm({ ...form, area: e.target.value || null })}>
-                  {areas.map((a) => <MenuItem key={a.cod_are} value={a.cod_are}>{a.nome}</MenuItem>)}
-                </TextField>
+                <TextField size="small" fullWidth label="Área" value={form.area ?? ''}
+                  onChange={(e) => setForm({ ...form, area: e.target.value || null })} />
               </Grid>
               <Grid item xs={12}>
                 <TextField size="small" fullWidth label="Observações" multiline rows={2} value={form.observa ?? ''}

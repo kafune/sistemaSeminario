@@ -14,8 +14,10 @@ router = APIRouter(prefix="/professores", tags=["professores"])
 class ProfessorInput(BaseModel):
     nome: str
     endereco: str | None = None
+    complemento: str | None = None
     bairro: str | None = None
-    cod_cid: int | None = None
+    cidade: str | None = None
+    uf: str | None = None
     cep: str | None = None
     fone1: str | None = None
     fone2: str | None = None
@@ -25,12 +27,8 @@ class ProfessorInput(BaseModel):
     dat_nas: date | None = None
     rg: str | None = None
     cpf: str | None = None
-    bco: str | None = None
-    agencia: str | None = None
-    conta: str | None = None
     dat_cad: date | None = None
     est_civ: str | None = None
-    complemento: str | None = None
     status: str | None = None
     nacionalidade: str | None = None
     sigla: str | None = None

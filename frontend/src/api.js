@@ -1,21 +1,21 @@
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 export function getToken() {
-  return localStorage.getItem('stg_token')
+  return localStorage.getItem('tov_token')
 }
 
 export function setSession(token, user) {
-  localStorage.setItem('stg_token', token)
-  localStorage.setItem('stg_user', user)
+  localStorage.setItem('tov_token', token)
+  localStorage.setItem('tov_user', user)
 }
 
 export function clearSession() {
-  localStorage.removeItem('stg_token')
-  localStorage.removeItem('stg_user')
+  localStorage.removeItem('tov_token')
+  localStorage.removeItem('tov_user')
 }
 
 export function getUser() {
-  return localStorage.getItem('stg_user')
+  return localStorage.getItem('tov_user')
 }
 
 async function request(method, path, body) {

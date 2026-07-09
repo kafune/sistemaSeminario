@@ -8,9 +8,7 @@ import Professores from './pages/Professores'
 import Materias from './pages/Materias'
 import Turmas from './pages/Turmas'
 import TurmaDetalhe from './pages/TurmaDetalhe'
-import Grades from './pages/Grades'
 import Notas from './pages/Notas'
-import Apoio from './pages/Apoio'
 import Relatorios from './pages/Relatorios'
 
 function Protegida({ children }) {
@@ -29,9 +27,7 @@ export default function App() {
       <Route path="/materias" element={<Protegida><Materias /></Protegida>} />
       <Route path="/turmas" element={<Protegida><Turmas /></Protegida>} />
       <Route path="/turmas/:codTur" element={<Protegida><TurmaDetalhe /></Protegida>} />
-      <Route path="/grades" element={<Protegida><Grades /></Protegida>} />
       <Route path="/notas" element={<Protegida><Notas /></Protegida>} />
-      <Route path="/apoio" element={<Protegida><Apoio /></Protegida>} />
       <Route path="/relatorios" element={<Protegida><Relatorios /></Protegida>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -1,20 +1,16 @@
-"""Base dos PDFs institucionais — cabeçalho portado do gerador de boletim
-do projetoGi (backendPythonPdf/main.py)."""
-
-import os
+"""Base dos PDFs institucionais do Centro TOV."""
 
 from fpdf import FPDF
 
-LOGO = os.path.join(os.path.dirname(__file__), "logo.png")
+INSTITUICAO = "Centro TOV de Formação Teológica"
+# Preencha quando houver: endereço, CNPJ e telefone aparecem no cabeçalho.
+ENDERECO = ""
+CNPJ = ""
+TELEFONE = ""
 
-INSTITUICAO = "Seminário Teológico de Guarulhos"
-ENDERECO = "Rua Itaverava, 445 - Macedo, Guarulhos - SP"
-CNPJ = "CNPJ: 04.273.604/0001-62"
-TELEFONE = "Tel: (11) 2408-8819"
 
-
-class PdfStg(FPDF):
-    """PDF A4 retrato com o cabeçalho padrão do seminário."""
+class PdfTov(FPDF):
+    """PDF A4 com o cabeçalho padrão do Centro TOV."""
 
     def __init__(self, titulo: str = "", orientation: str = "P"):
         super().__init__(orientation=orientation)
@@ -22,18 +18,13 @@ class PdfStg(FPDF):
         self.set_auto_page_break(True, margin=15)
 
     def header(self):
-        self.image(LOGO, 40, 10, 33)
-        self.set_xy(75, 10)
-        self.set_font("Helvetica", "B", 12)
-        self.cell(0, 6, INSTITUICAO, 0, 1, "L")
-        self.set_xy(75, 15)
+        self.set_font("Helvetica", "B", 14)
+        self.cell(0, 8, INSTITUICAO, 0, 1, "C")
         self.set_font("Helvetica", "", 10)
-        self.cell(0, 6, ENDERECO, 0, 1, "L")
-        self.set_xy(90, 20)
-        self.cell(0, 6, CNPJ, 0, 1, "L")
-        self.set_xy(94, 25)
-        self.cell(0, 6, TELEFONE, 0, 1, "L")
-        self.ln(7)
+        for linha in (ENDERECO, CNPJ, TELEFONE):
+            if linha:
+                self.cell(0, 5, linha, 0, 1, "C")
+        self.ln(5)
         if self.titulo:
             self.set_font("Helvetica", "B", 16)
             self.cell(0, 10, self.titulo, 0, 1, "C")

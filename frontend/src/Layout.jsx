@@ -9,9 +9,7 @@ import SchoolIcon from '@mui/icons-material/School'
 import PersonIcon from '@mui/icons-material/Person'
 import MenuBookIcon from '@mui/icons-material/MenuBook'
 import GroupsIcon from '@mui/icons-material/Groups'
-import GridOnIcon from '@mui/icons-material/GridOn'
 import EditNoteIcon from '@mui/icons-material/EditNote'
-import SettingsIcon from '@mui/icons-material/Settings'
 import DescriptionIcon from '@mui/icons-material/Description'
 import LogoutIcon from '@mui/icons-material/Logout'
 import { clearSession, getUser } from './api'
@@ -23,10 +21,8 @@ const MENU = [
   { rotulo: 'Professores', rota: '/professores', icone: <PersonIcon /> },
   { rotulo: 'Matérias', rota: '/materias', icone: <MenuBookIcon /> },
   { rotulo: 'Turmas', rota: '/turmas', icone: <GroupsIcon /> },
-  { rotulo: 'Grades', rota: '/grades', icone: <GridOnIcon /> },
   { rotulo: 'Notas e Faltas', rota: '/notas', icone: <EditNoteIcon /> },
   { rotulo: 'Relatórios', rota: '/relatorios', icone: <DescriptionIcon /> },
-  { rotulo: 'Cadastros', rota: '/apoio', icone: <SettingsIcon /> },
 ]
 
 export default function Layout({ children }) {
@@ -47,7 +43,7 @@ export default function Layout({ children }) {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
-            STG — Seminário Teológico de Guarulhos
+            Centro TOV de Formação Teológica
           </Typography>
           <Typography variant="body2" sx={{ mr: 1 }}>{getUser()}</Typography>
           <IconButton color="inherit" onClick={sair} title="Sair">

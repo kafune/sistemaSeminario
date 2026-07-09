@@ -30,10 +30,10 @@ export default function Login() {
       <Card sx={{ width: 380 }}>
         <CardContent component="form" onSubmit={entrar} sx={{ p: 4 }}>
           <Typography variant="h5" align="center" gutterBottom color="primary" fontWeight="bold">
-            STG
+            Centro TOV
           </Typography>
           <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
-            Seminário Teológico de Guarulhos
+            Centro TOV de Formação Teológica
           </Typography>
           {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
           <TextField

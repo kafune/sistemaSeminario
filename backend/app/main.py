@@ -1,13 +1,14 @@
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
+from .database import Base, engine
 from .security import usuario_atual
 from .routers import (
     alunos,
-    apoio,
     auth,
-    grades,
     materias,
     notas,
     professores,
@@ -15,10 +16,19 @@ from .routers import (
     turmas,
 )
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Banco novo, sem migração de legado: cria as tabelas que faltarem.
+    Base.metadata.create_all(engine)
+    yield
+
+
 app = FastAPI(
-    title="STG Web",
-    description="Sistema acadêmico do Seminário Teológico de Guarulhos",
+    title="Centro TOV",
+    description="Sistema acadêmico do Centro TOV de Formação Teológica",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -36,9 +46,7 @@ app.include_router(alunos.router, dependencies=protegido)
 app.include_router(professores.router, dependencies=protegido)
 app.include_router(materias.router, dependencies=protegido)
 app.include_router(turmas.router, dependencies=protegido)
-app.include_router(grades.router, dependencies=protegido)
 app.include_router(notas.router, dependencies=protegido)
-app.include_router(apoio.router, dependencies=protegido)
 app.include_router(relatorios.router, dependencies=protegido)
 
 

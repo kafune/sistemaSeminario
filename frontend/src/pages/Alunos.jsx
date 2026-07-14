@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Alert, Box, Button, IconButton, Pagination, Paper, Snackbar, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
+  Alert, Box, Button, IconButton, MenuItem, Pagination, Paper, Snackbar, Table,
+  TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
-import { api, abrirArquivo } from '../api'
+import DownloadIcon from '@mui/icons-material/Download'
+import { api, abrirArquivo, baixarArquivo } from '../api'
 import AlunoForm from './AlunoForm'
 
 const POR_PAGINA = 25
@@ -15,18 +16,21 @@ const POR_PAGINA = 25
 export default function Alunos() {
   const [busca, setBusca] = useState('')
   const [buscaAtiva, setBuscaAtiva] = useState('')
+  const [status, setStatus] = useState('')
   const [dados, setDados] = useState({ total: 0, itens: [] })
   const [pagina, setPagina] = useState(1)
   const [formAberto, setFormAberto] = useState(false)
   const [erro, setErro] = useState('')
   const navigate = useNavigate()
 
+  const filtros = `busca=${encodeURIComponent(buscaAtiva)}${status ? `&status=${status}` : ''}`
+
   useEffect(() => {
     api
-      .get(`/alunos?busca=${encodeURIComponent(buscaAtiva)}&pagina=${pagina}&por_pagina=${POR_PAGINA}`)
+      .get(`/alunos?${filtros}&pagina=${pagina}&por_pagina=${POR_PAGINA}`)
       .then(setDados)
       .catch((e) => setErro(e.message))
-  }, [buscaAtiva, pagina])
+  }, [filtros, pagina])
 
   function pesquisar(e) {
     e.preventDefault()
@@ -43,8 +47,22 @@ export default function Alunos() {
             size="small" label="Buscar por nome ou matrícula" value={busca}
             onChange={(e) => setBusca(e.target.value)} sx={{ width: 300 }}
           />
+          <TextField
+            select size="small" label="Status" value={status} sx={{ width: 120 }}
+            onChange={(e) => { setStatus(e.target.value); setPagina(1) }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            <MenuItem value="A">Ativos</MenuItem>
+            <MenuItem value="I">Inativos</MenuItem>
+          </TextField>
           <Button type="submit" variant="outlined">Buscar</Button>
         </Box>
+        <Button
+          variant="outlined" startIcon={<DownloadIcon />} title="Baixa a lista filtrada em CSV (Excel)"
+          onClick={() => baixarArquivo(`/alunos/exportar.csv?${filtros}`, 'alunos.csv').catch((e) => setErro(e.message))}
+        >
+          Exportar CSV
+        </Button>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setFormAberto(true)}>
           Novo aluno
         </Button>

@@ -9,6 +9,7 @@ from .security import usuario_atual
 from .routers import (
     alunos,
     auth,
+    dashboard,
     materias,
     notas,
     professores,
@@ -42,6 +43,7 @@ app.add_middleware(
 # Login é público; todo o resto exige token
 app.include_router(auth.router)
 protegido = [Depends(usuario_atual)]
+app.include_router(dashboard.router, dependencies=protegido)
 app.include_router(alunos.router, dependencies=protegido)
 app.include_router(professores.router, dependencies=protegido)
 app.include_router(materias.router, dependencies=protegido)

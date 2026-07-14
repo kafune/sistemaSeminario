@@ -5,6 +5,7 @@ import {
   ListItemIcon, ListItemText, Toolbar, Typography,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
+import HomeIcon from '@mui/icons-material/Home'
 import SchoolIcon from '@mui/icons-material/School'
 import PersonIcon from '@mui/icons-material/Person'
 import MenuBookIcon from '@mui/icons-material/MenuBook'
@@ -17,6 +18,7 @@ import { clearSession, getUser } from './api'
 const LARGURA = 230
 
 const MENU = [
+  { rotulo: 'Início', rota: '/', icone: <HomeIcon /> },
   { rotulo: 'Alunos', rota: '/alunos', icone: <SchoolIcon /> },
   { rotulo: 'Professores', rota: '/professores', icone: <PersonIcon /> },
   { rotulo: 'Matérias', rota: '/materias', icone: <MenuBookIcon /> },
@@ -64,7 +66,9 @@ export default function Layout({ children }) {
           {MENU.map((item) => (
             <ListItemButton
               key={item.rota}
-              selected={location.pathname.startsWith(item.rota)}
+              selected={item.rota === '/'
+                ? location.pathname === '/'
+                : location.pathname.startsWith(item.rota)}
               onClick={() => navigate(item.rota)}
             >
               <ListItemIcon>{item.icone}</ListItemIcon>

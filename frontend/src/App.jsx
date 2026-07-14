@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { getToken } from './api'
 import Layout from './Layout'
 import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
 import Alunos from './pages/Alunos'
 import AlunoDetalhe from './pages/AlunoDetalhe'
 import Professores from './pages/Professores'
@@ -20,7 +21,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
-      <Route path="/" element={<Protegida><Alunos /></Protegida>} />
+      <Route path="/" element={<Protegida><Dashboard /></Protegida>} />
       <Route path="/alunos" element={<Protegida><Alunos /></Protegida>} />
       <Route path="/alunos/:codAlu" element={<Protegida><AlunoDetalhe /></Protegida>} />
       <Route path="/professores" element={<Protegida><Professores /></Protegida>} />

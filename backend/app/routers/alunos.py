@@ -1,6 +1,9 @@
+import csv
+import io
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -43,16 +46,7 @@ class AlunoInput(BaseModel):
     cod_tur: int | None = None
 
 
-@router.get("")
-def listar(
-    busca: str = "",
-    cod_tur: int | None = None,
-    status: str | None = None,
-    pagina: int = 1,
-    por_pagina: int = 50,
-    db: Session = Depends(get_db),
-):
-    q = select(Aluno)
+def _aplicar_filtros(q, busca: str, cod_tur: int | None, status: str | None):
     if busca:
         if busca.isdigit():
             q = q.where(Aluno.cod_alu == int(busca))
@@ -62,6 +56,19 @@ def listar(
         q = q.where(Aluno.cod_tur == cod_tur)
     if status:
         q = q.where(Aluno.status == status)
+    return q
+
+
+@router.get("")
+def listar(
+    busca: str = "",
+    cod_tur: int | None = None,
+    status: str | None = None,
+    pagina: int = 1,
+    por_pagina: int = 50,
+    db: Session = Depends(get_db),
+):
+    q = _aplicar_filtros(select(Aluno), busca, cod_tur, status)
     total = db.scalar(select(func.count()).select_from(q.subquery()))
     q = q.order_by(Aluno.nome).offset((pagina - 1) * por_pagina).limit(por_pagina)
     return {
@@ -69,6 +76,56 @@ def listar(
         "pagina": pagina,
         "itens": [row_to_dict(a) for a in db.scalars(q)],
     }
+
+
+# Colunas exportadas no CSV, na ordem: (cabeçalho, nome do campo)
+COLUNAS_CSV = [
+    ("Matrícula", "cod_alu"),
+    ("Nome", "nome"),
+    ("Status", "status"),
+    ("Celular", "celular"),
+    ("Telefone", "fone1"),
+    ("E-mail", "e_mail"),
+    ("Nascimento", "dat_nas"),
+    ("Endereço", "endereco"),
+    ("Complemento", "complemento"),
+    ("Bairro", "bairro"),
+    ("Cidade", "cidade"),
+    ("UF", "uf"),
+    ("CEP", "cep"),
+    ("CPF", "cpf"),
+    ("RG", "rg"),
+    ("Igreja", "igreja"),
+    ("Cadastro", "dat_cad"),
+]
+
+
+@router.get("/exportar.csv")
+def exportar_csv(
+    busca: str = "",
+    cod_tur: int | None = None,
+    status: str | None = None,
+    db: Session = Depends(get_db),
+):
+    """Lista de alunos (com os mesmos filtros da tela) em CSV para o Excel."""
+    q = _aplicar_filtros(select(Aluno), busca, cod_tur, status).order_by(Aluno.nome)
+    buf = io.StringIO()
+    # ; como separador e \r\n: formato que o Excel brasileiro abre direto
+    escritor = csv.writer(buf, delimiter=";", lineterminator="\r\n")
+    escritor.writerow([rotulo for rotulo, _ in COLUNAS_CSV])
+    for aluno in db.scalars(q):
+        linha = []
+        for _, campo in COLUNAS_CSV:
+            v = getattr(aluno, campo)
+            if isinstance(v, date):
+                v = v.strftime("%d/%m/%Y")
+            linha.append("" if v is None else v)
+        escritor.writerow(linha)
+    return Response(
+        content="\ufeff" + buf.getvalue(),  # BOM para o Excel reconhecer UTF-8
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="alunos.csv"'},
+    )
 
 
 @router.get("/{cod_alu}")

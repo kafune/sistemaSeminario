@@ -74,6 +74,25 @@ export async function enviarArquivoEBaixar(path, arquivo, nomeDownload) {
   URL.revokeObjectURL(url)
 }
 
+/** Baixa um arquivo autenticado (CSV, ZIP...) direto para o disco. */
+export async function baixarArquivo(path, nomeDownload) {
+  const res = await fetch(BASE + path, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  })
+  if (!res.ok) {
+    let msg = `Erro ${res.status}`
+    try { msg = (await res.json()).detail || msg } catch { /* ignora */ }
+    throw new Error(msg)
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nomeDownload
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 /** Abre um PDF/ZIP autenticado em nova aba (baixa como blob para levar o token). */
 export async function abrirArquivo(path) {
   const res = await fetch(BASE + path, {

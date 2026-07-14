@@ -5,8 +5,11 @@ do Centro TOV. Banco de dados novo e vazio — sem migração de dados legados.
 
 ## O que tem
 
+- **Página inicial (dashboard)**: totais de alunos/turmas/professores/matérias,
+  alunos por turma, aniversariantes do mês e últimos cadastros
 - **Secretaria acadêmica**: alunos, professores, matérias, turmas,
-  matrícula em turma, vínculo professor×matéria×turma
+  matrícula em turma, vínculo professor×matéria×turma, filtro de
+  ativos/inativos e exportação da lista de alunos em CSV (Excel)
 - **Notas e faltas**: lançamento em grade por turma + matéria (grava em `alunota`)
 - **Relatórios em PDF**: boletim, histórico escolar, diário de classe,
   lista de alunos da turma, ficha do aluno, boletins da turma inteira em ZIP

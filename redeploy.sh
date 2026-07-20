@@ -100,7 +100,7 @@ if (( EUID != 0 )) && [[ "$RELOAD_NGINX" == "1" ]]; then
 fi
 docker compose version >/dev/null 2>&1 || die "o plugin 'docker compose' (v2) não está disponível"
 
-[[ -d "${APP_DIR}/.git" ]] || die "$APP_DIR não é um checkout git"
+[[ -e "${APP_DIR}/.git" ]] || die "$APP_DIR não é um checkout git"
 [[ -f "$COMPOSE_FILE" ]] || die "arquivo compose não encontrado: $COMPOSE_FILE"
 [[ -f "$ENV_FILE" ]] || die "arquivo de segredos não encontrado: $ENV_FILE (defina TOV_DB_PASSWORD, TOV_SECRET_KEY, ...)"
 

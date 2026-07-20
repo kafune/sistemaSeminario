@@ -7,6 +7,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook'
 import GroupsIcon from '@mui/icons-material/Groups'
 import EditNoteIcon from '@mui/icons-material/EditNote'
 import DescriptionIcon from '@mui/icons-material/Description'
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import LogoutIcon from '@mui/icons-material/Logout'
 import { clearSession, getUser } from './api'
 import { TOV } from './theme'
@@ -20,6 +21,7 @@ const MENU = [
   { rotulo: 'Turmas', rota: '/turmas', icone: GroupsIcon },
   { rotulo: 'Notas e Faltas', rota: '/notas', icone: EditNoteIcon },
   { rotulo: 'Relatórios', rota: '/relatorios', icone: DescriptionIcon },
+  { rotulo: 'Usuários', rota: '/usuarios', icone: ManageAccountsIcon },
 ]
 
 function ItemNav({ item, ativo, onClick }) {

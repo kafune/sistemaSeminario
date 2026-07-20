@@ -11,6 +11,7 @@ import Turmas from './pages/Turmas'
 import TurmaDetalhe from './pages/TurmaDetalhe'
 import Notas from './pages/Notas'
 import Relatorios from './pages/Relatorios'
+import Usuarios from './pages/Usuarios'
 
 function Protegida({ children }) {
   if (!getToken()) return <Navigate to="/login" replace />
@@ -30,6 +31,7 @@ export default function App() {
       <Route path="/turmas/:codTur" element={<Protegida><TurmaDetalhe /></Protegida>} />
       <Route path="/notas" element={<Protegida><Notas /></Protegida>} />
       <Route path="/relatorios" element={<Protegida><Relatorios /></Protegida>} />
+      <Route path="/usuarios" element={<Protegida><Usuarios /></Protegida>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

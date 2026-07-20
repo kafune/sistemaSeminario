@@ -15,6 +15,7 @@ from .routers import (
     professores,
     relatorios,
     turmas,
+    usuarios,
 )
 
 
@@ -50,6 +51,7 @@ app.include_router(turmas.router, dependencies=protegido)
 app.include_router(notas.router, dependencies=protegido)
 app.include_router(relatorios.router, dependencies=protegido)
 app.include_router(dashboard.router, dependencies=protegido)
+app.include_router(usuarios.router, dependencies=protegido)
 
 
 @app.get("/health")

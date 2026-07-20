@@ -9,6 +9,7 @@ from .security import usuario_atual
 from .routers import (
     alunos,
     auth,
+    dashboard,
     materias,
     notas,
     professores,
@@ -48,6 +49,7 @@ app.include_router(materias.router, dependencies=protegido)
 app.include_router(turmas.router, dependencies=protegido)
 app.include_router(notas.router, dependencies=protegido)
 app.include_router(relatorios.router, dependencies=protegido)
+app.include_router(dashboard.router, dependencies=protegido)
 
 
 @app.get("/health")

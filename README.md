@@ -73,6 +73,31 @@ No Windows com as ferramentas portáteis em `tools/`, use
 
 Alternativa com Docker: `docker compose up -d` (veja `docker-compose.yml`).
 
+### Redeploy automatizado na VPS
+
+Com o primeiro deploy e os serviços já configurados, execute na raiz do
+checkout:
+
+```bash
+./redeploy.sh
+```
+
+O script atualiza `origin/main`, prepara o virtualenv do backend, instala as
+dependências, gera o frontend, reinicia o serviço systemd `tov`, valida
+`http://127.0.0.1:8000/health`, publica o build em `/var/www/tov` e recarrega o
+nginx. Caminhos e nomes podem ser ajustados sem editar o arquivo:
+
+```bash
+TOV_BACKEND_SERVICE=tov-api \
+TOV_FRONTEND_DIR=/var/www/sistema-tov \
+TOV_VITE_API_URL=/api \
+./redeploy.sh
+```
+
+Veja todas as opções com `./redeploy.sh --help`. O checkout deve estar sem
+alterações locais para evitar que um redeploy sobrescreva trabalho feito na
+VPS.
+
 ## Estrutura
 
 ```

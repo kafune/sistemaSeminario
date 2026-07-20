@@ -2,15 +2,21 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, Autocomplete, Box, Button, Dialog, DialogActions, DialogContent,
-  DialogTitle, Grid, IconButton, MenuItem, Paper, Snackbar, Tab, Table,
-  TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField,
-  Typography,
+  DialogTitle, Grid, IconButton, MenuItem, Snackbar, Tab, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography,
 } from '@mui/material'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import { api, abrirArquivo } from '../api'
+import { TOV } from '../theme'
+import { Regua, cardSx } from '../ui'
+
+function mesAno(iso) {
+  if (!iso) return null
+  const [ano, mes] = iso.split('-')
+  return mes ? `${mes}/${ano}` : ano
+}
 
 export default function TurmaDetalhe() {
   const { codTur } = useParams()
@@ -22,13 +28,13 @@ export default function TurmaDetalhe() {
   const [erro, setErro] = useState(true)
   const navigate = useNavigate()
 
-  // dialogo de matricula
+  // diálogo de matrícula
   const [buscaAluno, setBuscaAluno] = useState('')
   const [opcoesAluno, setOpcoesAluno] = useState([])
   const [alunoSel, setAlunoSel] = useState(null)
   const [dlgMatricula, setDlgMatricula] = useState(false)
 
-  // dialogo de materia
+  // diálogo de matéria
   const [dlgMateria, setDlgMateria] = useState(false)
   const [todasMaterias, setTodasMaterias] = useState([])
   const [professores, setProfessores] = useState([])
@@ -106,44 +112,52 @@ export default function TurmaDetalhe() {
     }
   }
 
-  if (!turma) return <Typography>Carregando...</Typography>
+  if (!turma) return <Typography sx={{ color: TOV.caption }}>Carregando…</Typography>
+
+  const subtitulo = [
+    turma.curso,
+    turma.horario,
+    `${turma.qtd_alunos} alunos`,
+    mesAno(turma.dat_ini) && `início ${mesAno(turma.dat_ini)}`,
+  ].filter(Boolean).join(' · ')
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/turmas')}>Voltar</Button>
-        <Typography variant="h5" sx={{ flexGrow: 1 }}>{turma.nome}</Typography>
-        <Button
-          startIcon={<PictureAsPdfIcon />} variant="outlined"
-          onClick={() => abrirArquivo(`/relatorios/lista-turma/${codTur}`).catch((e) => avisar(e.message))}
-        >
-          Lista de alunos
-        </Button>
-        <Button
-          startIcon={<PictureAsPdfIcon />} variant="outlined"
-          onClick={() => abrirArquivo(`/relatorios/boletim-turma/${codTur}`).catch((e) => avisar(e.message))}
-        >
-          Boletins (ZIP)
-        </Button>
+      <Box onClick={() => navigate('/turmas')} sx={{ fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 2.25, cursor: 'pointer', display: 'inline-block', '&:hover': { color: TOV.coral } }}>
+        ‹ Voltar para Turmas
       </Box>
 
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Curso: {turma.curso || '—'} · Horário: {turma.horario || '—'} · {turma.qtd_alunos} alunos
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 1.75 }}>
+        <Box>
+          <Regua sx={{ mb: 1.75 }} />
+          <Typography variant="h1" sx={{ fontSize: { xs: 30, md: 40 } }}>{turma.nome}</Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
+          <Button variant="outlined" startIcon={<PictureAsPdfIcon />} sx={{ height: 44 }}
+            onClick={() => abrirArquivo(`/relatorios/lista-turma/${codTur}`).catch((e) => avisar(e.message))}>
+            Lista de alunos
+          </Button>
+          <Button variant="contained" startIcon={<PictureAsPdfIcon />} sx={{ height: 44 }}
+            onClick={() => abrirArquivo(`/relatorios/boletim-turma/${codTur}`).catch((e) => avisar(e.message))}>
+            Boletins (ZIP)
+          </Button>
+        </Box>
+      </Box>
+      <Typography sx={{ fontSize: 15, color: TOV.caption, mb: 3 }}>{subtitulo}</Typography>
 
-      <Tabs value={aba} onChange={(_, v) => setAba(v)} sx={{ mb: 2 }}>
+      <Tabs value={aba} onChange={(_, v) => setAba(v)} textColor="primary" indicatorColor="primary"
+        sx={{ mb: 2.75, borderBottom: `2px solid ${TOV.divider}`, minHeight: 0, '& .MuiTab-root': { color: TOV.caption, px: 2.5, py: 1.5 }, '& .Mui-selected': { color: TOV.coral } }}>
         <Tab label={`Alunos (${alunos.length})`} />
         <Tab label={`Matérias e professores (${materias.length})`} />
       </Tabs>
 
       {aba === 0 && (
         <Box>
-          <Button startIcon={<AddIcon />} variant="contained" size="small" sx={{ mb: 1 }}
-            onClick={() => setDlgMatricula(true)}>
+          <Button startIcon={<AddIcon />} variant="contained" sx={{ mb: 2, height: 44 }} onClick={() => setDlgMatricula(true)}>
             Matricular aluno
           </Button>
-          <TableContainer component={Paper}>
-            <Table size="small">
+          <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
+            <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Matrícula</TableCell>
@@ -154,17 +168,15 @@ export default function TurmaDetalhe() {
                 </TableRow>
               </TableHead>
               <TableBody>
+                {alunos.length === 0 && (
+                  <TableRow><TableCell colSpan={5} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhum aluno matriculado.</TableCell></TableRow>
+                )}
                 {alunos.map((a) => (
                   <TableRow key={a.cod_alu} hover>
-                    <TableCell>{a.cod_alu}</TableCell>
-                    <TableCell
-                      sx={{ cursor: 'pointer' }}
-                      onClick={() => navigate(`/alunos/${a.cod_alu}`)}
-                    >
-                      {a.nome}
-                    </TableCell>
-                    <TableCell>{a.celular}</TableCell>
-                    <TableCell>{a.e_mail}</TableCell>
+                    <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{a.cod_alu}</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: TOV.coral, cursor: 'pointer' }} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>{a.nome}</TableCell>
+                    <TableCell sx={{ color: TOV.slate }}>{a.celular || '—'}</TableCell>
+                    <TableCell sx={{ color: TOV.slate }}>{a.e_mail || '—'}</TableCell>
                     <TableCell align="right">
                       <IconButton size="small" color="error" title="Remover da turma" onClick={() => desmatricular(a)}>
                         <DeleteIcon fontSize="small" />
@@ -180,11 +192,11 @@ export default function TurmaDetalhe() {
 
       {aba === 1 && (
         <Box>
-          <Button startIcon={<AddIcon />} variant="contained" size="small" sx={{ mb: 1 }} onClick={abrirDlgMateria}>
+          <Button startIcon={<AddIcon />} variant="contained" sx={{ mb: 2, height: 44 }} onClick={abrirDlgMateria}>
             Adicionar matéria
           </Button>
-          <TableContainer component={Paper}>
-            <Table size="small">
+          <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
+            <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Matéria</TableCell>
@@ -195,17 +207,18 @@ export default function TurmaDetalhe() {
                 </TableRow>
               </TableHead>
               <TableBody>
+                {materias.length === 0 && (
+                  <TableRow><TableCell colSpan={5} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhuma matéria vinculada.</TableCell></TableRow>
+                )}
                 {materias.map((m) => (
                   <TableRow key={m.id} hover>
-                    <TableCell>{m.materia_nome?.trim()}</TableCell>
-                    <TableCell>{m.professor_nome}</TableCell>
-                    <TableCell>{m.Ano}</TableCell>
-                    <TableCell>{m.semestre}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{m.materia_nome?.trim()}</TableCell>
+                    <TableCell sx={{ color: TOV.slate }}>{m.professor_nome || '—'}</TableCell>
+                    <TableCell sx={{ color: TOV.slate }}>{m.Ano || '—'}</TableCell>
+                    <TableCell sx={{ color: TOV.slate }}>{m.semestre ? `${m.semestre}º` : '—'}</TableCell>
                     <TableCell align="right">
-                      <IconButton
-                        size="small" title="Diário de classe (PDF)"
-                        onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?cod_mat=${m.cod_mat}`).catch((e) => avisar(e.message))}
-                      >
+                      <IconButton size="small" title="Diário de classe (PDF)"
+                        onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?cod_mat=${m.cod_mat}`).catch((e) => avisar(e.message))}>
                         <PictureAsPdfIcon fontSize="small" />
                       </IconButton>
                       <IconButton size="small" color="error" onClick={() => removerMateria(m)}>
@@ -233,8 +246,8 @@ export default function TurmaDetalhe() {
             noOptionsText="Digite ao menos 2 letras"
           />
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDlgMatricula(false)}>Cancelar</Button>
+        <DialogActions sx={{ p: 3, pt: 1 }}>
+          <Button onClick={() => setDlgMatricula(false)} variant="outlined">Cancelar</Button>
           <Button variant="contained" onClick={matricular} disabled={!alunoSel}>Matricular</Button>
         </DialogActions>
       </Dialog>
@@ -272,8 +285,8 @@ export default function TurmaDetalhe() {
             </Grid>
           </Grid>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDlgMateria(false)}>Cancelar</Button>
+        <DialogActions sx={{ p: 3, pt: 1 }}>
+          <Button onClick={() => setDlgMateria(false)} variant="outlined">Cancelar</Button>
           <Button variant="contained" onClick={salvarMateria} disabled={!formMateria.cod_mat}>Adicionar</Button>
         </DialogActions>
       </Dialog>

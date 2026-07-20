@@ -1,22 +1,39 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Alert, Box, Button, Chip, Grid, Paper, Snackbar, Table, TableBody, TableCell,
+  Alert, Box, Button, Snackbar, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Typography,
 } from '@mui/material'
-import EditIcon from '@mui/icons-material/Edit'
 import DeleteIcon from '@mui/icons-material/Delete'
-import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
-import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { api, abrirArquivo } from '../api'
+import { TOV } from '../theme'
+import { AvatarIniciais, PilulaStatus, Regua, cardSx } from '../ui'
 import AlunoForm from './AlunoForm'
 
 function Campo({ rotulo, valor }) {
   return (
-    <Grid item xs={12} sm={4}>
-      <Typography variant="caption" color="text.secondary">{rotulo}</Typography>
-      <Typography variant="body2">{valor || '—'}</Typography>
-    </Grid>
+    <Box>
+      <Box sx={{ fontSize: 12, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: '5px' }}>{rotulo}</Box>
+      <Box sx={{ fontSize: 15, fontWeight: 600 }}>{valor || '—'}</Box>
+    </Box>
+  )
+}
+
+function CardResumo({ rotulo, valor, escuro, offwhite, corValor }) {
+  const bg = escuro ? TOV.ink : offwhite ? TOV.offwhite : TOV.white
+  return (
+    <Box sx={{ bgcolor: bg, color: escuro ? '#fff' : TOV.ink, borderRadius: '16px', p: '22px 24px', boxShadow: offwhite ? 'none' : TOV.shadowCard }}>
+      <Box sx={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.2em', color: escuro ? 'rgba(255,255,255,.55)' : TOV.caption, fontFamily: TOV.fontHead, fontWeight: 600 }}>{rotulo}</Box>
+      <Box sx={{ fontFamily: escuro ? TOV.fontHead : TOV.fontBody, fontWeight: 700, fontSize: escuro ? 44 : 17, mt: 1, color: corValor }}>{valor}</Box>
+    </Box>
+  )
+}
+
+function BotaoAcao({ children, primario, onClick }) {
+  return (
+    <Button variant={primario ? 'contained' : 'outlined'} onClick={onClick} sx={{ height: 44 }}>
+      {children}
+    </Button>
   )
 }
 
@@ -35,6 +52,16 @@ export default function AlunoDetalhe() {
 
   useEffect(() => { carregar() }, [carregar])
 
+  const { media, faltas } = useMemo(() => {
+    const comNota = notas.filter((n) => n.nota != null)
+    const soma = comNota.reduce((s, n) => s + Number(n.nota), 0)
+    const totalFaltas = notas.reduce((s, n) => s + (n.falta || 0), 0)
+    return {
+      media: comNota.length ? (soma / comNota.length) : null,
+      faltas: totalFaltas,
+    }
+  }, [notas])
+
   async function excluir() {
     if (!window.confirm(`Excluir o aluno ${aluno.nome}? Esta ação não pode ser desfeita.`)) return
     try {
@@ -45,85 +72,102 @@ export default function AlunoDetalhe() {
     }
   }
 
-  if (!aluno) return <Typography>Carregando...</Typography>
+  if (!aluno) return <Typography sx={{ color: TOV.caption }}>Carregando…</Typography>
+
+  const situacao = { A: 'Em curso', I: 'Inativo', F: 'Formado', T: 'Trancado' }[aluno.status] || '—'
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', gap: 1, mb: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/alunos')}>Voltar</Button>
-        <Typography variant="h5" sx={{ flexGrow: 1 }}>
-          {aluno.nome} <Chip size="small" label={`matrícula ${aluno.cod_alu}`} sx={{ ml: 1 }} />
-        </Typography>
-        <Button startIcon={<EditIcon />} variant="outlined" onClick={() => setEditando(true)}>Editar</Button>
-        <Button
-          startIcon={<PictureAsPdfIcon />} variant="outlined"
-          onClick={() => abrirArquivo(`/relatorios/boletim/${codAlu}`).catch((e) => setMsg(e.message))}
-        >
-          Boletim
-        </Button>
-        <Button
-          startIcon={<PictureAsPdfIcon />} variant="outlined"
-          onClick={() => abrirArquivo(`/relatorios/historico/${codAlu}`).catch((e) => setMsg(e.message))}
-        >
-          Histórico
-        </Button>
-        <Button
-          startIcon={<PictureAsPdfIcon />} variant="outlined"
-          onClick={() => abrirArquivo(`/relatorios/ficha-aluno/${codAlu}`).catch((e) => setMsg(e.message))}
-        >
-          Ficha
-        </Button>
-        <Button startIcon={<DeleteIcon />} color="error" onClick={excluir}>Excluir</Button>
+      <Box onClick={() => navigate('/alunos')} sx={{ fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 2.25, cursor: 'pointer', display: 'inline-block', '&:hover': { color: TOV.coral } }}>
+        ‹ Voltar para Alunos
       </Box>
 
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Grid container spacing={1.5}>
-          <Campo rotulo="Nascimento" valor={aluno.dat_nas} />
-          <Campo rotulo="RG" valor={aluno.rg} />
-          <Campo rotulo="CPF" valor={aluno.cpf} />
-          <Campo rotulo="Endereço" valor={`${aluno.endereco || ''} ${aluno.bairro || ''}`.trim()} />
-          <Campo rotulo="Cidade" valor={`${aluno.cidade || ''}${aluno.uf ? ' - ' + aluno.uf : ''}`.trim()} />
-          <Campo rotulo="CEP" valor={aluno.cep} />
-          <Campo rotulo="Telefone" valor={aluno.fone1} />
-          <Campo rotulo="Celular" valor={aluno.celular} />
-          <Campo rotulo="E-mail" valor={aluno.e_mail} />
-          <Campo rotulo="Igreja" valor={aluno.igreja} />
-          <Campo rotulo="Pastor" valor={aluno.nome_pastor} />
-          <Campo rotulo="Profissão" valor={aluno.profissao} />
-          <Campo rotulo="Turma" valor={aluno.turma_nome} />
-          <Campo rotulo="Status" valor={aluno.status} />
-        </Grid>
-      </Paper>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 3.25 }}>
+        <Box sx={{ display: 'flex', gap: 2.75, alignItems: 'center' }}>
+          <AvatarIniciais nome={aluno.nome} />
+          <Box>
+            <Regua sx={{ mb: 1.5 }} />
+            <Typography variant="h1" sx={{ fontSize: { xs: 30, md: 40 } }}>{aluno.nome}</Typography>
+            <Box sx={{ mt: 1.25, display: 'flex', gap: 1.25, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Box component="span" sx={{ px: 1.75, py: '5px', bgcolor: TOV.ink, color: '#fff', borderRadius: 999, fontSize: 13, fontWeight: 600 }}>Matrícula {aluno.cod_alu}</Box>
+              <PilulaStatus status={aluno.status} sx={{ fontSize: 13 }} />
+              {aluno.turma_nome && <Typography component="span" sx={{ fontSize: 14, color: TOV.caption }}>{aluno.turma_nome}</Typography>}
+            </Box>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <BotaoAcao onClick={() => setEditando(true)}>Editar</BotaoAcao>
+          <BotaoAcao primario onClick={() => abrirArquivo(`/relatorios/boletim/${codAlu}`).catch((e) => setMsg(e.message))}>Boletim</BotaoAcao>
+          <BotaoAcao onClick={() => abrirArquivo(`/relatorios/historico/${codAlu}`).catch((e) => setMsg(e.message))}>Histórico</BotaoAcao>
+          <BotaoAcao onClick={() => abrirArquivo(`/relatorios/ficha-aluno/${codAlu}`).catch((e) => setMsg(e.message))}>Ficha</BotaoAcao>
+        </Box>
+      </Box>
 
-      <Typography variant="h6" gutterBottom>Notas ({notas.length})</Typography>
-      <TableContainer component={Paper}>
-        <Table size="small">
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 300px' }, gap: '18px', mb: 2.5 }}>
+        <Box sx={{ ...cardSx, p: '28px 30px' }}>
+          <Typography variant="h3" sx={{ fontSize: 20, mb: 2.75 }}>Dados cadastrais</Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)' }, gap: '22px 26px' }}>
+            <Campo rotulo="Nascimento" valor={aluno.dat_nas} />
+            <Campo rotulo="CPF" valor={aluno.cpf} />
+            <Campo rotulo="RG" valor={aluno.rg} />
+            <Campo rotulo="E-mail" valor={aluno.e_mail} />
+            <Campo rotulo="Celular" valor={aluno.celular} />
+            <Campo rotulo="Telefone" valor={aluno.fone1} />
+            <Campo rotulo="Cidade" valor={`${aluno.cidade || ''}${aluno.uf ? ' — ' + aluno.uf : ''}`.trim()} />
+            <Campo rotulo="Endereço" valor={`${aluno.endereco || ''}${aluno.bairro ? ' · ' + aluno.bairro : ''}`.trim()} />
+            <Campo rotulo="CEP" valor={aluno.cep} />
+            <Campo rotulo="Igreja" valor={aluno.igreja} />
+            <Campo rotulo="Pastor" valor={aluno.nome_pastor} />
+            <Campo rotulo="Profissão" valor={aluno.profissao} />
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.75 }}>
+          <CardResumo escuro rotulo="Média geral" valor={media != null ? media.toFixed(1).replace('.', ',') : '—'} />
+          <CardResumo rotulo="Faltas acumuladas" valor={faltas} />
+          <CardResumo offwhite rotulo="Situação" valor={situacao} corValor={TOV.coral} />
+        </Box>
+      </Box>
+
+      <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
+        <Box sx={{ p: '22px 28px 4px' }}>
+          <Typography variant="h3" sx={{ fontSize: 20 }}>
+            Notas <Box component="span" sx={{ color: TOV.caption, fontSize: 15, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
+          </Typography>
+        </Box>
+        <Table sx={{ mt: 1 }}>
           <TableHead>
             <TableRow>
               <TableCell>Matéria</TableCell>
               <TableCell>Nota</TableCell>
               <TableCell>Faltas</TableCell>
+              <TableCell>Período</TableCell>
               <TableCell>Cursou</TableCell>
-              <TableCell>Ano</TableCell>
-              <TableCell>Semestre</TableCell>
               <TableCell>Professor</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
+            {notas.length === 0 && (
+              <TableRow><TableCell colSpan={6} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhuma nota lançada.</TableCell></TableRow>
+            )}
             {notas.map((n) => (
               <TableRow key={n.id} hover>
-                <TableCell>{n.materia_nome}</TableCell>
-                <TableCell>{n.nota ?? 'N/C'}</TableCell>
-                <TableCell>{n.falta ?? '—'}</TableCell>
-                <TableCell>{n.cursou}</TableCell>
-                <TableCell>{n.ano}</TableCell>
-                <TableCell>{n.semestre}</TableCell>
-                <TableCell>{n.professor_nome}</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>{n.materia_nome}</TableCell>
+                <TableCell><Box component="span" sx={{ fontWeight: 700, color: n.nota != null ? TOV.coral : TOV.caption }}>{n.nota != null ? String(n.nota).replace('.', ',') : 'N/C'}</Box></TableCell>
+                <TableCell sx={{ color: TOV.slate }}>{n.falta ?? '—'}</TableCell>
+                <TableCell sx={{ color: TOV.slate }}>{n.ano || '—'}{n.semestre ? ` · ${n.semestre}º` : ''}</TableCell>
+                <TableCell sx={{ color: TOV.slate }}>{n.cursou === 'S' ? 'Sim' : n.cursou === 'N' ? 'Não' : (n.cursou || '—')}</TableCell>
+                <TableCell sx={{ color: TOV.slate }}>{n.professor_nome || '—'}</TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+        <Button startIcon={<DeleteIcon />} color="error" onClick={excluir} sx={{ color: TOV.caption, '&:hover': { color: '#d32f2f', bgcolor: 'transparent' } }}>
+          Excluir aluno
+        </Button>
+      </Box>
 
       <AlunoForm
         aberto={editando}

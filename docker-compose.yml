@@ -1,30 +1,59 @@
-# Opcional: sobe tudo em containers (útil na VPS se preferir Docker).
+name: tov
+
 services:
   db:
-    image: mysql:8
+    image: mysql:8.4
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${TOV_DB_PASSWORD:?defina TOV_DB_PASSWORD}
       MYSQL_DATABASE: tov
+      MYSQL_USER: tov
+      MYSQL_PASSWORD: ${TOV_DB_PASSWORD:?defina TOV_DB_PASSWORD}
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     volumes:
       - dbdata:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${TOV_DB_PASSWORD}"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 5s
+      timeout: 5s
       retries: 10
+      start_period: 20s
 
   backend:
     build: ./backend
+    restart: unless-stopped
     environment:
       TOV_DB_HOST: db
+      TOV_DB_USER: tov
       TOV_DB_PASSWORD: ${TOV_DB_PASSWORD}
+      TOV_DB_NAME: tov
       TOV_SECRET_KEY: ${TOV_SECRET_KEY:?defina TOV_SECRET_KEY}
       TOV_CORS_ORIGINS: ${TOV_CORS_ORIGINS:-http://localhost}
     depends_on:
       db:
         condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${TOV_HTTP_PORT:-8084}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   dbdata:

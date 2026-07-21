@@ -8,7 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina } from '../ui'
+import { CabecalhoPagina, CartaoLista, LinhaCartao, useDialogoTelaCheia } from '../ui'
 
 const VAZIA = { NOME: '', APELIDO: '', area: '', observa: '' }
 
@@ -26,6 +26,7 @@ export default function Materias() {
   const [carregando, setCarregando] = useState(true)
   const [form, setForm] = useState(null)
   const [msg, setMsg] = useState('')
+  const telaCheia = useDialogoTelaCheia()
 
   function carregar() {
     setCarregando(true)
@@ -90,8 +91,35 @@ export default function Materias() {
         acoes={acoes}
       />
 
-      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
-        <Table>
+      {/* Lista em cards — celular/tablet */}
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+        {carregando && materias.length === 0 && (
+          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
+        )}
+        {!carregando && materias.length === 0 && (
+          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 5 }}>Nenhuma matéria encontrada.</CartaoLista>
+        )}
+        {materias.map((m) => (
+          <CartaoLista key={m.cod_mat}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Box sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3 }}>{m.NOME?.trim()}</Box>
+                <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>MT-{String(m.cod_mat).padStart(2, '0')}</Box>
+              </Box>
+              <PilulaArea area={m.area?.trim()} />
+            </Box>
+            <LinhaCartao rotulo="Apelido" valor={m.APELIDO?.trim()} />
+            <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
+              <Button size="small" variant="outlined" fullWidth onClick={() => setForm({ ...m })}>Editar</Button>
+              <Button size="small" variant="outlined" color="error" fullWidth onClick={() => excluir(m)}>Excluir</Button>
+            </Box>
+          </CartaoLista>
+        ))}
+      </Box>
+
+      {/* Tabela — desktop */}
+      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard, display: { xs: 'none', md: 'block' } }}>
+        <Table sx={{ minWidth: 680 }}>
           <TableHead>
             <TableRow>
               <TableCell sx={{ width: 100 }}>Código</TableCell>
@@ -133,7 +161,7 @@ export default function Materias() {
         </Table>
       </TableContainer>
 
-      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.cod_mat ? 'Editar matéria' : 'Nova matéria'}</DialogTitle>
         <DialogContent>
           {form && (

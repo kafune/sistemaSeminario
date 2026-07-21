@@ -4,6 +4,7 @@ import {
   DialogTitle, Grid, MenuItem, TextField,
 } from '@mui/material'
 import { api } from '../api'
+import { useDialogoTelaCheia } from '../ui'
 
 const VAZIO = {
   nome: '', endereco: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
@@ -18,6 +19,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
   const [form, setForm] = useState(VAZIO)
   const [turmas, setTurmas] = useState([])
   const [erro, setErro] = useState('')
+  const telaCheia = useDialogoTelaCheia()
 
   useEffect(() => {
     if (!aberto) return
@@ -55,7 +57,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
   }
 
   return (
-    <Dialog open={aberto} onClose={aoFechar} maxWidth="md" fullWidth>
+    <Dialog open={aberto} onClose={aoFechar} maxWidth="md" fullWidth fullScreen={telaCheia}>
       <DialogTitle>{aluno ? `Editar aluno ${aluno.cod_alu}` : 'Novo aluno'}</DialogTitle>
       <DialogContent>
         {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
@@ -115,8 +117,8 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
           </Grid>
         </Grid>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={aoFechar}>Cancelar</Button>
+      <DialogActions sx={{ p: { xs: 2, sm: 3 }, pt: { xs: 1.5, sm: 1.5 }, '& > button': { flex: { xs: 1, sm: '0 0 auto' } } }}>
+        <Button variant="outlined" onClick={aoFechar}>Cancelar</Button>
         <Button variant="contained" onClick={salvar} disabled={!form.nome}>Salvar</Button>
       </DialogActions>
     </Dialog>

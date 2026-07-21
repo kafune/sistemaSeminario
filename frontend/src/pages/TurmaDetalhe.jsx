@@ -10,7 +10,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { Regua, cardSx } from '../ui'
+import { CartaoLista, LinhaCartao, Regua, cardSx, useDialogoTelaCheia } from '../ui'
 
 function mesAno(iso) {
   if (!iso) return null
@@ -27,6 +27,7 @@ export default function TurmaDetalhe() {
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState(true)
   const navigate = useNavigate()
+  const telaCheia = useDialogoTelaCheia()
 
   // diálogo de matrícula
   const [buscaAluno, setBuscaAluno] = useState('')
@@ -132,7 +133,7 @@ export default function TurmaDetalhe() {
           <Regua sx={{ mb: 1.75 }} />
           <Typography variant="h1" sx={{ fontSize: { xs: 30, md: 40 } }}>{turma.nome}</Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, '& > *': { flexGrow: { xs: 1, sm: 0 } } }}>
           <Button variant="outlined" startIcon={<PictureAsPdfIcon />} sx={{ height: 44 }}
             onClick={() => abrirArquivo(`/relatorios/lista-turma/${codTur}`).catch((e) => avisar(e.message))}>
             Lista de alunos
@@ -146,18 +147,44 @@ export default function TurmaDetalhe() {
       <Typography sx={{ fontSize: 15, color: TOV.caption, mb: 3 }}>{subtitulo}</Typography>
 
       <Tabs value={aba} onChange={(_, v) => setAba(v)} textColor="primary" indicatorColor="primary"
-        sx={{ mb: 2.75, borderBottom: `2px solid ${TOV.divider}`, minHeight: 0, '& .MuiTab-root': { color: TOV.caption, px: 2.5, py: 1.5 }, '& .Mui-selected': { color: TOV.coral } }}>
+        variant="scrollable" allowScrollButtonsMobile
+        sx={{ mb: 2.75, borderBottom: `2px solid ${TOV.divider}`, minHeight: 0, '& .MuiTab-root': { color: TOV.caption, px: { xs: 1.5, sm: 2.5 }, py: 1.5, fontSize: { xs: 14, sm: 15 } }, '& .Mui-selected': { color: TOV.coral } }}>
         <Tab label={`Alunos (${alunos.length})`} />
         <Tab label={`Matérias e professores (${materias.length})`} />
       </Tabs>
 
       {aba === 0 && (
         <Box>
-          <Button startIcon={<AddIcon />} variant="contained" sx={{ mb: 2, height: 44 }} onClick={() => setDlgMatricula(true)}>
+          <Button startIcon={<AddIcon />} variant="contained" sx={{ mb: 2, height: 44, width: { xs: '100%', sm: 'auto' } }} onClick={() => setDlgMatricula(true)}>
             Matricular aluno
           </Button>
-          <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
-            <Table>
+
+          {/* Lista em cards — celular/tablet */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+            {alunos.length === 0 && (
+              <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhum aluno matriculado.</CartaoLista>
+            )}
+            {alunos.map((a) => (
+              <CartaoLista key={a.cod_alu} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Box sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3 }}>{a.nome}</Box>
+                    <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>Matrícula {a.cod_alu}</Box>
+                  </Box>
+                  <IconButton size="small" color="error" title="Remover da turma"
+                    onClick={(e) => { e.stopPropagation(); desmatricular(a) }}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+                <LinhaCartao rotulo="Celular" valor={a.celular} />
+                <LinhaCartao rotulo="E-mail" valor={a.e_mail} />
+              </CartaoLista>
+            ))}
+          </Box>
+
+          {/* Tabela — desktop */}
+          <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden', display: { xs: 'none', md: 'block' } }}>
+            <Table sx={{ minWidth: 720 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Matrícula</TableCell>
@@ -192,11 +219,42 @@ export default function TurmaDetalhe() {
 
       {aba === 1 && (
         <Box>
-          <Button startIcon={<AddIcon />} variant="contained" sx={{ mb: 2, height: 44 }} onClick={abrirDlgMateria}>
+          <Button startIcon={<AddIcon />} variant="contained" sx={{ mb: 2, height: 44, width: { xs: '100%', sm: 'auto' } }} onClick={abrirDlgMateria}>
             Adicionar matéria
           </Button>
-          <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
-            <Table>
+
+          {/* Lista em cards — celular/tablet */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+            {materias.length === 0 && (
+              <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhuma matéria vinculada.</CartaoLista>
+            )}
+            {materias.map((m) => (
+              <CartaoLista key={m.id}>
+                <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Box sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3 }}>{m.materia_nome?.trim()}</Box>
+                    <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>
+                      {m.Ano || '—'}{m.semestre ? ` · ${m.semestre}º semestre` : ''}
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexShrink: 0 }}>
+                    <IconButton size="small" title="Diário de classe (PDF)"
+                      onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?cod_mat=${m.cod_mat}`).catch((e) => avisar(e.message))}>
+                      <PictureAsPdfIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton size="small" color="error" onClick={() => removerMateria(m)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Box>
+                <LinhaCartao rotulo="Professor" valor={m.professor_nome} />
+              </CartaoLista>
+            ))}
+          </Box>
+
+          {/* Tabela — desktop */}
+          <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden', display: { xs: 'none', md: 'block' } }}>
+            <Table sx={{ minWidth: 720 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Matéria</TableCell>
@@ -233,7 +291,7 @@ export default function TurmaDetalhe() {
         </Box>
       )}
 
-      <Dialog open={dlgMatricula} onClose={() => setDlgMatricula(false)} maxWidth="sm" fullWidth>
+      <Dialog open={dlgMatricula} onClose={() => setDlgMatricula(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         <DialogTitle>Matricular aluno</DialogTitle>
         <DialogContent>
           <Autocomplete
@@ -252,7 +310,7 @@ export default function TurmaDetalhe() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={dlgMateria} onClose={() => setDlgMateria(false)} maxWidth="sm" fullWidth>
+      <Dialog open={dlgMateria} onClose={() => setDlgMateria(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         <DialogTitle>Adicionar matéria à turma</DialogTitle>
         <DialogContent>
           <Grid container spacing={1.5} sx={{ mt: 0 }}>

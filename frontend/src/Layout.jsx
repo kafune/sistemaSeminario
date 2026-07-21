@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Box, Typography } from '@mui/material'
+import { AppBar, Box, Drawer, IconButton, Toolbar, Typography } from '@mui/material'
+import MenuIcon from '@mui/icons-material/Menu'
 import SpaceDashboardIcon from '@mui/icons-material/SpaceDashboard'
 import SchoolIcon from '@mui/icons-material/School'
 import PersonIcon from '@mui/icons-material/Person'
@@ -49,64 +51,125 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const usuario = getUser() || 'Usuário'
+  const [menuAberto, setMenuAberto] = useState(false)
 
   function sair() {
     clearSession()
     navigate('/login')
   }
 
+  function irPara(rota) {
+    setMenuAberto(false)
+    navigate(rota)
+  }
+
   const estaAtivo = (item) =>
     item.exato ? location.pathname === item.rota : location.pathname.startsWith(item.rota)
 
+  const tituloAtual = MENU.find(estaAtivo)?.rotulo || 'TOV'
+
+  const conteudoMenu = (
+    <>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, px: 1, mb: 2.5 }}>
+        <Typography component="span" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 27, letterSpacing: '-.02em' }}>
+          TOV
+        </Typography>
+        <Typography component="span" sx={{ fontSize: 11, opacity: 0.75 }}>acadêmico</Typography>
+      </Box>
+
+      <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 600, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,.6)', px: 1.25, mb: 0.75 }}>
+        Secretaria
+      </Box>
+
+      {MENU.map((item) => (
+        <ItemNav key={item.rota} item={item} ativo={estaAtivo(item)} onClick={() => irPara(item.rota)} />
+      ))}
+
+      <Box
+        sx={{
+          mt: 'auto', display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5,
+          borderRadius: '12px', bgcolor: 'rgba(255,255,255,.12)',
+        }}
+      >
+        <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#fff', color: TOV.coral, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>
+          {iniciais(usuario)}
+        </Box>
+        <Box sx={{ lineHeight: 1.2, overflow: 'hidden' }}>
+          <Box sx={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{usuario}</Box>
+          <Box sx={{ fontSize: 12, opacity: 0.8 }}>Secretaria</Box>
+        </Box>
+        <Box
+          onClick={sair}
+          title="Sair"
+          sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 12, opacity: 0.85, cursor: 'pointer', p: 0.5, '&:hover': { opacity: 1 } }}
+        >
+          <LogoutIcon sx={{ fontSize: 16 }} /> Sair
+        </Box>
+      </Box>
+    </>
+  )
+
+  const estiloPainel = {
+    bgcolor: TOV.coral, color: '#fff', p: '30px 20px',
+    display: 'flex', flexDirection: 'column', gap: 0.75,
+  }
+
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: TOV.offwhite }}>
+      {/* Barra superior — só no mobile/tablet */}
+      <AppBar
+        position="fixed"
+        elevation={0}
+        sx={{ display: { xs: 'flex', md: 'none' }, bgcolor: TOV.coral }}
+      >
+        <Toolbar sx={{ gap: 1, minHeight: { xs: 60 } }}>
+          <IconButton edge="start" color="inherit" aria-label="Abrir menu" onClick={() => setMenuAberto(true)}>
+            <MenuIcon />
+          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
+            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 20, letterSpacing: '-.02em' }}>TOV</Typography>
+            <Typography noWrap sx={{ fontSize: 13, opacity: 0.85 }}>{tituloAtual}</Typography>
+          </Box>
+          <IconButton edge="end" color="inherit" aria-label="Sair" onClick={sair} sx={{ ml: 'auto' }}>
+            <LogoutIcon sx={{ fontSize: 20 }} />
+          </IconButton>
+        </Toolbar>
+      </AppBar>
+
+      {/* Menu gaveta — mobile/tablet */}
+      <Drawer
+        variant="temporary"
+        open={menuAberto}
+        onClose={() => setMenuAberto(false)}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': { ...estiloPainel, width: 280, maxWidth: '85vw', border: 0 },
+        }}
+      >
+        {conteudoMenu}
+      </Drawer>
+
+      {/* Sidebar fixa — desktop */}
       <Box
         component="aside"
         sx={{
-          width: TOV.sidebarW, flex: `0 0 ${TOV.sidebarW}px`, bgcolor: TOV.coral, color: '#fff',
-          p: '30px 20px', display: 'flex', flexDirection: 'column', gap: 0.75,
+          ...estiloPainel,
+          display: { xs: 'none', md: 'flex' },
+          width: TOV.sidebarW, flex: `0 0 ${TOV.sidebarW}px`,
           position: 'sticky', top: 0, height: '100vh', alignSelf: 'flex-start',
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, px: 1, mb: 2.5 }}>
-          <Typography component="span" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 27, letterSpacing: '-.02em' }}>
-            TOV
-          </Typography>
-          <Typography component="span" sx={{ fontSize: 11, opacity: 0.75 }}>acadêmico</Typography>
-        </Box>
-
-        <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 600, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,.6)', px: 1.25, mb: 0.75 }}>
-          Secretaria
-        </Box>
-
-        {MENU.map((item) => (
-          <ItemNav key={item.rota} item={item} ativo={estaAtivo(item)} onClick={() => navigate(item.rota)} />
-        ))}
-
-        <Box
-          sx={{
-            mt: 'auto', display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5,
-            borderRadius: '12px', bgcolor: 'rgba(255,255,255,.12)',
-          }}
-        >
-          <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#fff', color: TOV.coral, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>
-            {iniciais(usuario)}
-          </Box>
-          <Box sx={{ lineHeight: 1.2, overflow: 'hidden' }}>
-            <Box sx={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{usuario}</Box>
-            <Box sx={{ fontSize: 12, opacity: 0.8 }}>Secretaria</Box>
-          </Box>
-          <Box
-            onClick={sair}
-            title="Sair"
-            sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 12, opacity: 0.85, cursor: 'pointer', '&:hover': { opacity: 1 } }}
-          >
-            <LogoutIcon sx={{ fontSize: 16 }} /> Sair
-          </Box>
-        </Box>
+        {conteudoMenu}
       </Box>
 
-      <Box component="main" sx={{ flexGrow: 1, minWidth: 0, bgcolor: TOV.offwhite, p: { xs: 2.5, md: '38px 44px' } }}>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1, minWidth: 0, bgcolor: TOV.offwhite,
+          p: { xs: '80px 16px 32px', sm: '84px 24px 40px', md: '38px 44px' },
+        }}
+      >
         {children}
       </Box>
     </Box>

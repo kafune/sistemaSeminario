@@ -27,9 +27,9 @@ function semestreAtual(d) {
 /** Cartão de métrica. `escuro` inverte para o card preto de destaque. */
 function CardMetrica({ rotulo, valor, nota, escuro }) {
   return (
-    <Box sx={{ bgcolor: escuro ? TOV.ink : TOV.white, color: escuro ? '#fff' : TOV.ink, borderRadius: '16px', p: '24px 26px', boxShadow: TOV.shadowCard }}>
+    <Box sx={{ bgcolor: escuro ? TOV.ink : TOV.white, color: escuro ? '#fff' : TOV.ink, borderRadius: '16px', p: { xs: '20px', md: '24px 26px' }, boxShadow: TOV.shadowCard }}>
       <Eyebrow sx={{ color: escuro ? 'rgba(255,255,255,.55)' : TOV.caption }}>{rotulo}</Eyebrow>
-      <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 46, mt: 1.25, lineHeight: 1 }}>{valor}</Typography>
+      <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 38, md: 46 }, mt: 1.25, lineHeight: 1 }}>{valor}</Typography>
       {nota && <Typography sx={{ mt: 0.75, fontSize: 13, fontWeight: nota.destaque ? 600 : 400, color: nota.destaque ? TOV.coral : (escuro ? 'rgba(255,255,255,.7)' : TOV.slate) }}>{nota.texto}</Typography>}
     </Box>
   )
@@ -84,7 +84,7 @@ export default function Dashboard() {
 
       {/* Matrículas por curso + Atividade recente */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.55fr 1fr' }, gap: '18px' }}>
-        <Box sx={{ bgcolor: TOV.white, borderRadius: '16px', p: '28px 30px', boxShadow: TOV.shadowCard }}>
+        <Box sx={{ bgcolor: TOV.white, borderRadius: '16px', p: { xs: '20px', md: '28px 30px' }, boxShadow: TOV.shadowCard }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.75 }}>
             <Typography variant="h3" sx={{ fontSize: 22 }}>Matrículas por curso</Typography>
             <Typography sx={{ fontSize: 13, color: TOV.caption }}>{semestreAtual(agora)}</Typography>
@@ -110,7 +110,7 @@ export default function Dashboard() {
           )}
         </Box>
 
-        <Box sx={{ bgcolor: TOV.white, borderRadius: '16px', p: '28px 30px', boxShadow: TOV.shadowCard }}>
+        <Box sx={{ bgcolor: TOV.white, borderRadius: '16px', p: { xs: '20px', md: '28px 30px' }, boxShadow: TOV.shadowCard }}>
           <Typography variant="h3" sx={{ fontSize: 22, mb: 2.5 }}>Atividade recente</Typography>
           {!dados ? (
             [0, 1, 2, 3].map((i) => <Skeleton key={i} height={38} sx={{ mb: 1 }} />)

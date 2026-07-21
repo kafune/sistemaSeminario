@@ -8,7 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, PilulaStatus } from '../ui'
+import { CabecalhoPagina, CartaoLista, LinhaCartao, PilulaStatus } from '../ui'
 import AlunoForm from './AlunoForm'
 
 const POR_PAGINA = 25
@@ -98,8 +98,38 @@ export default function Alunos() {
         ))}
       </Box>
 
-      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
-        <Table>
+      {/* Lista em cards — celular/tablet */}
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+        {carregando && dados.itens.length === 0 && (
+          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
+        )}
+        {!carregando && dados.itens.length === 0 && (
+          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 5 }}>Nenhum aluno encontrado.</CartaoLista>
+        )}
+        {dados.itens.map((a) => (
+          <CartaoLista key={a.cod_alu} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Box sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3 }}>{a.nome}</Box>
+                <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>Matrícula {a.cod_alu}</Box>
+              </Box>
+              <PilulaStatus status={a.status} sx={{ flexShrink: 0 }} />
+            </Box>
+            <LinhaCartao rotulo="Celular" valor={a.celular || a.fone1} />
+            <Box
+              onClick={(e) => e.stopPropagation()}
+              sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}
+            >
+              <Button size="small" variant="outlined" fullWidth onClick={() => navigate(`/alunos/${a.cod_alu}`)}>Ver ficha</Button>
+              <Button size="small" variant="outlined" fullWidth onClick={() => abrirArquivo(`/relatorios/boletim/${a.cod_alu}`).catch((e) => setErro(e.message))}>Boletim (PDF)</Button>
+            </Box>
+          </CartaoLista>
+        ))}
+      </Box>
+
+      {/* Tabela — desktop */}
+      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard, display: { xs: 'none', md: 'block' } }}>
+        <Table sx={{ minWidth: 760 }}>
           <TableHead>
             <TableRow>
               <TableCell>Matrícula</TableCell>
@@ -142,7 +172,7 @@ export default function Alunos() {
           {dados.total === 0 ? 'Nenhum registro' : `Mostrando ${inicio}–${fim} de ${dados.total}`}
         </Typography>
         <Pagination
-          count={totalPaginas} page={pagina} onChange={(_, p) => setPagina(p)} shape="rounded"
+          count={totalPaginas} page={pagina} onChange={(_, p) => setPagina(p)} shape="rounded" siblingCount={0}
           sx={{
             '& .MuiPaginationItem-root': { borderRadius: '10px', bgcolor: TOV.white, fontWeight: 600, color: TOV.slate, minWidth: 38, height: 38, boxShadow: TOV.shadowCard },
             '& .Mui-selected': { bgcolor: `${TOV.coral} !important`, color: '#fff' },

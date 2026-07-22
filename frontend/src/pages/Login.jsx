@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Box, Button, TextField, Typography } from '@mui/material'
+import { Alert, Box, Button, IconButton, InputAdornment, TextField, Typography } from '@mui/material'
+import Visibility from '@mui/icons-material/Visibility'
+import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { api, setSession } from '../api'
 import { TOV } from '../theme'
 import { Eyebrow, Regua } from '../ui'
@@ -10,6 +12,7 @@ export default function Login() {
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
   const [carregando, setCarregando] = useState(false)
+  const [mostrarSenha, setMostrarSenha] = useState(false)
   const navigate = useNavigate()
 
   async function entrar(e) {
@@ -65,15 +68,32 @@ export default function Login() {
 
           {erro && <Alert severity="error" sx={{ mt: 3 }}>{erro}</Alert>}
 
-          <Typography component="label" sx={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOV.slate, mt: erro ? 2 : 4, mb: 1 }}>Usuário</Typography>
+          <Typography component="label" htmlFor="campo-usuario" sx={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOV.slate, mt: erro ? 2 : 4, mb: 1 }}>Usuário</Typography>
           <TextField
             fullWidth value={user} autoFocus placeholder="ADMIN"
+            id="campo-usuario"
+            inputProps={{ autoComplete: 'username', autoCapitalize: 'characters' }}
             onChange={(e) => setUser(e.target.value.toUpperCase())}
           />
 
-          <Typography component="label" sx={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOV.slate, mt: 2.5, mb: 1 }}>Senha</Typography>
+          <Typography component="label" htmlFor="campo-senha" sx={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOV.slate, mt: 2.5, mb: 1 }}>Senha</Typography>
           <TextField
-            fullWidth type="password" value={senha} placeholder="••••••••"
+            fullWidth type={mostrarSenha ? 'text' : 'password'} value={senha} placeholder="••••••••"
+            id="campo-senha"
+            inputProps={{ autoComplete: 'current-password' }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+                    onClick={() => setMostrarSenha((v) => !v)}
+                    edge="end"
+                  >
+                    {mostrarSenha ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
             onChange={(e) => setSenha(e.target.value)}
           />
 

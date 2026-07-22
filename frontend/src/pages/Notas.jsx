@@ -85,8 +85,24 @@ export default function Notas() {
 
   const sujas = linhas.filter((l) => l._dirty)
 
+  const notaInvalida = (l) => l.nota !== '' && (Number.isNaN(Number(l.nota)) || Number(l.nota) < 0 || Number(l.nota) > 10)
+  const faltaInvalida = (l) => l.falta !== '' && (Number.isNaN(Number(l.falta)) || Number(l.falta) < 0)
+  const temInvalida = linhas.some((l) => notaInvalida(l) || faltaInvalida(l))
+
+  // Evita perder lançamentos não salvos ao fechar/recarregar a aba.
+  useEffect(() => {
+    if (sujas.length === 0) return
+    const avisarSaida = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', avisarSaida)
+    return () => window.removeEventListener('beforeunload', avisarSaida)
+  }, [sujas.length])
+
   async function salvarGrade() {
     if (!docSel || sujas.length === 0) return
+    if (temInvalida) {
+      avisar('Há valores inválidos na grade: nota deve ficar entre 0 e 10 e faltas não podem ser negativas.')
+      return
+    }
     setSalvando(true)
     try {
       await api.post('/notas/lancar', {
@@ -112,18 +128,22 @@ export default function Notas() {
     }
   }
 
-  const celulaInput = (l, campo, props) => (
-    <TextField
-      type="number" size="small" value={l[campo]}
-      onChange={(e) => editarLinha(l.cod_alu, campo, e.target.value)}
-      inputProps={{ style: { textAlign: 'center', fontWeight: 700 }, ...props }}
-      sx={{
-        width: 88,
-        '& .MuiOutlinedInput-root': { height: 42 },
-        '& fieldset': { borderColor: l._dirty ? TOV.coral : TOV.border },
-      }}
-    />
-  )
+  const celulaInput = (l, campo, props) => {
+    const invalida = campo === 'nota' ? notaInvalida(l) : faltaInvalida(l)
+    return (
+      <TextField
+        type="number" size="small" value={l[campo]}
+        error={invalida}
+        onChange={(e) => editarLinha(l.cod_alu, campo, e.target.value)}
+        inputProps={{ style: { textAlign: 'center', fontWeight: 700 }, 'aria-label': campo === 'nota' ? `Nota de ${l.nome}` : `Faltas de ${l.nome}`, ...props }}
+        sx={{
+          width: 88,
+          '& .MuiOutlinedInput-root': { height: 42 },
+          ...(invalida ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.coral : TOV.border } }),
+        }}
+      />
+    )
+  }
 
   return (
     <Box>
@@ -168,7 +188,7 @@ export default function Notas() {
           </Button>
           <Button variant="contained" startIcon={<SaveIcon />} disabled={!docSel || sujas.length === 0 || salvando} sx={{ height: 48 }}
             onClick={salvarGrade}>
-            {salvando ? 'Salvando…' : `Salvar grade${sujas.length ? ` (${sujas.length})` : ''}`}
+            {salvando ? 'Salvando…' : temInvalida ? 'Corrija os valores' : `Salvar grade${sujas.length ? ` (${sujas.length})` : ''}`}
           </Button>
         </Box>
       </Box>
@@ -208,15 +228,17 @@ export default function Notas() {
                   <Box sx={{ display: 'flex', gap: 1.25 }}>
                     <TextField
                       type="number" size="small" fullWidth label="Nota (0–10)" value={l.nota}
+                      error={notaInvalida(l)}
                       onChange={(e) => editarLinha(l.cod_alu, 'nota', e.target.value)}
                       inputProps={{ min: 0, max: 10, step: 0.1, inputMode: 'decimal', style: { fontWeight: 700 } }}
-                      sx={{ '& fieldset': { borderColor: l._dirty ? TOV.coral : TOV.border } }}
+                      sx={notaInvalida(l) ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.coral : TOV.border } }}
                     />
                     <TextField
                       type="number" size="small" fullWidth label="Faltas" value={l.falta}
+                      error={faltaInvalida(l)}
                       onChange={(e) => editarLinha(l.cod_alu, 'falta', e.target.value)}
                       inputProps={{ min: 0, step: 1, inputMode: 'numeric', style: { fontWeight: 700 } }}
-                      sx={{ '& fieldset': { borderColor: l._dirty ? TOV.coral : TOV.border } }}
+                      sx={faltaInvalida(l) ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.coral : TOV.border } }}
                     />
                   </Box>
                 </CartaoLista>

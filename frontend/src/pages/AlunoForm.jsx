@@ -19,6 +19,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
   const [form, setForm] = useState(VAZIO)
   const [turmas, setTurmas] = useState([])
   const [erro, setErro] = useState('')
+  const [salvando, setSalvando] = useState(false)
   const telaCheia = useDialogoTelaCheia()
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
 
   async function salvar() {
     setErro('')
+    setSalvando(true)
     const corpo = { ...form }
     delete corpo.cod_alu
     // strings vazias viram null para campos não-texto
@@ -53,6 +55,8 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
       aoSalvar(salvo)
     } catch (e) {
       setErro(e.message)
+    } finally {
+      setSalvando(false)
     }
   }
 
@@ -118,8 +122,10 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
         </Grid>
       </DialogContent>
       <DialogActions sx={{ p: { xs: 2, sm: 3 }, pt: { xs: 1.5, sm: 1.5 }, '& > button': { flex: { xs: 1, sm: '0 0 auto' } } }}>
-        <Button variant="outlined" onClick={aoFechar}>Cancelar</Button>
-        <Button variant="contained" onClick={salvar} disabled={!form.nome}>Salvar</Button>
+        <Button variant="outlined" onClick={aoFechar} disabled={salvando}>Cancelar</Button>
+        <Button variant="contained" onClick={salvar} disabled={!form.nome || salvando}>
+          {salvando ? 'Salvando…' : 'Salvar'}
+        </Button>
       </DialogActions>
     </Dialog>
   )

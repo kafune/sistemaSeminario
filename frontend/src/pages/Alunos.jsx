@@ -8,7 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, LinhaCartao, PilulaStatus } from '../ui'
+import { CabecalhoPagina, CartaoLista, LinhaCartao, PilulaStatus, resetBotao } from '../ui'
 import AlunoForm from './AlunoForm'
 
 const POR_PAGINA = 25
@@ -22,12 +22,17 @@ const FILTROS = [
 function ChipFiltro({ ativo, children, onClick }) {
   return (
     <Box
+      component="button"
+      type="button"
       onClick={onClick}
+      aria-pressed={ativo}
       sx={{
-        px: 2.25, py: 1, borderRadius: 999, fontSize: 14, fontWeight: 600, cursor: 'pointer', userSelect: 'none',
+        ...resetBotao,
+        px: 2.25, py: 1, borderRadius: 999, fontSize: 14, fontWeight: 600, userSelect: 'none',
         bgcolor: ativo ? TOV.ink : TOV.white, color: ativo ? '#fff' : TOV.slate,
         boxShadow: ativo ? 'none' : TOV.shadowCard,
         '&:hover': ativo ? {} : { color: TOV.ink },
+        '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2, borderRadius: 999 },
       }}
     >
       {children}
@@ -73,6 +78,7 @@ export default function Alunos() {
           size="small" placeholder="Buscar por nome ou matrícula" value={busca}
           onChange={(e) => setBusca(e.target.value)}
           sx={{ minWidth: { xs: '100%', sm: 280 }, '& .MuiOutlinedInput-root': { height: 46, bgcolor: TOV.white } }}
+          inputProps={{ enterKeyHint: 'search', 'aria-label': 'Buscar por nome ou matrícula' }}
           InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ fontSize: 20, color: TOV.caption }} /></InputAdornment>) }}
         />
       </Box>
@@ -155,10 +161,10 @@ export default function Alunos() {
                 <TableCell sx={{ color: TOV.slate }}>{a.celular || '—'}</TableCell>
                 <TableCell><PilulaStatus status={a.status} /></TableCell>
                 <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                  <Box sx={{ display: 'inline-flex', gap: 1.5, fontSize: 13, fontWeight: 600, color: TOV.caption }}>
-                    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: TOV.coral } }} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>Ver</Box>
+                  <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
+                    <Box component="button" type="button" sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>Ver</Box>
                     <Box component="span" sx={{ color: TOV.border }}>·</Box>
-                    <Box component="span" sx={{ cursor: 'pointer', '&:hover': { color: TOV.coral } }} onClick={() => abrirArquivo(`/relatorios/boletim/${a.cod_alu}`).catch((e) => setErro(e.message))}>PDF</Box>
+                    <Box component="button" type="button" title="Boletim em PDF" sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }} onClick={() => abrirArquivo(`/relatorios/boletim/${a.cod_alu}`).catch((e) => setErro(e.message))}>PDF</Box>
                   </Box>
                 </TableCell>
               </TableRow>

@@ -7,14 +7,14 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { AvatarIniciais, PilulaStatus, Regua, cardSx } from '../ui'
+import { AvatarIniciais, CartaoLista, LinhaCartao, PilulaStatus, Regua, cardSx } from '../ui'
 import AlunoForm from './AlunoForm'
 
 function Campo({ rotulo, valor }) {
   return (
     <Box>
       <Box sx={{ fontSize: 12, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: '5px' }}>{rotulo}</Box>
-      <Box sx={{ fontSize: 15, fontWeight: 600 }}>{valor || '—'}</Box>
+      <Box sx={{ fontSize: 15, fontWeight: 600, overflowWrap: 'anywhere' }}>{valor || '—'}</Box>
     </Box>
   )
 }
@@ -31,7 +31,7 @@ function CardResumo({ rotulo, valor, escuro, offwhite, corValor }) {
 
 function BotaoAcao({ children, primario, onClick }) {
   return (
-    <Button variant={primario ? 'contained' : 'outlined'} onClick={onClick} sx={{ height: 44 }}>
+    <Button variant={primario ? 'contained' : 'outlined'} onClick={onClick} sx={{ height: 44, flex: { xs: '1 1 40%', md: '0 0 auto' } }}>
       {children}
     </Button>
   )
@@ -83,11 +83,18 @@ export default function AlunoDetalhe() {
       </Box>
 
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 3.25 }}>
-        <Box sx={{ display: 'flex', gap: 2.75, alignItems: 'center' }}>
-          <AvatarIniciais nome={aluno.nome} />
+        <Box sx={{ display: 'flex', gap: { xs: 2, md: 2.75 }, alignItems: 'center', minWidth: 0 }}>
+          <AvatarIniciais
+            nome={aluno.nome}
+            sx={{
+              width: { xs: 56, md: 76 }, height: { xs: 56, md: 76 },
+              flex: { xs: '0 0 56px', md: '0 0 76px' }, fontSize: { xs: 22, md: 30 },
+              borderRadius: { xs: '14px', md: '20px' },
+            }}
+          />
           <Box>
             <Regua sx={{ mb: 1.5 }} />
-            <Typography variant="h1" sx={{ fontSize: { xs: 30, md: 40 } }}>{aluno.nome}</Typography>
+            <Typography variant="h1" sx={{ fontSize: { xs: 24, sm: 30, md: 40 }, overflowWrap: 'anywhere' }}>{aluno.nome}</Typography>
             <Box sx={{ mt: 1.25, display: 'flex', gap: 1.25, alignItems: 'center', flexWrap: 'wrap' }}>
               <Box component="span" sx={{ px: 1.75, py: '5px', bgcolor: TOV.ink, color: '#fff', borderRadius: 999, fontSize: 13, fontWeight: 600 }}>Matrícula {aluno.cod_alu}</Box>
               <PilulaStatus status={aluno.status} sx={{ fontSize: 13 }} />
@@ -95,7 +102,7 @@ export default function AlunoDetalhe() {
             </Box>
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', justifyContent: 'flex-end', width: { xs: '100%', md: 'auto' } }}>
           <BotaoAcao onClick={() => setEditando(true)}>Editar</BotaoAcao>
           <BotaoAcao primario onClick={() => abrirArquivo(`/relatorios/boletim/${codAlu}`).catch((e) => setMsg(e.message))}>Boletim</BotaoAcao>
           <BotaoAcao onClick={() => abrirArquivo(`/relatorios/historico/${codAlu}`).catch((e) => setMsg(e.message))}>Histórico</BotaoAcao>
@@ -104,9 +111,9 @@ export default function AlunoDetalhe() {
       </Box>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 300px' }, gap: '18px', mb: 2.5 }}>
-        <Box sx={{ ...cardSx, p: '28px 30px' }}>
+        <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 30px' } }}>
           <Typography variant="h3" sx={{ fontSize: 20, mb: 2.75 }}>Dados cadastrais</Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)' }, gap: '22px 26px' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)' }, gap: { xs: '18px 16px', md: '22px 26px' } }}>
             <Campo rotulo="Nascimento" valor={aluno.dat_nas} />
             <Campo rotulo="CPF" valor={aluno.cpf} />
             <Campo rotulo="RG" valor={aluno.rg} />
@@ -128,13 +135,47 @@ export default function AlunoDetalhe() {
         </Box>
       </Box>
 
-      <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
+      {/* Notas em cards — celular/tablet */}
+      <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+        <Typography variant="h3" sx={{ fontSize: 20, mb: 1.5 }}>
+          Notas <Box component="span" sx={{ color: TOV.caption, fontSize: 15, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
+        </Typography>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+          {notas.length === 0 && (
+            <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhuma nota lançada.</CartaoLista>
+          )}
+          {notas.map((n) => (
+            <CartaoLista key={n.id}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
+                <Box sx={{ minWidth: 0 }}>
+                  <Box sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3 }}>{n.materia_nome}</Box>
+                  <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>
+                    {n.ano || '—'}{n.semestre ? ` · ${n.semestre}º semestre` : ''}
+                  </Box>
+                </Box>
+                <Box sx={{ textAlign: 'center', flexShrink: 0 }}>
+                  <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 24, color: n.nota != null ? TOV.coral : TOV.caption }}>
+                    {n.nota != null ? String(n.nota).replace('.', ',') : 'N/C'}
+                  </Box>
+                  <Box sx={{ fontSize: 11, color: TOV.caption, textTransform: 'uppercase', letterSpacing: '.08em' }}>nota</Box>
+                </Box>
+              </Box>
+              <LinhaCartao rotulo="Faltas" valor={n.falta != null ? String(n.falta) : '—'} />
+              <LinhaCartao rotulo="Cursou" valor={n.cursou === 'S' ? 'Sim' : n.cursou === 'N' ? 'Não' : (n.cursou || '—')} />
+              <LinhaCartao rotulo="Professor" valor={n.professor_nome} />
+            </CartaoLista>
+          ))}
+        </Box>
+      </Box>
+
+      {/* Tabela — desktop */}
+      <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto', display: { xs: 'none', md: 'block' } }}>
         <Box sx={{ p: '22px 28px 4px' }}>
           <Typography variant="h3" sx={{ fontSize: 20 }}>
             Notas <Box component="span" sx={{ color: TOV.caption, fontSize: 15, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
           </Typography>
         </Box>
-        <Table sx={{ mt: 1 }}>
+        <Table sx={{ mt: 1, minWidth: 760 }}>
           <TableHead>
             <TableRow>
               <TableCell>Matéria</TableCell>

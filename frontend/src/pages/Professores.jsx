@@ -8,7 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, PilulaStatus } from '../ui'
+import { CabecalhoPagina, CartaoLista, LinhaCartao, PilulaStatus, useDialogoTelaCheia } from '../ui'
 
 const VAZIO = { nome: '', e_mail: '', fone1: '', celular: '', sigla: '', status: 'A' }
 
@@ -18,6 +18,7 @@ export default function Professores() {
   const [carregando, setCarregando] = useState(true)
   const [form, setForm] = useState(null)
   const [msg, setMsg] = useState('')
+  const telaCheia = useDialogoTelaCheia()
 
   function carregar() {
     setCarregando(true)
@@ -81,8 +82,38 @@ export default function Professores() {
         acoes={acoes}
       />
 
-      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
-        <Table>
+      {/* Lista em cards — celular/tablet */}
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+        {carregando && professores.length === 0 && (
+          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
+        )}
+        {!carregando && professores.length === 0 && (
+          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 5 }}>Nenhum professor encontrado.</CartaoLista>
+        )}
+        {professores.map((p) => (
+          <CartaoLista key={p.cod_pro}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
+              <Box sx={{ minWidth: 0 }}>
+                <Box sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3 }}>{p.nome}</Box>
+                <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>
+                  Código {String(p.cod_pro).padStart(2, '0')}{p.sigla ? ` · ${p.sigla}` : ''}
+                </Box>
+              </Box>
+              <PilulaStatus status={p.status} sx={{ flexShrink: 0 }} />
+            </Box>
+            <LinhaCartao rotulo="Telefone" valor={p.fone1 || p.celular} />
+            <LinhaCartao rotulo="E-mail" valor={p.e_mail} />
+            <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
+              <Button size="small" variant="outlined" fullWidth onClick={() => setForm({ ...p })}>Editar</Button>
+              <Button size="small" variant="outlined" color="error" fullWidth onClick={() => excluir(p)}>Excluir</Button>
+            </Box>
+          </CartaoLista>
+        ))}
+      </Box>
+
+      {/* Tabela — desktop */}
+      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard, display: { xs: 'none', md: 'block' } }}>
+        <Table sx={{ minWidth: 820 }}>
           <TableHead>
             <TableRow>
               <TableCell sx={{ width: 90 }}>Código</TableCell>
@@ -128,7 +159,7 @@ export default function Professores() {
         </Table>
       </TableContainer>
 
-      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.cod_pro ? 'Editar professor' : 'Novo professor'}</DialogTitle>
         <DialogContent>
           {form && (

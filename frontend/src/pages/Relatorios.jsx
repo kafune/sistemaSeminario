@@ -14,6 +14,7 @@ function PillAcao({ children, escuro, disabled, onClick }) {
       onClick={disabled ? undefined : onClick}
       sx={{
         px: 2.25, py: 1.4, borderRadius: '10px', fontWeight: 600, fontSize: 14,
+        textAlign: 'center', flexGrow: { xs: 1, sm: 0 },
         cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1, userSelect: 'none',
         bgcolor: escuro ? TOV.ink : TOV.offwhite, color: escuro ? '#fff' : TOV.ink,
         transition: 'background-color .15s, color .15s',
@@ -89,14 +90,14 @@ export default function Relatorios() {
   return (
     <Box>
       <Regua sx={{ mb: 2 }} />
-      <Typography variant="h1" sx={{ fontSize: { xs: 32, md: 44 }, mb: 1 }}>Relatórios e documentos</Typography>
+      <Typography variant="h1" sx={{ fontSize: { xs: 30, sm: 36, md: 44 }, mb: 1 }}>Relatórios e documentos</Typography>
       <Typography sx={{ fontSize: 16, color: TOV.caption, mb: 3.25 }}>
         Gere boletins, históricos, diários e listas em PDF — individual, por turma ou em lote.
       </Typography>
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: '18px', mb: '18px' }}>
         {/* Por aluno */}
-        <Box sx={{ ...cardSx, p: '28px 30px' }}>
+        <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 30px' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.25 }}>
             <IconeCard letra="A" cor={TOV.coral} bg={TOV.coralTint} />
             <Typography variant="h3" sx={{ fontSize: 22 }}>Por aluno</Typography>
@@ -119,7 +120,7 @@ export default function Relatorios() {
         </Box>
 
         {/* Por turma */}
-        <Box sx={{ ...cardSx, p: '28px 30px' }}>
+        <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 30px' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.25 }}>
             <IconeCard letra="T" cor={TOV.slate} bg={TOV.slateTint} />
             <Typography variant="h3" sx={{ fontSize: 22 }}>Por turma</Typography>
@@ -139,7 +140,7 @@ export default function Relatorios() {
       </Box>
 
       {/* Geração em lote */}
-      <Box sx={{ bgcolor: TOV.ink, borderRadius: '16px', p: { xs: '24px', md: '30px 34px' }, color: '#fff' }}>
+      <Box sx={{ bgcolor: TOV.ink, borderRadius: '16px', p: { xs: '20px', md: '30px 34px' }, color: '#fff' }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 3.75, flexWrap: 'wrap' }}>
           <Box sx={{ maxWidth: 520 }}>
             <Eyebrow sx={{ color: TOV.coral, mb: 1.25 }}>Geração em lote</Eyebrow>
@@ -165,8 +166,8 @@ export default function Relatorios() {
             onDragLeave={() => setArrastando(false)}
             onDrop={soltarArquivo}
             sx={{
-              flex: 1, minWidth: 300, border: `2px dashed ${arrastando ? TOV.coral : 'rgba(255,255,255,.25)'}`,
-              borderRadius: '14px', p: '34px', display: 'flex', flexDirection: 'column', alignItems: 'center',
+              flex: 1, minWidth: { xs: '100%', sm: 300 }, border: `2px dashed ${arrastando ? TOV.coral : 'rgba(255,255,255,.25)'}`,
+              borderRadius: '14px', p: { xs: '24px 16px', sm: '34px' }, display: 'flex', flexDirection: 'column', alignItems: 'center',
               justifyContent: 'center', textAlign: 'center', cursor: 'pointer', transition: 'border-color .15s',
               bgcolor: arrastando ? 'rgba(241,73,73,.08)' : 'transparent',
             }}

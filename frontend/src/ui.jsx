@@ -1,7 +1,13 @@
 // Peças reutilizáveis do design system TOV: régua de seção, eyebrow, cabeçalho
-// de página, pílula de status e avatar de iniciais.
-import { Box, Typography } from '@mui/material'
+// de página, pílula de status, avatar de iniciais e helpers responsivos.
+import { Box, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { TOV } from './theme'
+
+/** true abaixo de 600px — usado para abrir diálogos em tela cheia no celular. */
+export function useDialogoTelaCheia() {
+  const theme = useTheme()
+  return useMediaQuery(theme.breakpoints.down('sm'))
+}
 
 /** Régua coral 64×5 — marcador de seção que precede os títulos. */
 export function Regua({ sx }) {
@@ -35,14 +41,24 @@ export function CabecalhoPagina({ titulo, subtitulo, acoes, sx }) {
         gap: 2, flexWrap: 'wrap', mb: 3, ...sx,
       }}
     >
-      <Box>
+      <Box sx={{ minWidth: 0 }}>
         <Regua sx={{ mb: 2 }} />
-        <Typography variant="h1" sx={{ fontSize: { xs: 32, md: 44 } }}>{titulo}</Typography>
+        <Typography variant="h1" sx={{ fontSize: { xs: 30, sm: 36, md: 44 } }}>{titulo}</Typography>
         {subtitulo != null && (
-          <Typography sx={{ mt: 1.25, fontSize: 16, color: TOV.caption }}>{subtitulo}</Typography>
+          <Typography sx={{ mt: 1.25, fontSize: { xs: 14, md: 16 }, color: TOV.caption }}>{subtitulo}</Typography>
         )}
       </Box>
-      {acoes && <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>{acoes}</Box>}
+      {acoes && (
+        <Box
+          sx={{
+            display: 'flex', gap: 1.5, flexWrap: 'wrap',
+            width: { xs: '100%', md: 'auto' },
+            '& > *': { flexGrow: { xs: 1, sm: 0 } },
+          }}
+        >
+          {acoes}
+        </Box>
+      )}
     </Box>
   )
 }
@@ -96,4 +112,30 @@ export function AvatarIniciais({ nome, tamanho = 76, radius = 20, fontSize = 30,
 /** Paper branco no padrão do design (raio 16, sombra sutil). Uso genérico. */
 export const cardSx = {
   bgcolor: TOV.white, borderRadius: '16px', boxShadow: TOV.shadowCard,
+}
+
+/** Card de item para listas no celular — substitui a linha de tabela. */
+export function CartaoLista({ children, onClick, sx }) {
+  return (
+    <Box
+      onClick={onClick}
+      sx={{
+        ...cardSx, p: '16px 18px', display: 'flex', flexDirection: 'column', gap: 1,
+        ...(onClick ? { cursor: 'pointer', '&:active': { bgcolor: TOV.offwhite } } : {}),
+        ...sx,
+      }}
+    >
+      {children}
+    </Box>
+  )
+}
+
+/** Par rótulo/valor compacto usado dentro dos cards de lista. */
+export function LinhaCartao({ rotulo, valor }) {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, fontSize: 14 }}>
+      <Box component="span" sx={{ color: TOV.caption, flexShrink: 0 }}>{rotulo}</Box>
+      <Box component="span" sx={{ fontWeight: 600, color: TOV.slate, textAlign: 'right', minWidth: 0, overflowWrap: 'anywhere' }}>{valor || '—'}</Box>
+    </Box>
+  )
 }

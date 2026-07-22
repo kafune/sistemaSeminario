@@ -7,7 +7,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, iniciais } from '../ui'
+import { CabecalhoPagina, CartaoLista, iniciais, useDialogoTelaCheia } from '../ui'
 
 const SENHA_MINIMA = 6
 
@@ -18,6 +18,7 @@ export default function Usuarios() {
   const [msg, setMsg] = useState('')
   const [ok, setOk] = useState('')
   const atual = getUser()
+  const telaCheia = useDialogoTelaCheia()
 
   function carregar() {
     setCarregando(true)
@@ -86,7 +87,47 @@ export default function Usuarios() {
         acoes={acoes}
       />
 
-      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
+      {/* Lista em cards — celular/tablet */}
+      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+        {carregando && usuarios.length === 0 && (
+          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
+        )}
+        {!carregando && usuarios.length === 0 && (
+          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 5 }}>Nenhum usuário cadastrado.</CartaoLista>
+        )}
+        {usuarios.map((u) => {
+          const euMesmo = u.user === atual
+          return (
+            <CartaoLista key={u.user}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Box sx={{
+                  width: 38, height: 38, flex: '0 0 38px', borderRadius: '11px',
+                  bgcolor: TOV.coral, color: '#fff', fontFamily: TOV.fontHead, fontWeight: 700,
+                  fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {iniciais(u.user)}
+                </Box>
+                <Box component="span" sx={{ fontWeight: 700, fontSize: 16 }}>{u.user}</Box>
+                {euMesmo && (
+                  <Box component="span" sx={{
+                    px: 1.25, py: '3px', borderRadius: 999, bgcolor: TOV.coralTint,
+                    color: TOV.coral, fontSize: 11, fontWeight: 700,
+                  }}>
+                    você
+                  </Box>
+                )}
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
+                <Button size="small" variant="outlined" fullWidth onClick={() => redefinir(u)}>Redefinir senha</Button>
+                <Button size="small" variant="outlined" color="error" fullWidth disabled={euMesmo} onClick={() => excluir(u)}>Excluir</Button>
+              </Box>
+            </CartaoLista>
+          )
+        })}
+      </Box>
+
+      {/* Tabela — desktop */}
+      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard, display: { xs: 'none', md: 'block' } }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -152,7 +193,7 @@ export default function Usuarios() {
         </Table>
       </TableContainer>
 
-      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="xs" fullWidth>
+      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="xs" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.novo ? 'Novo usuário' : `Redefinir senha — ${form?.user}`}</DialogTitle>
         <DialogContent>
           {form && (

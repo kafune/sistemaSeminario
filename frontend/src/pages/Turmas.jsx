@@ -6,7 +6,7 @@ import {
 } from '@mui/material'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina } from '../ui'
+import { CabecalhoPagina, useDialogoTelaCheia } from '../ui'
 
 function mesAno(iso) {
   if (!iso) return null
@@ -48,6 +48,7 @@ export default function Turmas() {
   const [form, setForm] = useState(null)
   const [msg, setMsg] = useState('')
   const navigate = useNavigate()
+  const telaCheia = useDialogoTelaCheia()
 
   function carregar() {
     api.get('/turmas').then(setTurmas).catch((e) => setMsg(e.message))
@@ -95,7 +96,7 @@ export default function Turmas() {
         )}
       </Box>
 
-      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         <DialogTitle>Nova turma</DialogTitle>
         <DialogContent>
           {form && (
@@ -104,16 +105,16 @@ export default function Turmas() {
                 <TextField size="small" fullWidth required label="Nome" value={form.nome ?? ''}
                   onChange={(e) => setForm({ ...form, nome: e.target.value })} />
               </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={12} sm={6}>
                 <TextField size="small" fullWidth label="Curso" value={form.curso ?? ''}
                   onChange={(e) => setForm({ ...form, curso: e.target.value })} />
               </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={12} sm={6}>
                 <TextField size="small" fullWidth label="Horário" placeholder="ex.: Sábado 19h"
                   value={form.horario ?? ''}
                   onChange={(e) => setForm({ ...form, horario: e.target.value })} />
               </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={12} sm={6}>
                 <TextField size="small" fullWidth label="Data de início" type="date"
                   InputLabelProps={{ shrink: true }} value={form.dat_ini ?? ''}
                   onChange={(e) => setForm({ ...form, dat_ini: e.target.value || null })} />

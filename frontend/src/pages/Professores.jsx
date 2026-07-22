@@ -8,7 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, LinhaCartao, PilulaStatus, useDialogoTelaCheia } from '../ui'
+import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus, resetBotao, useDialogoTelaCheia } from '../ui'
 
 const VAZIO = { nome: '', e_mail: '', fone1: '', celular: '', sigla: '', status: 'A' }
 
@@ -17,6 +17,9 @@ export default function Professores() {
   const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(true)
   const [form, setForm] = useState(null)
+  const [salvando, setSalvando] = useState(false)
+  const [paraExcluir, setParaExcluir] = useState(null)
+  const [excluindo, setExcluindo] = useState(false)
   const [msg, setMsg] = useState('')
   const telaCheia = useDialogoTelaCheia()
 
@@ -31,6 +34,7 @@ export default function Professores() {
   useEffect(carregar, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function salvar() {
+    setSalvando(true)
     try {
       if (form.cod_pro) await api.put(`/professores/${form.cod_pro}`, form)
       else await api.post('/professores', form)
@@ -38,16 +42,22 @@ export default function Professores() {
       carregar()
     } catch (e) {
       setMsg(e.message)
+    } finally {
+      setSalvando(false)
     }
   }
 
-  async function excluir(p) {
-    if (!window.confirm(`Excluir o professor ${p.nome}?`)) return
+  async function excluir() {
+    setExcluindo(true)
     try {
-      await api.del(`/professores/${p.cod_pro}`)
+      await api.del(`/professores/${paraExcluir.cod_pro}`)
+      setParaExcluir(null)
       carregar()
     } catch (e) {
       setMsg(e.message)
+      setParaExcluir(null)
+    } finally {
+      setExcluindo(false)
     }
   }
 
@@ -59,6 +69,7 @@ export default function Professores() {
           size="small" placeholder="Buscar professor" value={busca}
           onChange={(e) => setBusca(e.target.value)}
           sx={{ minWidth: { xs: '100%', sm: 240 }, '& .MuiOutlinedInput-root': { height: 46 } }}
+          inputProps={{ enterKeyHint: 'search', 'aria-label': 'Buscar professor' }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -105,7 +116,7 @@ export default function Professores() {
             <LinhaCartao rotulo="E-mail" valor={p.e_mail} />
             <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
               <Button size="small" variant="outlined" fullWidth onClick={() => setForm({ ...p })}>Editar</Button>
-              <Button size="small" variant="outlined" color="error" fullWidth onClick={() => excluir(p)}>Excluir</Button>
+              <Button size="small" variant="outlined" color="error" fullWidth onClick={() => setParaExcluir(p)}>Excluir</Button>
             </Box>
           </CartaoLista>
         ))}
@@ -143,12 +154,12 @@ export default function Professores() {
                 <TableCell align="right">
                   <Box sx={{ display: 'inline-flex', gap: 1.25, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
                     <Box component="button" type="button" onClick={() => setForm({ ...p })}
-                      sx={{ appearance: 'none', border: 0, p: 0, bgcolor: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer', '&:hover': { color: TOV.coral } }}>
+                      sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
                       Editar
                     </Box>
                     <Box component="span" sx={{ color: TOV.border }}>·</Box>
-                    <Box component="button" type="button" onClick={() => excluir(p)}
-                      sx={{ appearance: 'none', border: 0, p: 0, bgcolor: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer', '&:hover': { color: '#d32f2f' } }}>
+                    <Box component="button" type="button" onClick={() => setParaExcluir(p)}
+                      sx={{ ...resetBotao, '&:hover': { color: '#d32f2f' } }}>
                       Excluir
                     </Box>
                   </Box>
@@ -195,10 +206,21 @@ export default function Professores() {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button variant="outlined" onClick={() => setForm(null)}>Cancelar</Button>
-          <Button variant="contained" onClick={salvar} disabled={!form?.nome}>Salvar</Button>
+          <Button variant="outlined" onClick={() => setForm(null)} disabled={salvando}>Cancelar</Button>
+          <Button variant="contained" onClick={salvar} disabled={!form?.nome || salvando}>
+            {salvando ? 'Salvando…' : 'Salvar'}
+          </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacao
+        aberto={!!paraExcluir}
+        titulo="Excluir professor"
+        descricao={`Excluir o professor ${paraExcluir?.nome}? Esta ação não pode ser desfeita.`}
+        processando={excluindo}
+        onConfirmar={excluir}
+        onFechar={() => setParaExcluir(null)}
+      />
 
       <Snackbar open={!!msg} autoHideDuration={6000} onClose={() => setMsg('')}>
         <Alert severity="error" onClose={() => setMsg('')}>{msg}</Alert>

@@ -10,7 +10,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { CartaoLista, LinhaCartao, Regua, cardSx, useDialogoTelaCheia } from '../ui'
+import { CartaoLista, DialogoConfirmacao, LinhaCartao, Regua, cardSx, resetBotao, useDialogoTelaCheia } from '../ui'
 
 function mesAno(iso) {
   if (!iso) return null
@@ -61,7 +61,10 @@ export default function TurmaDetalhe() {
     return () => clearTimeout(t)
   }, [buscaAluno])
 
+  const [salvandoDlg, setSalvandoDlg] = useState(false)
+
   async function matricular() {
+    setSalvandoDlg(true)
     try {
       await api.post(`/turmas/${codTur}/alunos/${alunoSel.cod_alu}`)
       setDlgMatricula(false)
@@ -71,16 +74,27 @@ export default function TurmaDetalhe() {
       avisar('Aluno matriculado', false)
     } catch (e) {
       avisar(e.message)
+    } finally {
+      setSalvandoDlg(false)
     }
   }
 
-  async function desmatricular(a) {
-    if (!window.confirm(`Remover ${a.nome} da turma?`)) return
+  // confirmação de remoção (aluno ou matéria)
+  const [paraRemover, setParaRemover] = useState(null) // { tipo: 'aluno'|'materia', item }
+  const [removendo, setRemovendo] = useState(false)
+
+  async function confirmarRemocao() {
+    setRemovendo(true)
     try {
-      await api.del(`/turmas/${codTur}/alunos/${a.cod_alu}`)
+      if (paraRemover.tipo === 'aluno') await api.del(`/turmas/${codTur}/alunos/${paraRemover.item.cod_alu}`)
+      else await api.del(`/turmas/${codTur}/materias/${paraRemover.item.id}`)
+      setParaRemover(null)
       carregar()
     } catch (e) {
       avisar(e.message)
+      setParaRemover(null)
+    } finally {
+      setRemovendo(false)
     }
   }
 
@@ -94,24 +108,18 @@ export default function TurmaDetalhe() {
   }
 
   async function salvarMateria() {
+    setSalvandoDlg(true)
     try {
       await api.post(`/turmas/${codTur}/materias`, formMateria)
       setDlgMateria(false)
       carregar()
     } catch (e) {
       avisar(e.message)
+    } finally {
+      setSalvandoDlg(false)
     }
   }
 
-  async function removerMateria(m) {
-    if (!window.confirm(`Remover ${m.materia_nome?.trim()} da turma?`)) return
-    try {
-      await api.del(`/turmas/${codTur}/materias/${m.id}`)
-      carregar()
-    } catch (e) {
-      avisar(e.message)
-    }
-  }
 
   if (!turma) return <Typography sx={{ color: TOV.caption }}>Carregando…</Typography>
 
@@ -124,7 +132,7 @@ export default function TurmaDetalhe() {
 
   return (
     <Box>
-      <Box onClick={() => navigate('/turmas')} sx={{ fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 2.25, cursor: 'pointer', display: 'inline-block', '&:hover': { color: TOV.coral } }}>
+      <Box component="button" type="button" onClick={() => navigate('/turmas')} sx={{ ...resetBotao, fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 2.25, display: 'inline-block', '&:hover': { color: TOV.coral } }}>
         ‹ Voltar para Turmas
       </Box>
 
@@ -172,7 +180,7 @@ export default function TurmaDetalhe() {
                     <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>Matrícula {a.cod_alu}</Box>
                   </Box>
                   <IconButton size="small" color="error" title="Remover da turma"
-                    onClick={(e) => { e.stopPropagation(); desmatricular(a) }}>
+                    onClick={(e) => { e.stopPropagation(); setParaRemover({ tipo: 'aluno', item: a }) }}>
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 </Box>
@@ -205,7 +213,7 @@ export default function TurmaDetalhe() {
                     <TableCell sx={{ color: TOV.slate }}>{a.celular || '—'}</TableCell>
                     <TableCell sx={{ color: TOV.slate }}>{a.e_mail || '—'}</TableCell>
                     <TableCell align="right">
-                      <IconButton size="small" color="error" title="Remover da turma" onClick={() => desmatricular(a)}>
+                      <IconButton size="small" color="error" title="Remover da turma" onClick={() => setParaRemover({ tipo: 'aluno', item: a })}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </TableCell>
@@ -242,7 +250,7 @@ export default function TurmaDetalhe() {
                       onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?cod_mat=${m.cod_mat}`).catch((e) => avisar(e.message))}>
                       <PictureAsPdfIcon fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" color="error" onClick={() => removerMateria(m)}>
+                    <IconButton size="small" color="error" title="Remover da turma" aria-label="Remover matéria da turma" onClick={() => setParaRemover({ tipo: 'materia', item: m })}>
                       <DeleteIcon fontSize="small" />
                     </IconButton>
                   </Box>
@@ -279,7 +287,7 @@ export default function TurmaDetalhe() {
                         onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?cod_mat=${m.cod_mat}`).catch((e) => avisar(e.message))}>
                         <PictureAsPdfIcon fontSize="small" />
                       </IconButton>
-                      <IconButton size="small" color="error" onClick={() => removerMateria(m)}>
+                      <IconButton size="small" color="error" title="Remover da turma" aria-label="Remover matéria da turma" onClick={() => setParaRemover({ tipo: 'materia', item: m })}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </TableCell>
@@ -305,8 +313,10 @@ export default function TurmaDetalhe() {
           />
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button onClick={() => setDlgMatricula(false)} variant="outlined">Cancelar</Button>
-          <Button variant="contained" onClick={matricular} disabled={!alunoSel}>Matricular</Button>
+          <Button onClick={() => setDlgMatricula(false)} variant="outlined" disabled={salvandoDlg}>Cancelar</Button>
+          <Button variant="contained" onClick={matricular} disabled={!alunoSel || salvandoDlg}>
+            {salvandoDlg ? 'Matriculando…' : 'Matricular'}
+          </Button>
         </DialogActions>
       </Dialog>
 
@@ -344,10 +354,26 @@ export default function TurmaDetalhe() {
           </Grid>
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button onClick={() => setDlgMateria(false)} variant="outlined">Cancelar</Button>
-          <Button variant="contained" onClick={salvarMateria} disabled={!formMateria.cod_mat}>Adicionar</Button>
+          <Button onClick={() => setDlgMateria(false)} variant="outlined" disabled={salvandoDlg}>Cancelar</Button>
+          <Button variant="contained" onClick={salvarMateria} disabled={!formMateria.cod_mat || salvandoDlg}>
+            {salvandoDlg ? 'Adicionando…' : 'Adicionar'}
+          </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacao
+        aberto={!!paraRemover}
+        titulo={paraRemover?.tipo === 'aluno' ? 'Remover aluno da turma' : 'Remover matéria da turma'}
+        descricao={
+          paraRemover?.tipo === 'aluno'
+            ? `Remover ${paraRemover?.item?.nome} desta turma? O cadastro do aluno não será apagado.`
+            : `Remover ${paraRemover?.item?.materia_nome?.trim()} desta turma?`
+        }
+        rotuloConfirmar="Remover"
+        processando={removendo}
+        onConfirmar={confirmarRemocao}
+        onFechar={() => setParaRemover(null)}
+      />
 
       <Snackbar open={!!msg} autoHideDuration={5000} onClose={() => setMsg('')}>
         <Alert severity={erro ? 'error' : 'success'} onClose={() => setMsg('')}>{msg}</Alert>

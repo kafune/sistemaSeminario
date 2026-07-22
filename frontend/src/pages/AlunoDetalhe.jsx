@@ -7,7 +7,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { AvatarIniciais, CartaoLista, LinhaCartao, PilulaStatus, Regua, cardSx } from '../ui'
+import { AvatarIniciais, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus, Regua, cardSx, resetBotao } from '../ui'
 import AlunoForm from './AlunoForm'
 
 function Campo({ rotulo, valor }) {
@@ -42,6 +42,8 @@ export default function AlunoDetalhe() {
   const [aluno, setAluno] = useState(null)
   const [notas, setNotas] = useState([])
   const [editando, setEditando] = useState(false)
+  const [confirmarExclusao, setConfirmarExclusao] = useState(false)
+  const [excluindo, setExcluindo] = useState(false)
   const [msg, setMsg] = useState('')
   const navigate = useNavigate()
 
@@ -63,12 +65,15 @@ export default function AlunoDetalhe() {
   }, [notas])
 
   async function excluir() {
-    if (!window.confirm(`Excluir o aluno ${aluno.nome}? Esta ação não pode ser desfeita.`)) return
+    setExcluindo(true)
     try {
       await api.del(`/alunos/${codAlu}`)
       navigate('/alunos')
     } catch (e) {
       setMsg(e.message)
+      setConfirmarExclusao(false)
+    } finally {
+      setExcluindo(false)
     }
   }
 
@@ -78,7 +83,7 @@ export default function AlunoDetalhe() {
 
   return (
     <Box>
-      <Box onClick={() => navigate('/alunos')} sx={{ fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 2.25, cursor: 'pointer', display: 'inline-block', '&:hover': { color: TOV.coral } }}>
+      <Box component="button" type="button" onClick={() => navigate('/alunos')} sx={{ ...resetBotao, fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 2.25, display: 'inline-block', '&:hover': { color: TOV.coral } }}>
         ‹ Voltar para Alunos
       </Box>
 
@@ -205,10 +210,19 @@ export default function AlunoDetalhe() {
       </TableContainer>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-        <Button startIcon={<DeleteIcon />} color="error" onClick={excluir} sx={{ color: TOV.caption, '&:hover': { color: '#d32f2f', bgcolor: 'transparent' } }}>
+        <Button startIcon={<DeleteIcon />} color="error" onClick={() => setConfirmarExclusao(true)} sx={{ color: TOV.caption, '&:hover': { color: '#d32f2f', bgcolor: 'transparent' } }}>
           Excluir aluno
         </Button>
       </Box>
+
+      <DialogoConfirmacao
+        aberto={confirmarExclusao}
+        titulo="Excluir aluno"
+        descricao={`Excluir o aluno ${aluno.nome}? Todas as notas e matrículas dele serão perdidas. Esta ação não pode ser desfeita.`}
+        processando={excluindo}
+        onConfirmar={excluir}
+        onFechar={() => setConfirmarExclusao(false)}
+      />
 
       <AlunoForm
         aberto={editando}

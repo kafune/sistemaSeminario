@@ -5,20 +5,26 @@ import {
 } from '@mui/material'
 import { api, abrirArquivo, enviarArquivoEBaixar } from '../api'
 import { TOV } from '../theme'
-import { Eyebrow, Regua, cardSx } from '../ui'
+import { Eyebrow, Regua, cardSx, resetBotao } from '../ui'
 
 /** Botão-pílula usado nas ações dos cards (fundo off-white ou escuro). */
 function PillAcao({ children, escuro, disabled, onClick }) {
   return (
     <Box
+      component="button"
+      type="button"
+      disabled={disabled}
       onClick={disabled ? undefined : onClick}
       sx={{
+        ...resetBotao,
         px: 2.25, py: 1.4, borderRadius: '10px', fontWeight: 600, fontSize: 14,
         textAlign: 'center', flexGrow: { xs: 1, sm: 0 },
-        cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.45 : 1, userSelect: 'none',
+        opacity: disabled ? 0.45 : 1, userSelect: 'none',
+        cursor: disabled ? 'not-allowed' : 'pointer',
         bgcolor: escuro ? TOV.ink : TOV.offwhite, color: escuro ? '#fff' : TOV.ink,
         transition: 'background-color .15s, color .15s',
         '&:hover': disabled ? {} : { bgcolor: escuro ? '#000' : TOV.coralTint, color: escuro ? '#fff' : TOV.coral },
+        '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2, borderRadius: '10px' },
       }}
     >
       {children}
@@ -151,9 +157,11 @@ export default function Relatorios() {
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, mt: 2.25 }}>
               {[['boletim', 'Boletins'], ['historico', 'Históricos']].map(([v, label]) => (
-                <Box key={v} onClick={() => setTipoLote(v)}
-                  sx={{ px: 2, py: 1.1, borderRadius: 999, fontWeight: tipoLote === v ? 700 : 600, fontSize: 13, cursor: 'pointer',
-                    bgcolor: tipoLote === v ? TOV.coral : 'rgba(255,255,255,.12)', color: tipoLote === v ? '#fff' : 'rgba(255,255,255,.85)' }}>
+                <Box component="button" type="button" key={v} onClick={() => setTipoLote(v)}
+                  aria-pressed={tipoLote === v}
+                  sx={{ ...resetBotao, px: 2, py: 1.1, borderRadius: 999, fontWeight: tipoLote === v ? 700 : 600, fontSize: 13,
+                    bgcolor: tipoLote === v ? TOV.coral : 'rgba(255,255,255,.12)', color: tipoLote === v ? '#fff' : 'rgba(255,255,255,.85)',
+                    '&:focus-visible': { outline: '2px solid #fff', outlineOffset: 2, borderRadius: 999 } }}>
                   {label}
                 </Box>
               ))}

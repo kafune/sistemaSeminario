@@ -1,7 +1,17 @@
 // Peças reutilizáveis do design system TOV: régua de seção, eyebrow, cabeçalho
 // de página, pílula de status, avatar de iniciais e helpers responsivos.
-import { Box, Typography, useMediaQuery, useTheme } from '@mui/material'
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography, useMediaQuery, useTheme } from '@mui/material'
 import { TOV } from './theme'
+
+/**
+ * Reset de estilos para tornar Box clicável um <button> de verdade
+ * (acessível por teclado) sem perder o visual do design.
+ */
+export const resetBotao = {
+  appearance: 'none', border: 0, m: 0, p: 0, bgcolor: 'transparent',
+  font: 'inherit', color: 'inherit', textAlign: 'inherit', cursor: 'pointer',
+  '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2, borderRadius: '6px' },
+}
 
 /** true abaixo de 600px — usado para abrir diálogos em tela cheia no celular. */
 export function useDialogoTelaCheia() {
@@ -119,14 +129,40 @@ export function CartaoLista({ children, onClick, sx }) {
   return (
     <Box
       onClick={onClick}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick(e) } : undefined}
       sx={{
         ...cardSx, p: '16px 18px', display: 'flex', flexDirection: 'column', gap: 1,
-        ...(onClick ? { cursor: 'pointer', '&:active': { bgcolor: TOV.offwhite } } : {}),
+        ...(onClick ? {
+          cursor: 'pointer', '&:active': { bgcolor: TOV.offwhite },
+          '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2 },
+        } : {}),
         ...sx,
       }}
     >
       {children}
     </Box>
+  )
+}
+
+/**
+ * Diálogo de confirmação para ações destrutivas — substitui window.confirm
+ * com o visual do design system e estado de processamento.
+ */
+export function DialogoConfirmacao({ aberto, titulo, descricao, rotuloConfirmar = 'Excluir', processando, onConfirmar, onFechar }) {
+  return (
+    <Dialog open={aberto} onClose={processando ? undefined : onFechar} maxWidth="xs" fullWidth>
+      <DialogTitle>{titulo}</DialogTitle>
+      <DialogContent>
+        <Typography sx={{ fontSize: 15, color: TOV.slate }}>{descricao}</Typography>
+      </DialogContent>
+      <DialogActions sx={{ p: 3, pt: 1 }}>
+        <Button variant="outlined" onClick={onFechar} disabled={processando}>Cancelar</Button>
+        <Button variant="contained" color="error" onClick={onConfirmar} disabled={processando} autoFocus>
+          {processando ? 'Excluindo…' : rotuloConfirmar}
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }
 

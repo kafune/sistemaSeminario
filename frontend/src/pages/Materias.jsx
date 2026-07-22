@@ -8,7 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, LinhaCartao, useDialogoTelaCheia } from '../ui'
+import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, LinhaCartao, resetBotao, useDialogoTelaCheia } from '../ui'
 
 const VAZIA = { NOME: '', APELIDO: '', area: '', observa: '' }
 
@@ -25,6 +25,9 @@ export default function Materias() {
   const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(true)
   const [form, setForm] = useState(null)
+  const [salvando, setSalvando] = useState(false)
+  const [paraExcluir, setParaExcluir] = useState(null)
+  const [excluindo, setExcluindo] = useState(false)
   const [msg, setMsg] = useState('')
   const telaCheia = useDialogoTelaCheia()
 
@@ -39,6 +42,7 @@ export default function Materias() {
   useEffect(carregar, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function salvar() {
+    setSalvando(true)
     try {
       const dados = { ...form, area: form.area || null, APELIDO: form.APELIDO || null, observa: form.observa || null }
       if (form.cod_mat) await api.put(`/materias/${form.cod_mat}`, dados)
@@ -47,16 +51,22 @@ export default function Materias() {
       carregar()
     } catch (e) {
       setMsg(e.message)
+    } finally {
+      setSalvando(false)
     }
   }
 
-  async function excluir(m) {
-    if (!window.confirm(`Excluir a matéria ${m.NOME?.trim()}?`)) return
+  async function excluir() {
+    setExcluindo(true)
     try {
-      await api.del(`/materias/${m.cod_mat}`)
+      await api.del(`/materias/${paraExcluir.cod_mat}`)
+      setParaExcluir(null)
       carregar()
     } catch (e) {
       setMsg(e.message)
+      setParaExcluir(null)
+    } finally {
+      setExcluindo(false)
     }
   }
 
@@ -68,6 +78,7 @@ export default function Materias() {
           size="small" placeholder="Buscar matéria" value={busca}
           onChange={(e) => setBusca(e.target.value)}
           sx={{ minWidth: { xs: '100%', sm: 240 }, '& .MuiOutlinedInput-root': { height: 46 } }}
+          inputProps={{ enterKeyHint: 'search', 'aria-label': 'Buscar matéria' }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -111,7 +122,7 @@ export default function Materias() {
             <LinhaCartao rotulo="Apelido" valor={m.APELIDO?.trim()} />
             <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
               <Button size="small" variant="outlined" fullWidth onClick={() => setForm({ ...m })}>Editar</Button>
-              <Button size="small" variant="outlined" color="error" fullWidth onClick={() => excluir(m)}>Excluir</Button>
+              <Button size="small" variant="outlined" color="error" fullWidth onClick={() => setParaExcluir(m)}>Excluir</Button>
             </Box>
           </CartaoLista>
         ))}
@@ -145,12 +156,12 @@ export default function Materias() {
                 <TableCell align="right">
                   <Box sx={{ display: 'inline-flex', gap: 1.25, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
                     <Box component="button" type="button" onClick={() => setForm({ ...m })}
-                      sx={{ appearance: 'none', border: 0, p: 0, bgcolor: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer', '&:hover': { color: TOV.coral } }}>
+                      sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
                       Editar
                     </Box>
                     <Box component="span" sx={{ color: TOV.border }}>·</Box>
-                    <Box component="button" type="button" onClick={() => excluir(m)}
-                      sx={{ appearance: 'none', border: 0, p: 0, bgcolor: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer', '&:hover': { color: '#d32f2f' } }}>
+                    <Box component="button" type="button" onClick={() => setParaExcluir(m)}
+                      sx={{ ...resetBotao, '&:hover': { color: '#d32f2f' } }}>
                       Excluir
                     </Box>
                   </Box>
@@ -186,10 +197,21 @@ export default function Materias() {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button variant="outlined" onClick={() => setForm(null)}>Cancelar</Button>
-          <Button variant="contained" onClick={salvar} disabled={!form?.NOME?.trim()}>Salvar</Button>
+          <Button variant="outlined" onClick={() => setForm(null)} disabled={salvando}>Cancelar</Button>
+          <Button variant="contained" onClick={salvar} disabled={!form?.NOME?.trim() || salvando}>
+            {salvando ? 'Salvando…' : 'Salvar'}
+          </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacao
+        aberto={!!paraExcluir}
+        titulo="Excluir matéria"
+        descricao={`Excluir a matéria ${paraExcluir?.NOME?.trim()}? Esta ação não pode ser desfeita.`}
+        processando={excluindo}
+        onConfirmar={excluir}
+        onFechar={() => setParaExcluir(null)}
+      />
 
       <Snackbar open={!!msg} autoHideDuration={6000} onClose={() => setMsg('')}>
         <Alert severity="error" onClose={() => setMsg('')}>{msg}</Alert>

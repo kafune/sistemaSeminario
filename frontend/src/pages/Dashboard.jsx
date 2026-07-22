@@ -4,7 +4,7 @@ import { Alert, Box, Button, Skeleton, Snackbar, Typography } from '@mui/materia
 import AddIcon from '@mui/icons-material/Add'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, Eyebrow } from '../ui'
+import { CabecalhoPagina, Eyebrow, resetBotao } from '../ui'
 import AlunoForm from './AlunoForm'
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
@@ -120,9 +120,11 @@ export default function Dashboard() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
               {dados.recentes.map((r, i) => (
                 <Box
+                  component="button"
+                  type="button"
                   key={r.cod_alu}
                   onClick={() => navigate(`/alunos/${r.cod_alu}`)}
-                  sx={{ display: 'flex', gap: 1.75, cursor: 'pointer', '&:hover .nome': { color: TOV.coral } }}
+                  sx={{ ...resetBotao, display: 'flex', gap: 1.75, width: '100%', '&:hover .nome': { color: TOV.coral } }}
                 >
                   <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: i === 0 ? TOV.coral : TOV.slate, mt: '7px', flex: '0 0 8px' }} />
                   <Box>

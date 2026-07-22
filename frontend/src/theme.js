@@ -12,7 +12,7 @@ export const TOV = {
   offwhite: '#F7F4F1',
   white: '#FFFFFF',
   ink: '#16181A',
-  caption: '#8A949A',
+  caption: '#6B7680', // cinza-ardósia com contraste AA (4,6:1) sobre branco
   border: '#E2DBD5',
   desk: '#E8E3DE',
   divider: '#EDE6E0',

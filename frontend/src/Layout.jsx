@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { AppBar, Box, Drawer, IconButton, Toolbar, Typography } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
@@ -13,7 +13,7 @@ import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import LogoutIcon from '@mui/icons-material/Logout'
 import { clearSession, getUser } from './api'
 import { TOV } from './theme'
-import { iniciais } from './ui'
+import { iniciais, resetBotao } from './ui'
 
 const MENU = [
   { rotulo: 'Dashboard', rota: '/', icone: SpaceDashboardIcon, exato: true },
@@ -30,15 +30,20 @@ function ItemNav({ item, ativo, onClick }) {
   const Icone = item.icone
   return (
     <Box
+      component="button"
+      type="button"
       onClick={onClick}
+      aria-current={ativo ? 'page' : undefined}
       sx={{
-        display: 'flex', alignItems: 'center', gap: 1.5, px: 1.75, py: 1.5,
-        borderRadius: '11px', cursor: 'pointer', fontSize: 15, userSelect: 'none',
+        ...resetBotao,
+        display: 'flex', alignItems: 'center', gap: 1.5, px: 1.75, py: 1.5, width: '100%',
+        borderRadius: '11px', fontSize: 15, userSelect: 'none',
         fontWeight: ativo ? 700 : 600,
         bgcolor: ativo ? '#fff' : 'transparent',
         color: ativo ? TOV.coral : 'rgba(255,255,255,.92)',
         transition: 'background-color .15s, color .15s',
         '&:hover': ativo ? {} : { bgcolor: 'rgba(255,255,255,.12)' },
+        '&:focus-visible': { outline: '2px solid #fff', outlineOffset: 2, borderRadius: '11px' },
       }}
     >
       <Icone sx={{ fontSize: 20 }} />
@@ -67,6 +72,12 @@ export default function Layout({ children }) {
     item.exato ? location.pathname === item.rota : location.pathname.startsWith(item.rota)
 
   const tituloAtual = MENU.find(estaAtivo)?.rotulo || 'TOV'
+
+  // Título da aba acompanha a seção e o scroll volta ao topo a cada rota.
+  useEffect(() => {
+    document.title = `${tituloAtual} · TOV Acadêmico`
+    window.scrollTo(0, 0)
+  }, [location.pathname, tituloAtual])
 
   const conteudoMenu = (
     <>
@@ -99,9 +110,11 @@ export default function Layout({ children }) {
           <Box sx={{ fontSize: 12, opacity: 0.8 }}>Secretaria</Box>
         </Box>
         <Box
+          component="button"
+          type="button"
           onClick={sair}
           title="Sair"
-          sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 12, opacity: 0.85, cursor: 'pointer', p: 0.5, '&:hover': { opacity: 1 } }}
+          sx={{ ...resetBotao, ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 12, opacity: 0.85, p: 0.5, '&:hover': { opacity: 1 }, '&:focus-visible': { outline: '2px solid #fff', outlineOffset: 2, borderRadius: '6px' } }}
         >
           <LogoutIcon sx={{ fontSize: 16 }} /> Sair
         </Box>

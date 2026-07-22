@@ -7,7 +7,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, iniciais, useDialogoTelaCheia } from '../ui'
+import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, iniciais, resetBotao, useDialogoTelaCheia } from '../ui'
 
 const SENHA_MINIMA = 6
 
@@ -15,6 +15,9 @@ export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [form, setForm] = useState(null) // null = fechado; { user, senha, confirmar, novo }
+  const [salvando, setSalvando] = useState(false)
+  const [paraExcluir, setParaExcluir] = useState(null)
+  const [excluindo, setExcluindo] = useState(false)
   const [msg, setMsg] = useState('')
   const [ok, setOk] = useState('')
   const atual = getUser()
@@ -47,6 +50,7 @@ export default function Usuarios() {
     form.senha === form.confirmar
 
   async function salvar() {
+    setSalvando(true)
     try {
       if (form.novo) {
         await api.post('/usuarios', { user: form.user, senha: form.senha })
@@ -59,17 +63,23 @@ export default function Usuarios() {
       carregar()
     } catch (e) {
       setMsg(e.message)
+    } finally {
+      setSalvando(false)
     }
   }
 
-  async function excluir(u) {
-    if (!window.confirm(`Excluir o usuário ${u.user}?`)) return
+  async function excluir() {
+    setExcluindo(true)
     try {
-      await api.del(`/usuarios/${encodeURIComponent(u.user)}`)
+      await api.del(`/usuarios/${encodeURIComponent(paraExcluir.user)}`)
       setOk('Usuário excluído.')
+      setParaExcluir(null)
       carregar()
     } catch (e) {
       setMsg(e.message)
+      setParaExcluir(null)
+    } finally {
+      setExcluindo(false)
     }
   }
 
@@ -119,7 +129,7 @@ export default function Usuarios() {
               </Box>
               <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
                 <Button size="small" variant="outlined" fullWidth onClick={() => redefinir(u)}>Redefinir senha</Button>
-                <Button size="small" variant="outlined" color="error" fullWidth disabled={euMesmo} onClick={() => excluir(u)}>Excluir</Button>
+                <Button size="small" variant="outlined" color="error" fullWidth disabled={euMesmo} onClick={() => setParaExcluir(u)}>Excluir</Button>
               </Box>
             </CartaoLista>
           )
@@ -169,7 +179,7 @@ export default function Usuarios() {
                   <TableCell align="right">
                     <Box sx={{ display: 'inline-flex', gap: 1.25, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
                       <Box component="button" type="button" onClick={() => redefinir(u)}
-                        sx={{ appearance: 'none', border: 0, p: 0, bgcolor: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer', '&:hover': { color: TOV.coral } }}>
+                        sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
                         Redefinir senha
                       </Box>
                       <Box component="span" sx={{ color: TOV.border }}>·</Box>
@@ -179,8 +189,8 @@ export default function Usuarios() {
                           Excluir
                         </Box>
                       ) : (
-                        <Box component="button" type="button" onClick={() => excluir(u)}
-                          sx={{ appearance: 'none', border: 0, p: 0, bgcolor: 'transparent', color: 'inherit', font: 'inherit', cursor: 'pointer', '&:hover': { color: '#d32f2f' } }}>
+                        <Box component="button" type="button" onClick={() => setParaExcluir(u)}
+                          sx={{ ...resetBotao, '&:hover': { color: '#d32f2f' } }}>
                           Excluir
                         </Box>
                       )}
@@ -231,10 +241,21 @@ export default function Usuarios() {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button variant="outlined" onClick={() => setForm(null)}>Cancelar</Button>
-          <Button variant="contained" onClick={salvar} disabled={!podeSalvar}>Salvar</Button>
+          <Button variant="outlined" onClick={() => setForm(null)} disabled={salvando}>Cancelar</Button>
+          <Button variant="contained" onClick={salvar} disabled={!podeSalvar || salvando}>
+            {salvando ? 'Salvando…' : 'Salvar'}
+          </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacao
+        aberto={!!paraExcluir}
+        titulo="Excluir usuário"
+        descricao={`Excluir o usuário ${paraExcluir?.user}? Ele perderá o acesso ao sistema.`}
+        processando={excluindo}
+        onConfirmar={excluir}
+        onFechar={() => setParaExcluir(null)}
+      />
 
       <Snackbar open={!!msg} autoHideDuration={6000} onClose={() => setMsg('')}>
         <Alert severity="error" onClose={() => setMsg('')}>{msg}</Alert>

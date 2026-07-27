@@ -1,32 +1,28 @@
 import io
 import re
 import unicodedata
-from datetime import time
+from datetime import date
 
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles import Alignment, Border, Font, Side
 from openpyxl.utils import get_column_letter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import (
-    Aluno,
-    AluTurma,
-    Aula,
-    DocTurma,
-    Materia,
-    Professor,
-    Turma,
-)
+from ..models import Aluno, AluTurma, Aula, DocTurma, Materia, Professor, Turma
 
-COR_CABECALHO = "E94A4A"
-COR_ESCURO = "202934"
-COR_CLARO = "F4F1EC"
-BORDA_FINA = Side(style="thin", color="777777")
+# O arquivo TS3 TURMA 2.xls usa treze colunas estreitas para as aulas e
+# aproximadamente 29 alunos por página impressa.
+DATAS_POR_PAGINA = 13
+ALUNOS_POR_PAGINA = 29
+COLUNA_PRIMEIRA_DATA = 4
+COLUNA_ULTIMA_DATA = COLUNA_PRIMEIRA_DATA + DATAS_POR_PAGINA - 1
+LINHAS_POR_PAGINA = 3 + ALUNOS_POR_PAGINA
 
-
-def _hora(valor: time | None) -> str:
-    return valor.strftime("%H:%M") if valor else ""
+FONTE_TABELA = "Palatino Linotype"
+FONTE_NOMES = "Times New Roman"
+BORDA_FINA = Side(style="thin", color="FF000000")
+BORDA_MEDIA = Side(style="medium", color="FF000000")
 
 
 def _nome_arquivo(valor: str) -> str:
@@ -36,161 +32,244 @@ def _nome_arquivo(valor: str) -> str:
     return limpo.strip("_") or "diario"
 
 
-def _configurar_pagina(ws) -> None:
-    ws.sheet_view.showGridLines = False
-    ws.page_setup.orientation = "landscape"
-    ws.page_setup.paperSize = ws.PAPERSIZE_A4
-    ws.page_setup.fitToWidth = 1
-    ws.page_setup.fitToHeight = 0
-    ws.sheet_properties.pageSetUpPr.fitToPage = True
-    ws.page_margins.left = 0.25
-    ws.page_margins.right = 0.25
-    ws.page_margins.top = 0.35
-    ws.page_margins.bottom = 0.35
-    ws.freeze_panes = "D7"
+def _borda(
+    esquerda: Side = BORDA_FINA,
+    direita: Side = BORDA_FINA,
+    topo: Side = BORDA_FINA,
+    inferior: Side = BORDA_FINA,
+) -> Border:
+    return Border(left=esquerda, right=direita, top=topo, bottom=inferior)
 
 
-def _cabecalho(
+def _aplicar_borda_mesclada(
+    ws,
+    linha: int,
+    coluna_inicial: int,
+    coluna_final: int,
+) -> None:
+    for coluna in range(coluna_inicial, coluna_final + 1):
+        ws.cell(linha, coluna).border = Border(
+            left=BORDA_MEDIA if coluna == coluna_inicial else Side(style=None),
+            right=BORDA_MEDIA if coluna == coluna_final else Side(style=None),
+            top=BORDA_MEDIA,
+            bottom=BORDA_MEDIA,
+        )
+
+
+def _configurar_folha(
     ws,
     turma: Turma,
     materia: Materia,
     professor: Professor | None,
-    total_colunas: int,
+    ano: str,
 ) -> None:
-    ultima = get_column_letter(total_colunas)
-    ws.merge_cells(f"A1:{ultima}1")
-    ws["A1"] = "DIÁRIO DE CLASSE"
-    ws["A1"].font = Font(size=18, bold=True, color="FFFFFF")
-    ws["A1"].fill = PatternFill("solid", fgColor=COR_ESCURO)
-    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 28
+    ws.sheet_view.showGridLines = False
+    ws.page_setup.orientation = "landscape"
+    ws.page_setup.paperSize = ws.PAPERSIZE_A4
+    ws.page_setup.fitToWidth = 1
+    ws.page_setup.fitToHeight = 1
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
+    ws.sheet_properties.pageSetUpPr.autoPageBreaks = False
+    ws.print_options.horizontalCentered = True
+    ws.print_options.verticalCentered = False
+    ws.page_margins.left = 0.95
+    ws.page_margins.right = 0.7
+    ws.page_margins.top = 0.62
+    ws.page_margins.bottom = 0.42
+    ws.page_margins.header = 0.12
+    ws.page_margins.footer = 0.12
 
-    ws.merge_cells(f"A2:C2")
-    ws["A2"] = f"Turma: {turma.nome or turma.cod_tur}"
-    ws.merge_cells(f"D2:{ultima}2")
-    ws["D2"] = f"Matéria: {(materia.NOME or '').strip()}"
-    ws.merge_cells(f"A3:C3")
-    ws["A3"] = f"Horário: {turma.horario or ''}"
-    ws.merge_cells(f"D3:{ultima}3")
-    ws["D3"] = f"Professor(a): {professor.nome if professor else ''}"
-    ws.merge_cells(f"A4:{ultima}4")
-    ws["A4"] = "Legenda sugerida: P = presença · F = falta"
+    turma_nome = (turma.nome or str(turma.cod_tur)).strip()
+    materia_nome = (materia.NOME or "").strip()
+    professor_nome = (professor.nome or "").strip() if professor else "A definir"
+    ws.oddHeader.center.text = (
+        f"Diário de {materia_nome} - {turma_nome}\nProfº {professor_nome}"
+    )
+    ws.oddHeader.center.font = "Arial,Bold"
+    ws.oddHeader.center.size = 11
+    ws.oddFooter.center.text = f"Centro TOV / {ano} - {turma_nome}"
+    ws.oddFooter.center.font = "Arial"
+    ws.oddFooter.center.size = 9
 
-    for linha in range(2, 5):
-        for cell in ws[linha]:
-            cell.fill = PatternFill("solid", fgColor=COR_CLARO)
-            cell.font = Font(bold=linha < 4, color=COR_ESCURO)
-            cell.alignment = Alignment(vertical="center")
+    ws.column_dimensions["A"].width = 3.6
+    ws.column_dimensions["B"].width = 6.6
+    ws.column_dimensions["C"].width = 29
+    for coluna in range(COLUNA_PRIMEIRA_DATA, COLUNA_ULTIMA_DATA + 1):
+        ws.column_dimensions[ws.cell(1, coluna).column_letter].width = 7.55
 
 
-def _aba_presenca(
-    workbook: Workbook,
-    indice: int,
+def _cabecalho_bloco(
+    ws,
+    linha_inicial: int,
     turma: Turma,
-    materia: Materia,
-    professor: Professor | None,
-    alunos: list,
     aulas: list[Aula],
 ) -> None:
-    ws = workbook.create_sheet(f"Presença {indice}")
-    total_colunas = 3 + len(aulas)
-    _configurar_pagina(ws)
-    _cabecalho(ws, turma, materia, professor, total_colunas)
+    linha_turma = linha_inicial
+    linha_datas = linha_inicial + 1
+    linha_separadora = linha_inicial + 2
 
-    titulos = ["Nº", "Matrícula", "Nome"] + [aula.data for aula in aulas]
-    linha_cabecalho = 6
-    for coluna, valor in enumerate(titulos, start=1):
-        cell = ws.cell(linha_cabecalho, coluna, valor)
-        cell.fill = PatternFill("solid", fgColor=COR_CABECALHO)
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.border = Border(
-            left=BORDA_FINA, right=BORDA_FINA, top=BORDA_FINA, bottom=BORDA_FINA
-        )
-        cell.alignment = Alignment(
-            horizontal="center", vertical="center", text_rotation=90 if coluna > 3 else 0
-        )
-        if coluna > 3:
-            cell.number_format = "dd/mm"
-    ws.row_dimensions[linha_cabecalho].height = 54
+    ws.merge_cells(
+        start_row=linha_turma,
+        start_column=1,
+        end_row=linha_turma,
+        end_column=3,
+    )
+    ws.cell(linha_turma, 1, (turma.nome or str(turma.cod_tur)).upper())
+    ws.cell(linha_turma, 1).font = Font(name=FONTE_TABELA, size=10, bold=True)
+    ws.cell(linha_turma, 1).alignment = Alignment(
+        horizontal="center", vertical="center"
+    )
+    _aplicar_borda_mesclada(ws, linha_turma, 1, 3)
 
-    primeira_linha = linha_cabecalho + 1
-    for numero, (cod_alu, nome) in enumerate(alunos, start=1):
-        linha = primeira_linha + numero - 1
-        valores = [numero, cod_alu, nome] + [""] * len(aulas)
+    ws.merge_cells(
+        start_row=linha_turma,
+        start_column=COLUNA_PRIMEIRA_DATA,
+        end_row=linha_turma,
+        end_column=COLUNA_ULTIMA_DATA,
+    )
+    _aplicar_borda_mesclada(
+        ws, linha_turma, COLUNA_PRIMEIRA_DATA, COLUNA_ULTIMA_DATA
+    )
+
+    ws.merge_cells(
+        start_row=linha_datas,
+        start_column=1,
+        end_row=linha_datas,
+        end_column=3,
+    )
+    _aplicar_borda_mesclada(ws, linha_datas, 1, 3)
+
+    for deslocamento in range(DATAS_POR_PAGINA):
+        coluna = COLUNA_PRIMEIRA_DATA + deslocamento
+        cell = ws.cell(linha_datas, coluna)
+        if deslocamento < len(aulas):
+            cell.value = aulas[deslocamento].data
+            cell.number_format = "d-mmm"
+        cell.font = Font(name=FONTE_TABELA, size=10, bold=True)
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = _borda(
+            esquerda=BORDA_MEDIA if deslocamento == 0 else BORDA_FINA,
+            direita=(
+                BORDA_MEDIA
+                if deslocamento == DATAS_POR_PAGINA - 1
+                else BORDA_FINA
+            ),
+            topo=BORDA_FINA,
+            inferior=BORDA_MEDIA,
+        )
+
+    ws.merge_cells(
+        start_row=linha_separadora,
+        start_column=1,
+        end_row=linha_separadora,
+        end_column=COLUNA_ULTIMA_DATA,
+    )
+    _aplicar_borda_mesclada(ws, linha_separadora, 1, COLUNA_ULTIMA_DATA)
+
+    ws.row_dimensions[linha_turma].height = 15.75
+    ws.row_dimensions[linha_datas].height = 15
+    ws.row_dimensions[linha_separadora].height = 15
+
+
+def _linhas_alunos(
+    ws,
+    linha_inicial: int,
+    alunos_pagina: list[tuple[int, str]],
+    numero_inicial: int,
+) -> None:
+    for posicao in range(ALUNOS_POR_PAGINA):
+        linha = linha_inicial + posicao
+        tem_aluno = posicao < len(alunos_pagina)
+        numero = numero_inicial + posicao if tem_aluno else None
+        matricula, nome = alunos_pagina[posicao] if tem_aluno else (None, None)
+        valores = [numero, matricula, nome]
+
         for coluna, valor in enumerate(valores, start=1):
             cell = ws.cell(linha, coluna, valor)
-            cell.border = Border(
-                left=BORDA_FINA,
-                right=BORDA_FINA,
-                top=BORDA_FINA,
-                bottom=BORDA_FINA,
+            cell.font = Font(
+                name=FONTE_NOMES if coluna == 3 else FONTE_TABELA,
+                size=10,
             )
             cell.alignment = Alignment(
-                horizontal="left" if coluna == 3 else "center", vertical="center"
+                horizontal="left" if coluna == 3 else "center",
+                vertical="center",
             )
-            if numero % 2 == 0:
-                cell.fill = PatternFill("solid", fgColor="FAFAFA")
-        ws.row_dimensions[linha].height = 21
+            cell.border = _borda(
+                esquerda=BORDA_MEDIA if coluna == 1 else BORDA_FINA,
+                direita=BORDA_FINA,
+                inferior=(
+                    BORDA_MEDIA
+                    if posicao == ALUNOS_POR_PAGINA - 1
+                    else BORDA_FINA
+                ),
+            )
 
-    ws.column_dimensions["A"].width = 5
-    ws.column_dimensions["B"].width = 12
-    ws.column_dimensions["C"].width = 38
-    for coluna in range(4, total_colunas + 1):
-        ws.column_dimensions[get_column_letter(coluna)].width = 5.2
+        for coluna in range(COLUNA_PRIMEIRA_DATA, COLUNA_ULTIMA_DATA + 1):
+            cell = ws.cell(linha, coluna)
+            cell.font = Font(name=FONTE_TABELA, size=10)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = _borda(
+                direita=(
+                    BORDA_MEDIA
+                    if coluna == COLUNA_ULTIMA_DATA
+                    else BORDA_FINA
+                ),
+                inferior=(
+                    BORDA_MEDIA
+                    if posicao == ALUNOS_POR_PAGINA - 1
+                    else BORDA_FINA
+                ),
+            )
+        ws.row_dimensions[linha].height = 15
 
-    ultima_linha = primeira_linha + max(len(alunos), 1) - 1
-    assinatura = ultima_linha + 3
-    ws.merge_cells(start_row=assinatura, start_column=3, end_row=assinatura, end_column=min(total_colunas, 8))
-    ws.cell(assinatura, 3, "Assinatura do(a) professor(a): __________________________________________")
-    ws.cell(assinatura, 3).font = Font(italic=True, color=COR_ESCURO)
-    ws.print_title_rows = "1:6"
-    ws.print_area = f"A1:{get_column_letter(total_colunas)}{assinatura + 1}"
 
-
-def _aba_plano(
+def _montar_lista_presenca(
     workbook: Workbook,
     turma: Turma,
     materia: Materia,
     professor: Professor | None,
+    alunos: list[tuple[int, str]],
     aulas: list[Aula],
+    ano: str,
 ) -> None:
-    ws = workbook.create_sheet("Plano de aulas")
-    _configurar_pagina(ws)
-    _cabecalho(ws, turma, materia, professor, 7)
-    titulos = ["Data", "Início", "Fim", "Tema / conteúdo", "Local", "Status", "Observações"]
-    for coluna, titulo in enumerate(titulos, start=1):
-        cell = ws.cell(6, coluna, titulo)
-        cell.fill = PatternFill("solid", fgColor=COR_CABECALHO)
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.alignment = Alignment(horizontal="center", vertical="center")
-        cell.border = Border(
-            left=BORDA_FINA, right=BORDA_FINA, top=BORDA_FINA, bottom=BORDA_FINA
-        )
-    for linha, aula in enumerate(aulas, start=7):
-        valores = [
-            aula.data,
-            _hora(aula.hora_inicio),
-            _hora(aula.hora_fim),
-            aula.tema or "",
-            aula.local or "",
-            aula.status,
-            aula.observacao or "",
-        ]
-        for coluna, valor in enumerate(valores, start=1):
-            cell = ws.cell(linha, coluna, valor)
-            cell.border = Border(
-                left=BORDA_FINA,
-                right=BORDA_FINA,
-                top=BORDA_FINA,
-                bottom=BORDA_FINA,
+    grupos_datas = [
+        aulas[inicio : inicio + DATAS_POR_PAGINA]
+        for inicio in range(0, len(aulas), DATAS_POR_PAGINA)
+    ]
+    grupos_alunos = [
+        alunos[inicio : inicio + ALUNOS_POR_PAGINA]
+        for inicio in range(0, len(alunos), ALUNOS_POR_PAGINA)
+    ] or [[]]
+
+    pagina = 0
+    for aulas_pagina in grupos_datas:
+        for indice_alunos, alunos_pagina in enumerate(grupos_alunos):
+            if pagina == 0:
+                ws = workbook.active
+                ws.title = "Lista de Presença"
+            else:
+                ws = workbook.create_sheet(f"Presença {pagina + 1}")
+            _configurar_folha(ws, turma, materia, professor, ano)
+
+            linha_inicial = 1
+            _cabecalho_bloco(
+                ws,
+                linha_inicial,
+                turma,
+                aulas_pagina,
             )
-            cell.alignment = Alignment(vertical="top", wrap_text=True)
-        ws.cell(linha, 1).number_format = "dd/mm/yyyy"
-        ws.row_dimensions[linha].height = 30
-    for coluna, largura in enumerate([13, 9, 9, 35, 18, 14, 42], start=1):
-        ws.column_dimensions[get_column_letter(coluna)].width = largura
-    ws.print_title_rows = "1:6"
-    ws.print_area = f"A1:G{max(7, 6 + len(aulas))}"
+            _linhas_alunos(
+                ws,
+                linha_inicial + 3,
+                alunos_pagina,
+                indice_alunos * ALUNOS_POR_PAGINA + 1,
+            )
+            pagina += 1
+            ws.print_area = (
+                f"A1:{get_column_letter(COLUNA_ULTIMA_DATA)}{LINHAS_POR_PAGINA}"
+            )
+            ws.sheet_view.zoomScale = 85
+            ws.sheet_view.zoomScaleNormal = 85
 
 
 def gerar_diario_xlsx(db: Session, docturma_id: int) -> tuple[bytes, str]:
@@ -222,8 +301,6 @@ def gerar_diario_xlsx(db: Session, docturma_id: int) -> tuple[bytes, str]:
             .join(AluTurma, AluTurma.cod_alu == Aluno.cod_alu)
             .where(
                 AluTurma.cod_tur == vinculo.cod_tur,
-                # Matrículas antigas podem não ter status preenchido; apenas
-                # vínculos explicitamente inativos ficam fora do diário.
                 (AluTurma.status.is_(None))
                 | (~AluTurma.status.in_(["I", "INATIVO"])),
             )
@@ -231,21 +308,21 @@ def gerar_diario_xlsx(db: Session, docturma_id: int) -> tuple[bytes, str]:
         )
     )
 
+    ano = vinculo.Ano or str(aulas[0].data.year if aulas else date.today().year)
     workbook = Workbook()
-    workbook.remove(workbook.active)
-    for indice, inicio in enumerate(range(0, len(aulas), 15), start=1):
-        _aba_presenca(
-            workbook,
-            indice,
-            turma,
-            materia,
-            professor,
-            alunos,
-            aulas[inicio : inicio + 15],
-        )
-    _aba_plano(workbook, turma, materia, professor, aulas)
+    _montar_lista_presenca(
+        workbook,
+        turma,
+        materia,
+        professor,
+        alunos,
+        aulas,
+        ano,
+    )
 
     buffer = io.BytesIO()
     workbook.save(buffer)
-    nome = f"Diario_{_nome_arquivo(turma.nome or str(turma.cod_tur))}_{_nome_arquivo((materia.NOME or '').strip())}.xlsx"
+    turma_arquivo = _nome_arquivo(turma.nome or str(turma.cod_tur))
+    materia_arquivo = _nome_arquivo((materia.NOME or "").strip())
+    nome = f"Diario_{turma_arquivo}_{materia_arquivo}.xlsx"
     return buffer.getvalue(), nome

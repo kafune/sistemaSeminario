@@ -121,6 +121,25 @@ export async function getPublico(path) {
   return res.json()
 }
 
+/** POST público: usado por formulários acessados por convite. */
+export async function postPublico(path, body) {
+  const res = await fetch(BASE + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    let msg = `Erro ${res.status}`
+    try {
+      const data = await res.json()
+      if (typeof data.detail === 'string') msg = data.detail
+      else if (data.detail) msg = JSON.stringify(data.detail)
+    } catch { /* ignora */ }
+    throw new Error(msg)
+  }
+  return res.json()
+}
+
 /** Envia um arquivo autenticado e devolve a resposta JSON. */
 export async function enviarArquivoJson(path, arquivo) {
   const fd = new FormData()

@@ -50,6 +50,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(integracoes.router)
 app.include_router(calendario.public_router)
+app.include_router(professores.public_router)
 protegido = [Depends(usuario_atual)]
 app.include_router(alunos.router, dependencies=protegido)
 app.include_router(calendario.router, dependencies=protegido)

@@ -5,12 +5,17 @@ import {
   TableContainer, TableHead, TableRow, TextField,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import LinkIcon from '@mui/icons-material/Link'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
 import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus, resetBotao, useDialogoTelaCheia } from '../ui'
 
-const VAZIO = { nome: '', e_mail: '', fone1: '', celular: '', sigla: '', status: 'A' }
+const VAZIO = {
+  nome: '', e_mail: '', fone1: '', celular: '', sigla: '',
+  status: 'A', materias_atuacao: '',
+}
 
 export default function Professores() {
   const [professores, setProfessores] = useState([])
@@ -21,13 +26,16 @@ export default function Professores() {
   const [paraExcluir, setParaExcluir] = useState(null)
   const [excluindo, setExcluindo] = useState(false)
   const [msg, setMsg] = useState('')
+  const [msgTipo, setMsgTipo] = useState('error')
+  const [convite, setConvite] = useState(null)
+  const [criandoConvite, setCriandoConvite] = useState(false)
   const telaCheia = useDialogoTelaCheia()
 
   function carregar() {
     setCarregando(true)
     api.get(`/professores?busca=${encodeURIComponent(busca)}`)
       .then(setProfessores)
-      .catch((e) => setMsg(e.message))
+      .catch((e) => { setMsgTipo('error'); setMsg(e.message) })
       .finally(() => setCarregando(false))
   }
 
@@ -36,11 +44,18 @@ export default function Professores() {
   async function salvar() {
     setSalvando(true)
     try {
-      if (form.cod_pro) await api.put(`/professores/${form.cod_pro}`, form)
-      else await api.post('/professores', form)
+      const dados = Object.fromEntries(
+        Object.entries(form).map(([campo, valor]) => [
+          campo,
+          typeof valor === 'string' && !valor.trim() ? null : valor,
+        ]),
+      )
+      if (form.cod_pro) await api.put(`/professores/${form.cod_pro}`, dados)
+      else await api.post('/professores', dados)
       setForm(null)
       carregar()
     } catch (e) {
+      setMsgTipo('error')
       setMsg(e.message)
     } finally {
       setSalvando(false)
@@ -54,10 +69,38 @@ export default function Professores() {
       setParaExcluir(null)
       carregar()
     } catch (e) {
+      setMsgTipo('error')
       setMsg(e.message)
       setParaExcluir(null)
     } finally {
       setExcluindo(false)
+    }
+  }
+
+  async function criarConvite() {
+    setCriandoConvite(true)
+    try {
+      const resposta = await api.post('/professores/convites', {})
+      setConvite({
+        url: `${window.location.origin}/cadastro-professor/${resposta.token}`,
+        expira_em: resposta.expira_em,
+      })
+    } catch (e) {
+      setMsgTipo('error')
+      setMsg(e.message)
+    } finally {
+      setCriandoConvite(false)
+    }
+  }
+
+  async function copiarConvite() {
+    try {
+      await navigator.clipboard.writeText(convite.url)
+      setMsgTipo('success')
+      setMsg('Link de autocadastro copiado.')
+    } catch {
+      setMsgTipo('error')
+      setMsg('Não foi possível copiar automaticamente. Selecione o link no campo.')
     }
   }
 
@@ -79,6 +122,9 @@ export default function Professores() {
           }}
         />
       </Box>
+      <Button variant="outlined" startIcon={<LinkIcon />} onClick={criarConvite} disabled={criandoConvite}>
+        {criandoConvite ? 'Gerando…' : 'Link de autocadastro'}
+      </Button>
       <Button variant="contained" startIcon={<AddIcon />} onClick={() => setForm({ ...VAZIO })}>
         Novo professor
       </Button>
@@ -114,6 +160,7 @@ export default function Professores() {
             </Box>
             <LinhaCartao rotulo="Telefone" valor={p.fone1 || p.celular} />
             <LinhaCartao rotulo="E-mail" valor={p.e_mail} />
+            <LinhaCartao rotulo="Áreas indicadas" valor={p.materias_atuacao} />
             <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
               <Button size="small" variant="outlined" fullWidth onClick={() => setForm({ ...p })}>Editar</Button>
               <Button size="small" variant="outlined" color="error" fullWidth onClick={() => setParaExcluir(p)}>Excluir</Button>
@@ -132,16 +179,17 @@ export default function Professores() {
               <TableCell sx={{ width: 90 }}>Sigla</TableCell>
               <TableCell>Telefone</TableCell>
               <TableCell>E-mail</TableCell>
+              <TableCell>Áreas indicadas</TableCell>
               <TableCell sx={{ width: 110 }}>Status</TableCell>
               <TableCell align="right" sx={{ width: 120 }}>Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {carregando && professores.length === 0 && (
-              <TableRow><TableCell colSpan={7} sx={{ py: 5, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} sx={{ py: 5, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
             )}
             {!carregando && professores.length === 0 && (
-              <TableRow><TableCell colSpan={7} sx={{ py: 6, textAlign: 'center', color: TOV.caption }}>Nenhum professor encontrado.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} sx={{ py: 6, textAlign: 'center', color: TOV.caption }}>Nenhum professor encontrado.</TableCell></TableRow>
             )}
             {professores.map((p) => (
               <TableRow key={p.cod_pro} hover>
@@ -150,6 +198,11 @@ export default function Professores() {
                 <TableCell sx={{ color: TOV.slate }}>{p.sigla || '—'}</TableCell>
                 <TableCell sx={{ color: TOV.slate }}>{p.fone1 || p.celular || '—'}</TableCell>
                 <TableCell sx={{ color: TOV.slate }}>{p.e_mail || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.slate, maxWidth: 260 }}>
+                  <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.materias_atuacao || ''}>
+                    {p.materias_atuacao || '—'}
+                  </Box>
+                </TableCell>
                 <TableCell><PilulaStatus status={p.status} /></TableCell>
                 <TableCell align="right">
                   <Box sx={{ display: 'inline-flex', gap: 1.25, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
@@ -170,7 +223,7 @@ export default function Professores() {
         </Table>
       </TableContainer>
 
-      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
+      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="md" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.cod_pro ? 'Editar professor' : 'Novo professor'}</DialogTitle>
         <DialogContent>
           {form && (
@@ -202,6 +255,68 @@ export default function Professores() {
                   <MenuItem value="I">Inativo</MenuItem>
                 </TextField>
               </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth multiline minRows={3}
+                  label="Matérias ou áreas indicadas pelo professor"
+                  value={form.materias_atuacao ?? ''}
+                  onChange={(e) => setForm({ ...form, materias_atuacao: e.target.value })}
+                  helperText="Texto informativo; os vínculos oficiais continuam sendo feitos nas turmas."
+                  inputProps={{ maxLength: 1000 }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField fullWidth type="date" label="Data de nascimento" value={form.dat_nas ?? ''}
+                  onChange={(e) => setForm({ ...form, dat_nas: e.target.value })} InputLabelProps={{ shrink: true }} />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField select fullWidth label="Sexo" value={form.sexo ?? ''}
+                  onChange={(e) => setForm({ ...form, sexo: e.target.value })}>
+                  <MenuItem value="">Não informado</MenuItem>
+                  <MenuItem value="F">Feminino</MenuItem>
+                  <MenuItem value="M">Masculino</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField fullWidth label="Estado civil" value={form.est_civ ?? ''}
+                  onChange={(e) => setForm({ ...form, est_civ: e.target.value })} inputProps={{ maxLength: 30 }} />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField fullWidth label="CPF" value={form.cpf ?? ''}
+                  onChange={(e) => setForm({ ...form, cpf: e.target.value })} inputProps={{ maxLength: 20 }} />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField fullWidth label="RG" value={form.rg ?? ''}
+                  onChange={(e) => setForm({ ...form, rg: e.target.value })} inputProps={{ maxLength: 20 }} />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField fullWidth label="Nacionalidade" value={form.nacionalidade ?? ''}
+                  onChange={(e) => setForm({ ...form, nacionalidade: e.target.value })} inputProps={{ maxLength: 30 }} />
+              </Grid>
+              <Grid item xs={12} sm={8}>
+                <TextField fullWidth label="Endereço" value={form.endereco ?? ''}
+                  onChange={(e) => setForm({ ...form, endereco: e.target.value })} inputProps={{ maxLength: 100 }} />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField fullWidth label="Complemento" value={form.complemento ?? ''}
+                  onChange={(e) => setForm({ ...form, complemento: e.target.value })} inputProps={{ maxLength: 60 }} />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField fullWidth label="Bairro" value={form.bairro ?? ''}
+                  onChange={(e) => setForm({ ...form, bairro: e.target.value })} inputProps={{ maxLength: 60 }} />
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField fullWidth label="Cidade" value={form.cidade ?? ''}
+                  onChange={(e) => setForm({ ...form, cidade: e.target.value })} inputProps={{ maxLength: 60 }} />
+              </Grid>
+              <Grid item xs={6} sm={2}>
+                <TextField fullWidth label="UF" value={form.uf ?? ''}
+                  onChange={(e) => setForm({ ...form, uf: e.target.value.toUpperCase() })} inputProps={{ maxLength: 2 }} />
+              </Grid>
+              <Grid item xs={6} sm={2}>
+                <TextField fullWidth label="CEP" value={form.cep ?? ''}
+                  onChange={(e) => setForm({ ...form, cep: e.target.value })} inputProps={{ maxLength: 10 }} />
+              </Grid>
             </Grid>
           )}
         </DialogContent>
@@ -210,6 +325,25 @@ export default function Professores() {
           <Button variant="contained" onClick={salvar} disabled={!form?.nome || salvando}>
             {salvando ? 'Salvando…' : 'Salvar'}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={!!convite} onClose={() => setConvite(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Link de autocadastro</DialogTitle>
+        <DialogContent>
+          <Box sx={{ color: TOV.slate, fontSize: 15, mb: 2 }}>
+            Envie este link a um professor. Ele é individual, expira em 30 dias e deixa de funcionar após o primeiro cadastro.
+          </Box>
+          <TextField
+            fullWidth value={convite?.url || ''}
+            InputProps={{ readOnly: true }}
+            helperText={convite?.expira_em ? `Válido até ${new Date(convite.expira_em).toLocaleDateString('pt-BR')}` : ''}
+            onFocus={(e) => e.target.select()}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 1 }}>
+          <Button variant="outlined" onClick={() => setConvite(null)}>Fechar</Button>
+          <Button variant="contained" startIcon={<ContentCopyIcon />} onClick={copiarConvite}>Copiar link</Button>
         </DialogActions>
       </Dialog>
 
@@ -223,7 +357,7 @@ export default function Professores() {
       />
 
       <Snackbar open={!!msg} autoHideDuration={6000} onClose={() => setMsg('')}>
-        <Alert severity="error" onClose={() => setMsg('')}>{msg}</Alert>
+        <Alert severity={msgTipo} onClose={() => setMsg('')}>{msg}</Alert>
       </Snackbar>
     </Box>
   )

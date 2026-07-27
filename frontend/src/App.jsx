@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard'
 import Alunos from './pages/Alunos'
 import AlunoDetalhe from './pages/AlunoDetalhe'
 import Professores from './pages/Professores'
+import AutocadastroProfessor from './pages/AutocadastroProfessor'
 import Materias from './pages/Materias'
 import Turmas from './pages/Turmas'
 import TurmaDetalhe from './pages/TurmaDetalhe'
@@ -25,6 +26,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/agenda/:token" element={<CalendarioPublico />} />
+      <Route path="/cadastro-professor/:token" element={<AutocadastroProfessor />} />
       <Route path="/" element={<Protegida><Dashboard /></Protegida>} />
       <Route path="/alunos" element={<Protegida><Alunos /></Protegida>} />
       <Route path="/alunos/:codAlu" element={<Protegida><AlunoDetalhe /></Protegida>} />

@@ -1,14 +1,20 @@
-from datetime import date
+import re
+import secrets
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from sqlalchemy import select
+from pydantic import BaseModel, ConfigDict, Field
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db, row_to_dict
-from ..models import Materia, MatProf, Professor, TitProf
+from ..models import ConviteProfessor, Materia, MatProf, Professor, TitProf
 
 router = APIRouter(prefix="/professores", tags=["professores"])
+public_router = APIRouter(
+    prefix="/cadastro-professor",
+    tags=["autocadastro de professores"],
+)
 
 
 class ProfessorInput(BaseModel):
@@ -32,6 +38,56 @@ class ProfessorInput(BaseModel):
     status: str | None = None
     nacionalidade: str | None = None
     sigla: str | None = None
+    materias_atuacao: str | None = None
+
+
+class AutocadastroProfessorInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    nome: str = Field(min_length=3, max_length=100)
+    e_mail: str = Field(min_length=5, max_length=100)
+    celular: str = Field(min_length=8, max_length=20)
+    fone1: str | None = Field(default=None, max_length=20)
+    dat_nas: date | None = None
+    sexo: str | None = Field(default=None, max_length=1)
+    rg: str | None = Field(default=None, max_length=20)
+    cpf: str | None = Field(default=None, max_length=20)
+    est_civ: str | None = Field(default=None, max_length=30)
+    nacionalidade: str | None = Field(default=None, max_length=30)
+    endereco: str | None = Field(default=None, max_length=100)
+    complemento: str | None = Field(default=None, max_length=60)
+    bairro: str | None = Field(default=None, max_length=60)
+    cidade: str | None = Field(default=None, max_length=60)
+    uf: str | None = Field(default=None, max_length=2)
+    cep: str | None = Field(default=None, max_length=10)
+    materias_atuacao: str = Field(min_length=3, max_length=1000)
+
+
+def _convite_valido(
+    db: Session,
+    token: str,
+    *,
+    bloquear: bool = False,
+) -> ConviteProfessor:
+    consulta = select(ConviteProfessor).where(
+        ConviteProfessor.token == token,
+        ConviteProfessor.ativo == "S",
+        ConviteProfessor.usado_em.is_(None),
+    )
+    if bloquear:
+        consulta = consulta.with_for_update()
+    convite = db.scalar(consulta)
+    if not convite:
+        raise HTTPException(404, "Convite inválido ou já utilizado")
+    if convite.expira_em < datetime.now():
+        convite.ativo = "N"
+        db.commit()
+        raise HTTPException(410, "Este convite expirou")
+    return convite
+
+
+def _somente_digitos(valor: str | None) -> str:
+    return re.sub(r"\D", "", valor or "")
 
 
 @router.get("")
@@ -40,6 +96,24 @@ def listar(busca: str = "", db: Session = Depends(get_db)):
     if busca:
         q = q.where(Professor.nome.like(f"%{busca}%"))
     return [row_to_dict(p) for p in db.scalars(q.order_by(Professor.nome))]
+
+
+@router.post("/convites")
+def criar_convite(db: Session = Depends(get_db)):
+    agora = datetime.now()
+    convite = ConviteProfessor(
+        token=secrets.token_urlsafe(32),
+        criado_em=agora,
+        expira_em=agora + timedelta(days=30),
+        ativo="S",
+    )
+    db.add(convite)
+    db.commit()
+    db.refresh(convite)
+    return {
+        "token": convite.token,
+        "expira_em": convite.expira_em.isoformat(),
+    }
 
 
 @router.get("/{cod_pro}")
@@ -107,3 +181,62 @@ def definir_materias(cod_pro: int, cod_mats: list[int], db: Session = Depends(ge
         db.add(MatProf(cod_mat=cod_mat, cod_pro=cod_pro, seq_mp=i))
     db.commit()
     return {"ok": True, "quantidade": len(cod_mats)}
+
+
+@public_router.get("/{token}")
+def validar_convite(token: str, db: Session = Depends(get_db)):
+    convite = _convite_valido(db, token)
+    return {
+        "valido": True,
+        "expira_em": convite.expira_em.isoformat(),
+    }
+
+
+@public_router.post("/{token}")
+def autocadastrar_professor(
+    token: str,
+    dados: AutocadastroProfessorInput,
+    db: Session = Depends(get_db),
+):
+    convite = _convite_valido(db, token, bloquear=True)
+    if "@" not in dados.e_mail or "." not in dados.e_mail.rsplit("@", 1)[-1]:
+        raise HTTPException(400, "Informe um e-mail válido")
+
+    email_existente = db.scalar(
+        select(Professor).where(
+            func.lower(Professor.e_mail) == dados.e_mail.lower()
+        )
+    )
+    if email_existente:
+        raise HTTPException(409, "Já existe um professor com este e-mail")
+
+    cpf = _somente_digitos(dados.cpf)
+    if cpf:
+        for professor in db.scalars(
+            select(Professor).where(Professor.cpf.is_not(None))
+        ):
+            if _somente_digitos(professor.cpf) == cpf:
+                raise HTTPException(409, "Já existe um professor com este CPF")
+
+    valores = {
+        chave: (valor if valor != "" else None)
+        for chave, valor in dados.model_dump().items()
+    }
+    agora = datetime.now()
+    professor = Professor(
+        **valores,
+        dat_cad=date.today(),
+        status="A",
+        origem_cadastro="AUTOCADASTRO",
+        cadastro_recebido_em=agora,
+    )
+    db.add(professor)
+    db.flush()
+    convite.usado_em = agora
+    convite.ativo = "N"
+    convite.professor_id = professor.cod_pro
+    db.commit()
+    return {
+        "ok": True,
+        "mensagem": "Cadastro enviado com sucesso",
+    }

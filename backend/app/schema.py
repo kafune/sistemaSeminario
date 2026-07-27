@@ -10,7 +10,8 @@ from sqlalchemy.engine import Engine
 
 def atualizar_schema(engine: Engine) -> None:
     inspector = inspect(engine)
-    if "alunos" not in inspector.get_table_names():
+    tabelas = inspector.get_table_names()
+    if "alunos" not in tabelas:
         return
 
     colunas = {coluna["name"]: coluna for coluna in inspector.get_columns("alunos")}
@@ -59,6 +60,23 @@ def atualizar_schema(engine: Engine) -> None:
         comandos.append(
             "ALTER TABLE alunos MODIFY COLUMN local_igreja VARCHAR(255) NULL"
         )
+
+    if "professor" in tabelas:
+        colunas_professor = {
+            coluna["name"] for coluna in inspector.get_columns("professor")
+        }
+        if "materias_atuacao" not in colunas_professor:
+            comandos.append(
+                "ALTER TABLE professor ADD COLUMN materias_atuacao TEXT NULL"
+            )
+        if "origem_cadastro" not in colunas_professor:
+            comandos.append(
+                "ALTER TABLE professor ADD COLUMN origem_cadastro VARCHAR(30) NULL"
+            )
+        if "cadastro_recebido_em" not in colunas_professor:
+            comandos.append(
+                "ALTER TABLE professor ADD COLUMN cadastro_recebido_em DATETIME NULL"
+            )
 
     if comandos:
         with engine.begin() as conexao:

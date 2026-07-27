@@ -20,3 +20,15 @@ class ImportacaoGoogleForms(Base):
     ja_processados: Mapped[int] = mapped_column(Integer, default=0)
     erros: Mapped[int] = mapped_column(Integer, default=0)
     mensagem: Mapped[str | None] = mapped_column(String(255))
+
+
+class ConviteProfessor(Base):
+    __tablename__ = "convites_professor"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime)
+    expira_em: Mapped[datetime] = mapped_column(DateTime)
+    usado_em: Mapped[datetime | None] = mapped_column(DateTime)
+    ativo: Mapped[str] = mapped_column(String(1), default="S")
+    professor_id: Mapped[int | None] = mapped_column(Integer)

@@ -85,6 +85,8 @@ def gerar_ficha_aluno(db: Session, cod_alu: int) -> bytes:
 
     secao("Vida acadêmica")
     campo("Turma:", turma.nome if turma else "")
+    campo("Turma de interesse:", aluno.turma_interesse)
+    campo("Curso teológico anterior:", aluno.cur_teologicos)
     campo("Cadastrado em:", d(aluno.dat_cad))
     campo("Status:", aluno.status)
     pdf.ln(3)
@@ -93,6 +95,7 @@ def gerar_ficha_aluno(db: Session, cod_alu: int) -> bytes:
     campo("Igreja:", aluno.igreja)
     campo("Local:", aluno.local_igreja)
     campo("Pastor:", aluno.nome_pastor)
+    campo("Cônjuge participante:", aluno.nome_conjuge)
     campo("Membro desde:", d(aluno.membro_desde))
     campo("Atividades:", aluno.atividades)
 

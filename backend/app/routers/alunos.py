@@ -37,6 +37,8 @@ class AlunoInput(BaseModel):
     igreja: str | None = None
     local_igreja: str | None = None
     nome_pastor: str | None = None
+    turma_interesse: str | None = None
+    nome_conjuge: str | None = None
     membro_desde: date | None = None
     atividades: str | None = None
     status: str | None = None

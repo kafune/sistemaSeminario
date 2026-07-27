@@ -11,7 +11,7 @@ const VAZIO = {
   fone1: '', celular: '', e_mail: '', sexo: '', escolaridade: '', est_civ: '',
   dat_nas: null, rg: '', cpf: '', profissao: '', igreja: '', local_igreja: '',
   nome_pastor: '', membro_desde: null, status: 'A', nacionalidade: 'BRASILEIRO',
-  cod_tur: null,
+  turma_interesse: '', nome_conjuge: '', cur_teologicos: '', cod_tur: null,
 }
 
 /** Formulário de aluno (criação e edição). `aluno` preenchido = edição. */
@@ -81,6 +81,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
               select size="small" fullWidth label="Status" value={form.status ?? 'A'}
               onChange={(e) => setForm({ ...form, status: e.target.value })}
             >
+              <MenuItem value="P">Pré-cadastro</MenuItem>
               <MenuItem value="A">Ativo</MenuItem>
               <MenuItem value="I">Inativo</MenuItem>
               <MenuItem value="F">Formado</MenuItem>
@@ -104,14 +105,27 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
           <Grid item xs={6} sm={3}>{campo('escolaridade', { label: 'Escolaridade' })}</Grid>
           <Grid item xs={6} sm={3}>{campo('est_civ', { label: 'Estado civil' })}</Grid>
           <Grid item xs={12} sm={6}>{campo('igreja', { label: 'Igreja' })}</Grid>
-          <Grid item xs={12} sm={6}>{campo('local_igreja', { label: 'Local da igreja' })}</Grid>
+          <Grid item xs={12} sm={6}>
+            {campo('local_igreja', { label: 'Endereço completo da igreja', multiline: true, minRows: 2 })}
+          </Grid>
           <Grid item xs={12} sm={6}>{campo('nome_pastor', { label: 'Pastor' })}</Grid>
           <Grid item xs={6} sm={3}>
             {campo('membro_desde', { label: 'Membro desde', type: 'date', InputLabelProps: { shrink: true } })}
           </Grid>
+          <Grid item xs={12} sm={6}>
+            {campo('cur_teologicos', {
+              label: 'Curso anterior de Teologia (onde?)', multiline: true, minRows: 2,
+            })}
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            {campo('nome_conjuge', { label: 'Nome do cônjuge participante' })}
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            {campo('turma_interesse', { label: 'Turma de interesse' })}
+          </Grid>
           <Grid item xs={6} sm={3}>
             <TextField
-              select size="small" fullWidth label="Turma" value={form.cod_tur ?? ''}
+              select size="small" fullWidth label="Turma matriculada" value={form.cod_tur ?? ''}
               onChange={(e) => setForm({ ...form, cod_tur: e.target.value || null })}
             >
               {turmas.map((t) => (

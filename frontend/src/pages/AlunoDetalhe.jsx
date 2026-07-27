@@ -79,7 +79,7 @@ export default function AlunoDetalhe() {
 
   if (!aluno) return <Typography sx={{ color: TOV.caption }}>Carregando…</Typography>
 
-  const situacao = { A: 'Em curso', I: 'Inativo', F: 'Formado', T: 'Trancado' }[aluno.status] || '—'
+  const situacao = { P: 'Pré-cadastro', A: 'Em curso', I: 'Inativo', F: 'Formado', T: 'Trancado' }[aluno.status] || '—'
 
   return (
     <Box>
@@ -129,8 +129,13 @@ export default function AlunoDetalhe() {
             <Campo rotulo="Endereço" valor={`${aluno.endereco || ''}${aluno.bairro ? ' · ' + aluno.bairro : ''}`.trim()} />
             <Campo rotulo="CEP" valor={aluno.cep} />
             <Campo rotulo="Igreja" valor={aluno.igreja} />
+            <Campo rotulo="Endereço da igreja" valor={aluno.local_igreja} />
             <Campo rotulo="Pastor" valor={aluno.nome_pastor} />
             <Campo rotulo="Profissão" valor={aluno.profissao} />
+            <Campo rotulo="Escolaridade" valor={aluno.escolaridade} />
+            <Campo rotulo="Turma de interesse" valor={aluno.turma_interesse} />
+            <Campo rotulo="Curso anterior de Teologia" valor={aluno.cur_teologicos} />
+            <Campo rotulo="Cônjuge participante" valor={aluno.nome_conjuge} />
           </Box>
         </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.75 }}>

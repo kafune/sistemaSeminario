@@ -14,6 +14,7 @@ import AlunoForm from './AlunoForm'
 const POR_PAGINA = 25
 const FILTROS = [
   { rotulo: 'Todos', valor: '' },
+  { rotulo: 'Pré-cadastros', valor: 'P' },
   { rotulo: 'Ativos', valor: 'A' },
   { rotulo: 'Inativos', valor: 'I' },
   { rotulo: 'Formados', valor: 'F' },

@@ -74,13 +74,14 @@ export function CabecalhoPagina({ titulo, subtitulo, acoes, sx }) {
 }
 
 const MAPA_STATUS = {
+  P: ['Pré-cadastro', TOV.coral, TOV.coralTint],
   A: ['Ativo', TOV.coral, TOV.coralTint],
   I: ['Inativo', TOV.caption, TOV.captionTint],
   F: ['Formado', TOV.slate, TOV.slateTint],
   T: ['Trancado', TOV.caption, TOV.captionTint],
 }
 
-/** Pílula de status a partir do código (A/I/F/T). */
+/** Pílula de status a partir do código (P/A/I/F/T). */
 export function PilulaStatus({ status, sx }) {
   const [label, color, bg] = MAPA_STATUS[status] || [status || '—', TOV.caption, TOV.captionTint]
   return (

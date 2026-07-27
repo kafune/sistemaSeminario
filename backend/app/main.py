@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .database import Base, engine
+from .schema import atualizar_schema
 from .security import usuario_atual
 from .routers import (
     alunos,
@@ -21,8 +22,9 @@ from .routers import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Banco novo, sem migração de legado: cria as tabelas que faltarem.
+    # Cria bancos novos e aplica ajustes aditivos em instalações existentes.
     Base.metadata.create_all(engine)
+    atualizar_schema(engine)
     yield
 
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert, Box, Button, InputAdornment, Pagination, Paper, Snackbar, Table, TableBody,
@@ -6,10 +6,12 @@ import {
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
+import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import { CabecalhoPagina, CartaoLista, LinhaCartao, PilulaStatus, resetBotao } from '../ui'
 import AlunoForm from './AlunoForm'
+import ImportarAlunosDialog from './ImportarAlunosDialog'
 
 const POR_PAGINA = 25
 const FILTROS = [
@@ -49,6 +51,8 @@ export default function Alunos() {
   const [carregando, setCarregando] = useState(true)
   const [pagina, setPagina] = useState(1)
   const [formAberto, setFormAberto] = useState(false)
+  const [importacaoAberta, setImportacaoAberta] = useState(false)
+  const [versaoLista, setVersaoLista] = useState(0)
   const [erro, setErro] = useState('')
   const navigate = useNavigate()
 
@@ -60,7 +64,12 @@ export default function Alunos() {
       .then(setDados)
       .catch((e) => setErro(e.message))
       .finally(() => setCarregando(false))
-  }, [buscaAtiva, status, pagina])
+  }, [buscaAtiva, status, pagina, versaoLista])
+
+  const recarregarLista = useCallback(() => {
+    setPagina(1)
+    setVersaoLista((versao) => versao + 1)
+  }, [])
 
   function pesquisar(e) {
     e.preventDefault()
@@ -83,6 +92,9 @@ export default function Alunos() {
           InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ fontSize: 20, color: TOV.caption }} /></InputAdornment>) }}
         />
       </Box>
+      <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setImportacaoAberta(true)} sx={{ height: 46 }}>
+        Importar
+      </Button>
       <Button variant="contained" startIcon={<AddIcon />} onClick={() => setFormAberto(true)} sx={{ height: 46 }}>
         Novo aluno
       </Button>
@@ -187,6 +199,11 @@ export default function Alunos() {
         />
       </Box>
 
+      <ImportarAlunosDialog
+        aberto={importacaoAberta}
+        aoFechar={() => setImportacaoAberta(false)}
+        aoImportar={recarregarLista}
+      />
       <AlunoForm
         aberto={formAberto}
         aoFechar={() => setFormAberto(false)}

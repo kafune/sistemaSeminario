@@ -9,6 +9,8 @@ import Professores from './pages/Professores'
 import Materias from './pages/Materias'
 import Turmas from './pages/Turmas'
 import TurmaDetalhe from './pages/TurmaDetalhe'
+import Calendario from './pages/Calendario'
+import CalendarioPublico from './pages/CalendarioPublico'
 import Notas from './pages/Notas'
 import Relatorios from './pages/Relatorios'
 import Usuarios from './pages/Usuarios'
@@ -22,6 +24,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/agenda/:token" element={<CalendarioPublico />} />
       <Route path="/" element={<Protegida><Dashboard /></Protegida>} />
       <Route path="/alunos" element={<Protegida><Alunos /></Protegida>} />
       <Route path="/alunos/:codAlu" element={<Protegida><AlunoDetalhe /></Protegida>} />
@@ -29,6 +32,7 @@ export default function App() {
       <Route path="/materias" element={<Protegida><Materias /></Protegida>} />
       <Route path="/turmas" element={<Protegida><Turmas /></Protegida>} />
       <Route path="/turmas/:codTur" element={<Protegida><TurmaDetalhe /></Protegida>} />
+      <Route path="/calendario" element={<Protegida><Calendario /></Protegida>} />
       <Route path="/notas" element={<Protegida><Notas /></Protegida>} />
       <Route path="/relatorios" element={<Protegida><Relatorios /></Protegida>} />
       <Route path="/usuarios" element={<Protegida><Usuarios /></Protegida>} />

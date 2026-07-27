@@ -2,7 +2,8 @@
 
 O Apps Script desta pasta deve ser vinculado à **planilha de respostas** do
 Google Forms. Cada nova resposta é enviada à API e vira um aluno com status
-`P` (Pré-cadastro).
+`P` (Pré-cadastro). O botão **Importar** da tela de Alunos também pode solicitar
+a sincronização segura de todas as respostas antigas.
 
 ## Configuração na planilha
 
@@ -11,13 +12,18 @@ Google Forms. Cada nova resposta é enviada à API e vira um aluno com status
 3. Abra **Configurações do projeto → Propriedades do script**.
 4. Crie a propriedade `TOV_WEBHOOK_SECRET` com o mesmo segredo configurado no
    servidor em `TOV_GOOGLE_FORMS_WEBHOOK_SECRET`.
-5. No editor, selecione a função `instalarGatilho` e clique em **Executar**.
-6. Autorize o acesso solicitado pelo Google.
-7. Envie uma resposta de teste pelo formulário e confira **Execuções** no
+5. Volte à planilha e deixe selecionada a aba que recebe as respostas.
+6. No editor, selecione a função `instalarGatilho` e clique em **Executar**.
+7. Autorize o acesso solicitado pelo Google.
+8. Envie uma resposta de teste pelo formulário e confira **Execuções** no
    Apps Script e o filtro **Pré-cadastros** no Centro TOV.
 
-Não execute `enviarPreCadastro` manualmente: ela depende do evento gerado pelo
-gatilho de envio da planilha.
+A instalação cria dois gatilhos: um envia novas respostas imediatamente e o
+outro verifica, a cada minuto, se alguém clicou em **Importar do Google Forms**
+na plataforma. A planilha continua privada.
+
+Não execute `enviarPreCadastro` ou `processarImportacoesPendentes` manualmente:
+elas dependem dos gatilhos.
 
 Os títulos das perguntas são usados como chaves. Se um cabeçalho do Forms for
 renomeado, atualize o título correspondente no `Code.gs`.

@@ -88,3 +88,52 @@ export async function abrirArquivo(path) {
   const url = URL.createObjectURL(blob)
   window.open(url, '_blank')
 }
+
+/** Baixa um arquivo autenticado preservando o nome sugerido pela API. */
+export async function baixarArquivo(path, nomePadrao = 'arquivo') {
+  const res = await fetch(BASE + path, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  })
+  if (!res.ok) {
+    let msg = `Erro ${res.status}`
+    try { msg = (await res.json()).detail || msg } catch { /* ignora */ }
+    throw new Error(msg)
+  }
+  const blob = await res.blob()
+  const disposicao = res.headers.get('Content-Disposition') || ''
+  const nome = disposicao.match(/filename="?([^"]+)"?/i)?.[1] || nomePadrao
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nome
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+/** GET público: não exige sessão e nunca redireciona para o login. */
+export async function getPublico(path) {
+  const res = await fetch(BASE + path)
+  if (!res.ok) {
+    let msg = `Erro ${res.status}`
+    try { msg = (await res.json()).detail || msg } catch { /* ignora */ }
+    throw new Error(msg)
+  }
+  return res.json()
+}
+
+/** Envia um arquivo autenticado e devolve a resposta JSON. */
+export async function enviarArquivoJson(path, arquivo) {
+  const fd = new FormData()
+  fd.append('arquivo', arquivo)
+  const res = await fetch(BASE + path, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${getToken()}` },
+    body: fd,
+  })
+  if (!res.ok) {
+    let msg = `Erro ${res.status}`
+    try { msg = (await res.json()).detail || msg } catch { /* ignora */ }
+    throw new Error(msg)
+  }
+  return res.json()
+}

@@ -1,9 +1,11 @@
 from .academico import Materia, Turma, AluTurma, DocTurma, AluNota
 from .pessoas import Aluno, Professor, MatProf, TitProf
 from .auth import Usuario
+from .integracoes import ImportacaoGoogleForms
+from .calendario import Aula, CalendarioPublico
 
 __all__ = [
     "Materia", "Turma", "AluTurma", "DocTurma", "AluNota",
     "Aluno", "Professor", "MatProf", "TitProf",
-    "Usuario",
+    "Usuario", "ImportacaoGoogleForms", "Aula", "CalendarioPublico",
 ]

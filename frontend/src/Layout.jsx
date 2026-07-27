@@ -7,6 +7,7 @@ import SchoolIcon from '@mui/icons-material/School'
 import PersonIcon from '@mui/icons-material/Person'
 import MenuBookIcon from '@mui/icons-material/MenuBook'
 import GroupsIcon from '@mui/icons-material/Groups'
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import EditNoteIcon from '@mui/icons-material/EditNote'
 import DescriptionIcon from '@mui/icons-material/Description'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
@@ -21,6 +22,7 @@ const MENU = [
   { rotulo: 'Professores', rota: '/professores', icone: PersonIcon },
   { rotulo: 'Matérias', rota: '/materias', icone: MenuBookIcon },
   { rotulo: 'Turmas', rota: '/turmas', icone: GroupsIcon },
+  { rotulo: 'Calendário', rota: '/calendario', icone: CalendarMonthIcon },
   { rotulo: 'Notas e Faltas', rota: '/notas', icone: EditNoteIcon },
   { rotulo: 'Relatórios', rota: '/relatorios', icone: DescriptionIcon },
   { rotulo: 'Usuários', rota: '/usuarios', icone: ManageAccountsIcon },

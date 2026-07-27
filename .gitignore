@@ -9,3 +9,4 @@ tools/
 migration/csv/
 backend/output/
 *.log
+/TS3 TURMA 2.xls

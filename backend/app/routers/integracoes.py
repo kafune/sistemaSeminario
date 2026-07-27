@@ -1,16 +1,16 @@
 import hmac
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..models import Aluno
+from ..models import Aluno, ImportacaoGoogleForms
 
 router = APIRouter(prefix="/integracoes", tags=["integrações"])
 
@@ -98,12 +98,10 @@ def _campos_aluno(dados: PreCadastroGoogleForms) -> dict:
     }
 
 
-@router.post(
-    "/google-forms/pre-cadastro",
-    dependencies=[Depends(_validar_segredo)],
-)
-def receber_pre_cadastro(
-    dados: PreCadastroGoogleForms, db: Session = Depends(get_db)
+def processar_pre_cadastro(
+    dados: PreCadastroGoogleForms,
+    db: Session,
+    origem: str = "GOOGLE_FORMS",
 ):
     aluno = _buscar_existente(dados, db)
     if aluno and aluno.inscricao_externa_id == dados.inscricao_id:
@@ -126,7 +124,7 @@ def receber_pre_cadastro(
             **campos,
             status="P",
             dat_cad=date.today(),
-            origem_cadastro="GOOGLE_FORMS",
+            origem_cadastro=origem,
             inscricao_externa_id=dados.inscricao_id,
             inscricao_recebida_em=agora,
         )
@@ -146,3 +144,73 @@ def receber_pre_cadastro(
 
     db.refresh(aluno)
     return {"ok": True, "acao": acao, "cod_alu": aluno.cod_alu}
+
+
+@router.post(
+    "/google-forms/pre-cadastro",
+    dependencies=[Depends(_validar_segredo)],
+)
+def receber_pre_cadastro(
+    dados: PreCadastroGoogleForms, db: Session = Depends(get_db)
+):
+    return processar_pre_cadastro(dados, db)
+
+
+class ResultadoImportacaoGoogleForms(BaseModel):
+    criados: int = Field(default=0, ge=0)
+    atualizados: int = Field(default=0, ge=0)
+    ja_cadastrados: int = Field(default=0, ge=0)
+    ja_processados: int = Field(default=0, ge=0)
+    erros: int = Field(default=0, ge=0)
+    mensagem: str | None = Field(default=None, max_length=255)
+
+
+@router.post(
+    "/google-forms/proxima-importacao",
+    dependencies=[Depends(_validar_segredo)],
+)
+def proxima_importacao_google_forms(db: Session = Depends(get_db)):
+    limite_reprocessamento = datetime.now() - timedelta(minutes=15)
+    solicitacao = db.scalar(
+        select(ImportacaoGoogleForms)
+        .where(
+            or_(
+                ImportacaoGoogleForms.status == "PENDENTE",
+                (
+                    (ImportacaoGoogleForms.status == "PROCESSANDO")
+                    & (ImportacaoGoogleForms.iniciada_em < limite_reprocessamento)
+                ),
+            )
+        )
+        .order_by(ImportacaoGoogleForms.id)
+        .with_for_update(skip_locked=True)
+        .limit(1)
+    )
+    if not solicitacao:
+        return {"id": None}
+
+    solicitacao.status = "PROCESSANDO"
+    solicitacao.iniciada_em = datetime.now()
+    db.commit()
+    return {"id": solicitacao.id}
+
+
+@router.post(
+    "/google-forms/importacoes/{importacao_id}/concluir",
+    dependencies=[Depends(_validar_segredo)],
+)
+def concluir_importacao_google_forms(
+    importacao_id: int,
+    resultado: ResultadoImportacaoGoogleForms,
+    db: Session = Depends(get_db),
+):
+    solicitacao = db.get(ImportacaoGoogleForms, importacao_id)
+    if not solicitacao:
+        raise HTTPException(404, "Solicitação de importação não encontrada")
+
+    for campo, valor in resultado.model_dump().items():
+        setattr(solicitacao, campo, valor)
+    solicitacao.status = "CONCLUIDA"
+    solicitacao.concluida_em = datetime.now()
+    db.commit()
+    return {"ok": True}

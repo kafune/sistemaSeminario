@@ -11,7 +11,9 @@ from .routers import (
     alunos,
     auth,
     dashboard,
+    calendario,
     integracoes,
+    importacoes,
     materias,
     notas,
     professores,
@@ -47,8 +49,11 @@ app.add_middleware(
 # Login e webhook do Forms são públicos; o restante exige token
 app.include_router(auth.router)
 app.include_router(integracoes.router)
+app.include_router(calendario.public_router)
 protegido = [Depends(usuario_atual)]
 app.include_router(alunos.router, dependencies=protegido)
+app.include_router(calendario.router, dependencies=protegido)
+app.include_router(importacoes.router, dependencies=protegido)
 app.include_router(professores.router, dependencies=protegido)
 app.include_router(materias.router, dependencies=protegido)
 app.include_router(turmas.router, dependencies=protegido)

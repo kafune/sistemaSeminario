@@ -12,6 +12,8 @@ do Centro TOV. Banco de dados novo e vazio — sem migração de dados legados.
   lista de alunos da turma, ficha do aluno, boletins da turma inteira em ZIP
   e geração em lote a partir de planilha (CSV/XLSX/XLS)
 - **Login** com senhas bcrypt e token JWT
+- **WhatsApp via UazAPI**: criação e conexão da instância por QR Code,
+  mensagens personalizadas por aluno/turma e histórico de disparos
 
 O que foi **cortado** em relação ao sistema do seminário: biblioteca,
 grade curricular (`grade`/`itemgrade`), tabelas de apoio (cidade, curso,
@@ -108,3 +110,19 @@ frontend/    React + MUI: src/pages (telas), src/api.js (cliente HTTP)
 
 Credenciais ficam **só** no `backend/.env` (que está no .gitignore).
 Troca de senha disponível na API via `POST /auth/trocar-senha`.
+
+### WhatsApp / UazAPI
+
+Configure no ambiente do backend:
+
+```dotenv
+TOV_UAZAPI_BASE_URL=https://seu-subdominio.uazapi.com
+TOV_UAZAPI_ADMIN_TOKEN=seu-admintoken
+TOV_WHATSAPP_DELAY_MIN=5
+TOV_WHATSAPP_DELAY_MAX=15
+```
+
+O token administrativo é usado apenas pelo backend para criar uma única
+instância. O token dessa instância é criptografado no banco com uma chave
+derivada de `TOV_SECRET_KEY`; portanto, não altere essa chave sem antes
+reconfigurar a integração.

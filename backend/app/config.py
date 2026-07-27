@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     google_forms_webhook_secret: str = ""
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    uazapi_base_url: str = ""
+    uazapi_admin_token: str = ""
+    whatsapp_delay_min: int = 5
+    whatsapp_delay_max: int = 15
 
     class Config:
         env_prefix = "TOV_"

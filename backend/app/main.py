@@ -20,6 +20,7 @@ from .routers import (
     relatorios,
     turmas,
     usuarios,
+    whatsapp,
 )
 
 
@@ -62,6 +63,7 @@ app.include_router(notas.router, dependencies=protegido)
 app.include_router(relatorios.router, dependencies=protegido)
 app.include_router(dashboard.router, dependencies=protegido)
 app.include_router(usuarios.router, dependencies=protegido)
+app.include_router(whatsapp.router, dependencies=protegido)
 
 
 @app.get("/health")

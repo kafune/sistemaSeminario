@@ -11,6 +11,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import EditNoteIcon from '@mui/icons-material/EditNote'
 import DescriptionIcon from '@mui/icons-material/Description'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
+import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import LogoutIcon from '@mui/icons-material/Logout'
 import { clearSession, getUser } from './api'
 import { TOV } from './theme'
@@ -25,6 +26,7 @@ const MENU = [
   { rotulo: 'Calendário', rota: '/calendario', icone: CalendarMonthIcon },
   { rotulo: 'Notas e Faltas', rota: '/notas', icone: EditNoteIcon },
   { rotulo: 'Relatórios', rota: '/relatorios', icone: DescriptionIcon },
+  { rotulo: 'WhatsApp', rota: '/whatsapp', icone: WhatsAppIcon },
   { rotulo: 'Usuários', rota: '/usuarios', icone: ManageAccountsIcon },
 ]
 

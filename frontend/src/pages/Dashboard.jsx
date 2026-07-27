@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, Box, Button, Skeleton, Snackbar, Typography } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
-import { api } from '../api'
+import { api, getUser } from '../api'
 import { TOV } from '../theme'
 import { CabecalhoPagina, Eyebrow, resetBotao } from '../ui'
 import AlunoForm from './AlunoForm'
-
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
 const DIAS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado']
 
@@ -46,6 +45,7 @@ export default function Dashboard() {
   const [erro, setErro] = useState('')
   const [formAberto, setFormAberto] = useState(false)
   const agora = new Date()
+  const usuario = getUser() || 'Secretaria'
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export default function Dashboard() {
   return (
     <Box>
       <CabecalhoPagina
-        titulo={`${saudacao(agora.getHours())}, Secretaria`}
+        titulo={`${saudacao(agora.getHours())}, ${usuario}`}
         subtitulo={`${dataPorExtenso(agora)} · Semestre ${semestreAtual(agora)}`}
         acoes={acoes}
       />

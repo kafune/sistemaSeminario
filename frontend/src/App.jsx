@@ -15,6 +15,7 @@ import CalendarioPublico from './pages/CalendarioPublico'
 import Notas from './pages/Notas'
 import Relatorios from './pages/Relatorios'
 import Usuarios from './pages/Usuarios'
+import WhatsApp from './pages/WhatsApp'
 
 function Protegida({ children }) {
   if (!getToken()) return <Navigate to="/login" replace />
@@ -38,6 +39,7 @@ export default function App() {
       <Route path="/notas" element={<Protegida><Notas /></Protegida>} />
       <Route path="/relatorios" element={<Protegida><Relatorios /></Protegida>} />
       <Route path="/usuarios" element={<Protegida><Usuarios /></Protegida>} />
+      <Route path="/whatsapp" element={<Protegida><WhatsApp /></Protegida>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

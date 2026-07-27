@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
-from sqlalchemy import Date, Integer, String
+from sqlalchemy import Date, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -36,6 +36,11 @@ class Aluno(Base):
     nome_pastor: Mapped[str | None] = mapped_column(String(100))
     turma_interesse: Mapped[str | None] = mapped_column(String(100))
     nome_conjuge: Mapped[str | None] = mapped_column(String(100))
+    origem_cadastro: Mapped[str | None] = mapped_column(String(30))
+    inscricao_externa_id: Mapped[str | None] = mapped_column(
+        String(64), unique=True
+    )
+    inscricao_recebida_em: Mapped[datetime | None] = mapped_column(DateTime)
     membro_desde: Mapped[date | None] = mapped_column(Date)
     atividades: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[str | None] = mapped_column(String(10))

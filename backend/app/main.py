@@ -11,6 +11,7 @@ from .routers import (
     alunos,
     auth,
     dashboard,
+    integracoes,
     materias,
     notas,
     professores,
@@ -43,8 +44,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Login é público; todo o resto exige token
+# Login e webhook do Forms são públicos; o restante exige token
 app.include_router(auth.router)
+app.include_router(integracoes.router)
 protegido = [Depends(usuario_atual)]
 app.include_router(alunos.router, dependencies=protegido)
 app.include_router(professores.router, dependencies=protegido)

@@ -90,6 +90,7 @@ def criar(dados: AlunoInput, db: Session = Depends(get_db)):
     aluno = Aluno(**dados.model_dump())
     if not aluno.dat_cad:
         aluno.dat_cad = date.today()
+    aluno.origem_cadastro = "MANUAL"
     db.add(aluno)
     db.commit()
     db.refresh(aluno)

@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     secret_key: str = "troque-esta-chave-no-deploy"
     token_expire_minutes: int = 60 * 12  # expediente de um dia
+    google_forms_webhook_secret: str = ""
 
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 

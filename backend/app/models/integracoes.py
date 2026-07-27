@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -10,6 +10,7 @@ class ImportacaoGoogleForms(Base):
     __tablename__ = "importacoes_google_forms"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tipo: Mapped[str] = mapped_column(String(20), default="IMPORTACAO")
     status: Mapped[str] = mapped_column(String(20), default="PENDENTE")
     solicitada_em: Mapped[datetime] = mapped_column(DateTime)
     iniciada_em: Mapped[datetime | None] = mapped_column(DateTime)
@@ -20,6 +21,19 @@ class ImportacaoGoogleForms(Base):
     ja_processados: Mapped[int] = mapped_column(Integer, default=0)
     erros: Mapped[int] = mapped_column(Integer, default=0)
     mensagem: Mapped[str | None] = mapped_column(String(255))
+
+
+class ItemImportacaoGoogleForms(Base):
+    __tablename__ = "itens_importacao_google_forms"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    importacao_id: Mapped[int] = mapped_column(Integer, index=True)
+    inscricao_id: Mapped[str] = mapped_column(String(64), index=True)
+    nome: Mapped[str] = mapped_column(String(100), index=True)
+    e_mail: Mapped[str | None] = mapped_column(String(100))
+    telefone: Mapped[str | None] = mapped_column(String(20))
+    turma_interesse: Mapped[str | None] = mapped_column(String(100))
+    payload_json: Mapped[str] = mapped_column(Text)
 
 
 class ConviteProfessor(Base):

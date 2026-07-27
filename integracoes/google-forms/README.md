@@ -20,7 +20,10 @@ a sincronização segura de todas as respostas antigas.
 
 A instalação cria dois gatilhos: um envia novas respostas imediatamente e o
 outro verifica, a cada minuto, se alguém clicou em **Importar do Google Forms**
-na plataforma. A planilha continua privada.
+na plataforma. Esse segundo gatilho também atende ao botão **Escolher pessoas**:
+ele envia uma prévia segura para a plataforma, onde a secretaria pode pesquisar
+por nome, marcar somente as inscrições desejadas e importá-las. A planilha
+continua privada.
 
 Não execute `enviarPreCadastro` ou `processarImportacoesPendentes` manualmente:
 elas dependem dos gatilhos.

@@ -78,6 +78,17 @@ def atualizar_schema(engine: Engine) -> None:
                 "ALTER TABLE professor ADD COLUMN cadastro_recebido_em DATETIME NULL"
             )
 
+    if "importacoes_google_forms" in tabelas:
+        colunas_importacao = {
+            coluna["name"]
+            for coluna in inspector.get_columns("importacoes_google_forms")
+        }
+        if "tipo" not in colunas_importacao:
+            comandos.append(
+                "ALTER TABLE importacoes_google_forms "
+                "ADD COLUMN tipo VARCHAR(20) NOT NULL DEFAULT 'IMPORTACAO'"
+            )
+
     if comandos:
         with engine.begin() as conexao:
             for comando in comandos:

@@ -1,16 +1,17 @@
 import hmac
+import json
 import re
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, or_, select
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..models import Aluno, ImportacaoGoogleForms
+from ..models import Aluno, ImportacaoGoogleForms, ItemImportacaoGoogleForms
 
 router = APIRouter(prefix="/integracoes", tags=["integrações"])
 
@@ -169,9 +170,12 @@ class ResultadoImportacaoGoogleForms(BaseModel):
     "/google-forms/proxima-importacao",
     dependencies=[Depends(_validar_segredo)],
 )
-def proxima_importacao_google_forms(db: Session = Depends(get_db)):
+def proxima_importacao_google_forms(
+    suporta_previa: bool = False,
+    db: Session = Depends(get_db),
+):
     limite_reprocessamento = datetime.now() - timedelta(minutes=15)
-    solicitacao = db.scalar(
+    consulta = (
         select(ImportacaoGoogleForms)
         .where(
             or_(
@@ -186,13 +190,84 @@ def proxima_importacao_google_forms(db: Session = Depends(get_db)):
         .with_for_update(skip_locked=True)
         .limit(1)
     )
+    if not suporta_previa:
+        # Versões antigas do Apps Script não conhecem prévias e importariam
+        # todas as linhas. Só entregamos esse tipo ao script atualizado.
+        consulta = consulta.where(ImportacaoGoogleForms.tipo == "IMPORTACAO")
+    solicitacao = db.scalar(consulta)
     if not solicitacao:
         return {"id": None}
 
     solicitacao.status = "PROCESSANDO"
     solicitacao.iniciada_em = datetime.now()
     db.commit()
-    return {"id": solicitacao.id}
+    return {
+        "id": solicitacao.id,
+        "tipo": solicitacao.tipo or "IMPORTACAO",
+    }
+
+
+class PreviaGoogleFormsInput(BaseModel):
+    itens: list[dict] = Field(default_factory=list, max_length=5000)
+
+
+@router.post(
+    "/google-forms/importacoes/{importacao_id}/previa",
+    dependencies=[Depends(_validar_segredo)],
+)
+def receber_previa_google_forms(
+    importacao_id: int,
+    dados: PreviaGoogleFormsInput,
+    db: Session = Depends(get_db),
+):
+    solicitacao = db.get(ImportacaoGoogleForms, importacao_id)
+    if not solicitacao or solicitacao.tipo != "PREVIA":
+        raise HTTPException(404, "Solicitação de prévia não encontrada")
+    if solicitacao.status != "PROCESSANDO":
+        raise HTTPException(409, "Solicitação de prévia não está em processamento")
+
+    db.execute(
+        delete(ItemImportacaoGoogleForms).where(
+            ItemImportacaoGoogleForms.importacao_id == importacao_id
+        )
+    )
+    erros: list[str] = []
+    quantidade = 0
+    for indice, payload in enumerate(dados.itens, start=2):
+        try:
+            item = PreCadastroGoogleForms.model_validate(payload)
+        except ValidationError as erro:
+            erros.append(f"Linha {indice}: {erro}")
+            continue
+        db.add(
+            ItemImportacaoGoogleForms(
+                importacao_id=importacao_id,
+                inscricao_id=item.inscricao_id,
+                nome=item.nome,
+                e_mail=_texto(item.e_mail),
+                telefone=_texto(item.telefone),
+                turma_interesse=_texto(item.turma_interesse),
+                payload_json=json.dumps(
+                    item.model_dump(mode="json"),
+                    ensure_ascii=False,
+                ),
+            )
+        )
+        quantidade += 1
+
+    solicitacao.status = "PREVIA_PRONTA"
+    solicitacao.concluida_em = datetime.now()
+    solicitacao.erros = len(erros)
+    solicitacao.mensagem = (
+        f"{quantidade} pessoas disponíveis para seleção"
+        + (f"; {len(erros)} linhas ignoradas" if erros else "")
+    )[:255]
+    db.commit()
+    return {
+        "ok": True,
+        "itens": quantidade,
+        "erros": len(erros),
+    }
 
 
 @router.post(

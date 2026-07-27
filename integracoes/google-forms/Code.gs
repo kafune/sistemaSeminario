@@ -60,7 +60,10 @@ function enviarPreCadastro(e) {
 
 /** Atende às importações solicitadas pelo botão da plataforma. */
 function processarImportacoesPendentes() {
-  const solicitacao = chamarApi('/proxima-importacao', {});
+  const solicitacao = chamarApi(
+    '/proxima-importacao?suporta_previa=true',
+    {},
+  );
   if (!solicitacao.id) return;
 
   const totais = {
@@ -88,9 +91,10 @@ function processarImportacoesPendentes() {
     if (!aba) throw new Error('A aba de respostas configurada não foi encontrada.');
 
     const matriz = aba.getDataRange().getDisplayValues();
+    let itens = [];
     if (matriz.length > 1) {
       const cabecalhos = matriz[0];
-      const itens = matriz.slice(1)
+      itens = matriz.slice(1)
         .map((linha, indice) => {
           const valores = valoresNomeados(cabecalhos, linha);
           const numeroLinha = indice + 2;
@@ -103,6 +107,13 @@ function processarImportacoesPendentes() {
           return { numeroLinha, payload: montarPayload(valores, origem) };
         })
         .filter((item) => item.payload.nome);
+
+      if (solicitacao.tipo === 'PREVIA') {
+        chamarApi(`/importacoes/${solicitacao.id}/previa`, {
+          itens: itens.map((item) => item.payload),
+        });
+        return;
+      }
 
       for (let inicio = 0; inicio < itens.length; inicio += 50) {
         const lote = itens.slice(inicio, inicio + 50);
@@ -128,6 +139,9 @@ function processarImportacoesPendentes() {
           if (campo) totais[campo] += 1;
         });
       }
+    } else if (solicitacao.tipo === 'PREVIA') {
+      chamarApi(`/importacoes/${solicitacao.id}/previa`, { itens: [] });
+      return;
     }
   } catch (erro) {
     totais.erros += 1;

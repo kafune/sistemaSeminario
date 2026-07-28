@@ -89,6 +89,59 @@ def atualizar_schema(engine: Engine) -> None:
                 "ADD COLUMN tipo VARCHAR(20) NOT NULL DEFAULT 'IMPORTACAO'"
             )
 
+    if "whatsapp_disparos" in tabelas:
+        colunas_disparo = {
+            coluna["name"]
+            for coluna in inspector.get_columns("whatsapp_disparos")
+        }
+        if "tipo_mensagem" not in colunas_disparo:
+            comandos.append(
+                "ALTER TABLE whatsapp_disparos "
+                "ADD COLUMN tipo_mensagem VARCHAR(20) NOT NULL DEFAULT 'text'"
+            )
+        if "conteudo_json" not in colunas_disparo:
+            comandos.append(
+                "ALTER TABLE whatsapp_disparos ADD COLUMN conteudo_json LONGTEXT NULL"
+            )
+        if "agendado_para" not in colunas_disparo:
+            comandos.append(
+                "ALTER TABLE whatsapp_disparos ADD COLUMN agendado_para DATETIME NULL"
+            )
+        if "disparo_origem_id" not in colunas_disparo:
+            comandos.append(
+                "ALTER TABLE whatsapp_disparos ADD COLUMN disparo_origem_id INT NULL"
+            )
+        for coluna, sql in [
+            ("total_mensagens", "INT NOT NULL DEFAULT 0"),
+            ("total_entregues", "INT NOT NULL DEFAULT 0"),
+            ("total_lidos", "INT NOT NULL DEFAULT 0"),
+            ("total_reproduzidos", "INT NOT NULL DEFAULT 0"),
+        ]:
+            if coluna not in colunas_disparo:
+                comandos.append(
+                    f"ALTER TABLE whatsapp_disparos ADD COLUMN {coluna} {sql}"
+                )
+
+    if "whatsapp_templates" in tabelas:
+        colunas_template = {
+            coluna["name"]
+            for coluna in inspector.get_columns("whatsapp_templates")
+        }
+        if "categoria" not in colunas_template:
+            comandos.append(
+                "ALTER TABLE whatsapp_templates "
+                "ADD COLUMN categoria VARCHAR(60) NOT NULL DEFAULT 'Geral'"
+            )
+        if "favorito" not in colunas_template:
+            comandos.append(
+                "ALTER TABLE whatsapp_templates "
+                "ADD COLUMN favorito VARCHAR(1) NOT NULL DEFAULT 'N'"
+            )
+        if "versao" not in colunas_template:
+            comandos.append(
+                "ALTER TABLE whatsapp_templates ADD COLUMN versao INT NOT NULL DEFAULT 1"
+            )
+
     if comandos:
         with engine.begin() as conexao:
             for comando in comandos:

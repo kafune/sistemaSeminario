@@ -5,6 +5,7 @@ import {
   TableContainer, TableHead, TableRow, Typography,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
+import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import { AvatarIniciais, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus, Regua, cardSx, resetBotao } from '../ui'
@@ -35,6 +36,12 @@ function BotaoAcao({ children, primario, onClick }) {
       {children}
     </Button>
   )
+}
+
+function numeroWhatsApp(celular) {
+  let numero = String(celular || '').replace(/\D/g, '')
+  if (numero.length === 10 || numero.length === 11) numero = `55${numero}`
+  return numero.startsWith('55') && numero.length >= 12 ? numero : null
 }
 
 export default function AlunoDetalhe() {
@@ -80,6 +87,7 @@ export default function AlunoDetalhe() {
   if (!aluno) return <Typography sx={{ color: TOV.caption }}>Carregando…</Typography>
 
   const situacao = { P: 'Pré-cadastro', A: 'Em curso', I: 'Inativo', F: 'Formado', T: 'Trancado' }[aluno.status] || '—'
+  const whatsapp = numeroWhatsApp(aluno.celular)
 
   return (
     <Box>
@@ -108,6 +116,24 @@ export default function AlunoDetalhe() {
           </Box>
         </Box>
         <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', justifyContent: 'flex-end', width: { xs: '100%', md: 'auto' } }}>
+          <Button
+            variant="contained"
+            disabled={!whatsapp}
+            startIcon={<WhatsAppIcon />}
+            onClick={() => window.open(`https://wa.me/${whatsapp}`, '_blank', 'noopener,noreferrer')}
+            sx={{ height: 44, bgcolor: '#247A49', '&:hover': { bgcolor: '#17613A' } }}
+          >
+            Abrir WhatsApp
+          </Button>
+          <Button
+            variant="outlined"
+            disabled={!whatsapp}
+            startIcon={<WhatsAppIcon />}
+            onClick={() => navigate(`/whatsapp?aluno=${aluno.cod_alu}`)}
+            sx={{ height: 44 }}
+          >
+            Enviar pelo sistema
+          </Button>
           <BotaoAcao onClick={() => setEditando(true)}>Editar</BotaoAcao>
           <BotaoAcao primario onClick={() => abrirArquivo(`/relatorios/boletim/${codAlu}`).catch((e) => setMsg(e.message))}>Boletim</BotaoAcao>
           <BotaoAcao onClick={() => abrirArquivo(`/relatorios/historico/${codAlu}`).catch((e) => setMsg(e.message))}>Histórico</BotaoAcao>

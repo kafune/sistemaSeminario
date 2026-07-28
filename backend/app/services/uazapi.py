@@ -153,3 +153,26 @@ class UazApiClient:
             if not pagina or len(mensagens) >= total:
                 return mensagens
             offset += len(pagina)
+
+    def listar_campanhas(self) -> list[dict]:
+        resposta = self._requisicao("GET", "/sender/listfolders")
+        return resposta if isinstance(resposta, list) else []
+
+    def controlar_campanha(self, pasta_id: str, acao: str) -> dict:
+        return self._requisicao(
+            "POST", "/sender/edit", json={"folder_id": pasta_id, "action": acao}
+        )
+
+    def configurar_webhook(self, url: str) -> Any:
+        return self._requisicao(
+            "POST",
+            "/webhook",
+            json={
+                "enabled": True,
+                "url": url,
+                "events": ["sender", "messages_update", "connection"],
+                "excludeMessages": [],
+                "addUrlEvents": False,
+                "addUrlTypesMessages": False,
+            },
+        )

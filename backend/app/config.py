@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     uazapi_admin_token: str = ""
     whatsapp_delay_min: int = 5
     whatsapp_delay_max: int = 15
+    whatsapp_upload_max_mb: int = 20
+    public_api_url: str = ""
 
     class Config:
         env_prefix = "TOV_"

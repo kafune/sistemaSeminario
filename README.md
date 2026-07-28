@@ -13,7 +13,11 @@ do Centro TOV. Banco de dados novo e vazio — sem migração de dados legados.
   e geração em lote a partir de planilha (CSV/XLSX/XLS)
 - **Login** com senhas bcrypt e token JWT
 - **WhatsApp via UazAPI**: criação e conexão da instância por QR Code,
-  mensagens personalizadas por aluno/turma e histórico de disparos
+  mensagens personalizadas por aluno/turma, texto, imagens, documentos,
+  áudios, botões, enquetes, carrosséis, sequências, teste para a secretaria,
+  templates categorizados e versionados, agendamento editável, pausa,
+  retomada, cancelamento, reenvio de falhas e histórico com métricas de
+  envio, entrega, leitura e reprodução
 
 O que foi **cortado** em relação ao sistema do seminário: biblioteca,
 grade curricular (`grade`/`itemgrade`), tabelas de apoio (cidade, curso,
@@ -120,9 +124,21 @@ TOV_UAZAPI_BASE_URL=https://seu-subdominio.uazapi.com
 TOV_UAZAPI_ADMIN_TOKEN=seu-admintoken
 TOV_WHATSAPP_DELAY_MIN=5
 TOV_WHATSAPP_DELAY_MAX=15
+TOV_WHATSAPP_UPLOAD_MAX_MB=20
+TOV_PUBLIC_API_URL=https://seu-dominio.com/api
 ```
 
 O token administrativo é usado apenas pelo backend para criar uma única
 instância. O token dessa instância é criptografado no banco com uma chave
 derivada de `TOV_SECRET_KEY`; portanto, não altere essa chave sem antes
 reconfigurar a integração.
+
+Os arquivos usados nas mensagens ficam armazenados no banco e são entregues à
+UazAPI por uma URL pública com token imprevisível. `TOV_PUBLIC_API_URL` deve
+apontar para a URL externa do backend, incluindo `/api` quando esse for o
+prefixo configurado no nginx.
+
+Quando a instância está conectada, o app configura automaticamente um webhook
+assinado por URL para receber eventos de campanha, atualização de mensagens e
+conexão. A consulta rápida periódica continua ativa como contingência caso a
+UazAPI atrase ou não entregue algum evento.

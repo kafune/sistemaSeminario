@@ -16,6 +16,7 @@ export default defineConfig({
         name: 'TOV Acadêmico',
         short_name: 'TOV Acadêmico',
         description: 'Sistema acadêmico do Centro TOV de Formação Teológica.',
+        lang: 'pt-BR',
         start_url: '/',
         scope: '/',
         display: 'standalone',

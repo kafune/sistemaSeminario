@@ -8,6 +8,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications'
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
 import DoneAllIcon from '@mui/icons-material/DoneAll'
 import InstallMobileIcon from '@mui/icons-material/InstallMobile'
+import CloseIcon from '@mui/icons-material/Close'
 import { api } from './api'
 import { TOV } from './theme'
 
@@ -38,7 +39,7 @@ function instalado() {
   return window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone
 }
 
-function InstallButton() {
+export function BotaoInstalarPwa({ compacto = false, sx }) {
   const [prompt, setPrompt] = useState(null)
   const [mostrarIOS, setMostrarIOS] = useState(false)
   useEffect(() => {
@@ -46,20 +47,30 @@ function InstallButton() {
       evento.preventDefault()
       setPrompt(evento)
     }
+    const instaladoAgora = () => setPrompt(null)
     window.addEventListener('beforeinstallprompt', capturar)
-    return () => window.removeEventListener('beforeinstallprompt', capturar)
+    window.addEventListener('appinstalled', instaladoAgora)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', capturar)
+      window.removeEventListener('appinstalled', instaladoAgora)
+    }
   }, [])
   if (instalado()) return null
+  const botao = (aoClicar) => compacto ? (
+    <Tooltip title="Instalar aplicativo"><IconButton color="inherit" aria-label="Instalar aplicativo" onClick={aoClicar} sx={sx}><InstallMobileIcon /></IconButton></Tooltip>
+  ) : (
+    <Button startIcon={<InstallMobileIcon />} variant="outlined" onClick={aoClicar} sx={sx}>Instalar aplicativo</Button>
+  )
   if (prompt) {
-    return <Button startIcon={<InstallMobileIcon />} variant="outlined" onClick={async () => {
+    return botao(async () => {
       await prompt.prompt()
       setPrompt(null)
-    }}>Instalar app</Button>
+    })
   }
   if (ios()) {
     return (
       <>
-        <Button startIcon={<InstallMobileIcon />} variant="outlined" onClick={() => setMostrarIOS(!mostrarIOS)}>Instalar app</Button>
+        {botao(() => setMostrarIOS(!mostrarIOS))}
         {mostrarIOS && <Alert severity="info" sx={{ mt: 1, fontSize: 13 }}>No Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.</Alert>}
       </>
     )
@@ -216,11 +227,11 @@ export default function NotificationCenter({ aberto, onFechar, estado }) {
             <Typography sx={{ color: TOV.caption, fontSize: 13 }}>{naoLidas ? `${naoLidas} não lida${naoLidas === 1 ? '' : 's'}` : 'Tudo em dia'}</Typography>
           </Box>
           <Tooltip title="Marcar todas como lidas"><span><IconButton disabled={!naoLidas} onClick={marcarTodas}><DoneAllIcon /></IconButton></span></Tooltip>
+          <Tooltip title="Fechar notificações"><IconButton aria-label="Fechar notificações" onClick={onFechar}><CloseIcon /></IconButton></Tooltip>
         </Box>
         <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
           <Button size="small" variant={filtro === 'todas' ? 'contained' : 'outlined'} onClick={() => setFiltro('todas')}>Todas</Button>
           <Button size="small" variant={filtro === 'nao-lidas' ? 'contained' : 'outlined'} onClick={() => setFiltro('nao-lidas')}>Não lidas</Button>
-          <InstallButton />
         </Box>
         {erro && <Alert severity="warning" onClose={() => setErro('')} sx={{ mt: 2 }}>{erro}</Alert>}
         <Divider sx={{ my: 2 }} />

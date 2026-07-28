@@ -16,7 +16,7 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import { api, clearSession, getUser } from './api'
 import { TOV } from './theme'
 import { iniciais, resetBotao } from './ui'
-import NotificationCenter, { BotaoNotificacoes, useNotificacoes } from './NotificationCenter'
+import NotificationCenter, { BotaoInstalarPwa, BotaoNotificacoes, useNotificacoes } from './NotificationCenter'
 
 const MENU = [
   { rotulo: 'Dashboard', rota: '/', icone: SpaceDashboardIcon, exato: true },
@@ -113,6 +113,10 @@ export default function Layout({ children }) {
         <ItemNav key={item.rota} item={item} ativo={estaAtivo(item)} onClick={() => irPara(item.rota)} />
       ))}
 
+      <Box sx={{ mt: 1, px: 1 }}>
+        <BotaoInstalarPwa sx={{ color: '#fff', borderColor: 'rgba(255,255,255,.7)', '&:hover': { borderColor: '#fff', bgcolor: 'rgba(255,255,255,.12)' } }} />
+      </Box>
+
       <Box
         sx={{
           mt: 'auto', display: 'flex', alignItems: 'center', gap: 1.5, p: 1.5,
@@ -161,6 +165,7 @@ export default function Layout({ children }) {
             <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 20, letterSpacing: '-.02em' }}>TOV</Typography>
             <Typography noWrap sx={{ fontSize: 13, opacity: 0.85 }}>{tituloAtual}</Typography>
           </Box>
+          <BotaoInstalarPwa compacto />
           <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
           <IconButton edge="end" color="inherit" aria-label="Sair" onClick={sair} sx={{ ml: 'auto' }}>
             <LogoutIcon sx={{ fontSize: 20 }} />

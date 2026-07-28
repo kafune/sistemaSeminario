@@ -22,7 +22,10 @@ export default function PwaRuntime() {
     <Snackbar
       open={atualizacao}
       message="Nova versão disponível"
-      action={<Button color="inherit" size="small" onClick={() => atualizarSW.current?.(true)}>Atualizar</Button>}
+      action={<Button color="inherit" size="small" onClick={() => {
+        setAtualizacao(false)
+        atualizarSW.current?.(true)
+      }}>Atualizar</Button>}
     />
   )
 }

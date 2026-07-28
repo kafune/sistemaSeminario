@@ -6,6 +6,16 @@ import { NetworkOnly } from 'workbox-strategies'
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
+// O runtime do Vite PWA envia esta mensagem quando o usuário confirma a
+// atualização. Mantemos a troca de versão explícita, sem recarregar formulários
+// automaticamente enquanto houver uma versão nova aguardando.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
+})
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim())
+})
+
 // Navegações offline recebem o shell da aplicação. A tela React preserva a
 // rota e explica que os dados acadêmicos exigem conexão.
 registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), {

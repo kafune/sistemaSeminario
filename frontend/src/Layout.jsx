@@ -68,7 +68,7 @@ export default function Layout({ children }) {
   async function sair() {
     try {
       const registro = await navigator.serviceWorker?.ready
-      const inscricao = await registro?.pushManager.getSubscription()
+      const inscricao = await registro?.pushManager?.getSubscription?.()
       if (inscricao) {
         await api.post('/notificacoes/push/desinscrever', { endpoint: inscricao.endpoint })
         await inscricao.unsubscribe()

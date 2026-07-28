@@ -38,6 +38,21 @@ function ios() {
 function instalado() {
   return window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone
 }
+function pushSuportado() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window
+}
+
+async function registroPush() {
+  if (!pushSuportado()) return null
+  const registro = await navigator.serviceWorker.ready
+  return registro?.pushManager && typeof registro.pushManager.getSubscription === 'function' ? registro : null
+}
+
+function mensagemPushIndisponivel() {
+  if (ios()) return 'Este iPhone não é compatível com notificações push neste app. Elas exigem iOS/iPadOS 16.4 ou posterior e o app adicionado à Tela de Início.'
+  return 'Este navegador não oferece suporte a notificações push. O histórico interno continua disponível.'
+}
+
 
 export function BotaoInstalarPwa({ compacto = false, sx }) {
   const [prompt, setPrompt] = useState(null)
@@ -146,7 +161,7 @@ export default function NotificationCenter({ aberto, onFechar, estado }) {
   const [filtro, setFiltro] = useState('todas')
 
   const sincronizarInscricao = useCallback(async () => {
-    const registro = await navigator.serviceWorker?.ready
+    const registro = await registroPush()
     const inscricao = await registro?.pushManager.getSubscription()
     setDispositivoAtivo(Boolean(inscricao))
   }, [])
@@ -195,7 +210,8 @@ export default function NotificationCenter({ aberto, onFechar, estado }) {
     if (!configuracao?.disponivel) return
     setProcessandoPush(true)
     try {
-      const registro = await navigator.serviceWorker.ready
+      const registro = await registroPush()
+      if (!registro) throw new Error(mensagemPushIndisponivel())
       const atual = await registro.pushManager.getSubscription()
       if (atual) {
         await api.post('/notificacoes/push/desinscrever', { endpoint: atual.endpoint })
@@ -248,11 +264,11 @@ export default function NotificationCenter({ aberto, onFechar, estado }) {
         </List>
         <Divider sx={{ my: 2 }} />
         <Typography variant="h6" sx={{ fontSize: 16 }}>Preferências</Typography>
-        {configuracao?.disponivel ? (
+        {configuracao?.disponivel && pushSuportado() ? (
           <Button sx={{ alignSelf: 'flex-start', mt: 1 }} variant={dispositivoAtivo ? 'outlined' : 'contained'} disabled={processandoPush} onClick={alternarPush}>
             {processandoPush ? 'Configurando…' : dispositivoAtivo ? 'Desativar push neste dispositivo' : 'Ativar push neste dispositivo'}
           </Button>
-        ) : <Alert severity="info" sx={{ mt: 1, fontSize: 13 }}>Push está indisponível nesta instalação. O histórico interno continua ativo.</Alert>}
+        ) : <Alert severity="info" sx={{ mt: 1, fontSize: 13 }}>{configuracao?.disponivel ? mensagemPushIndisponivel() : 'Push está indisponível nesta instalação. O histórico interno continua ativo.'}</Alert>}
         {preferencias && CATEGORIAS.map(([campo, rotulo]) => (
           <Box key={campo} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: .5 }}>
             <Typography sx={{ fontSize: 14 }}>{rotulo}</Typography>

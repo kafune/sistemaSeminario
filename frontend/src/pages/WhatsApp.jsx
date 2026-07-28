@@ -343,32 +343,44 @@ function Compositor({
   }
 
   function conteudoAtual() {
-    return {
+    const conteudo = {
       tipo: tipoMensagem,
       mensagem,
       link_preview: linkPreview,
-      arquivo_id: arquivo?.id || null,
-      nome_arquivo: nomeArquivo || null,
-      botoes: botoes.filter((b) => b.texto.trim() && b.valor.trim()),
-      enquete_opcoes: opcoesEnquete.filter((opcao) => opcao.trim()),
-      enquete_selecionaveis: Number(selecionaveis) || 1,
-      carousel: cartoes.map((cartao) => ({
+    }
+    if (['image', 'document', 'audio'].includes(tipoMensagem)) {
+      conteudo.arquivo_id = arquivo?.id || null
+      conteudo.nome_arquivo = nomeArquivo || null
+    }
+    if (tipoMensagem === 'button') {
+      conteudo.botoes = botoes.filter((b) => b.texto.trim() && b.valor.trim())
+    }
+    if (tipoMensagem === 'poll') {
+      conteudo.enquete_opcoes = opcoesEnquete.filter((opcao) => opcao.trim())
+      conteudo.enquete_selecionaveis = Number(selecionaveis) || 1
+    }
+    if (tipoMensagem === 'carousel') {
+      conteudo.carousel = cartoes.map((cartao) => ({
         texto: cartao.texto,
         arquivo_id: cartao.arquivo?.id || null,
         botoes: cartao.botoes.filter((b) => b.texto.trim() && b.valor.trim()),
-      })),
+      }))
     }
+    return conteudo
   }
 
   function conteudoPreviaAtual() {
-    return {
-      ...conteudoAtual(),
-      arquivo,
-      carousel: cartoes.map((cartao) => ({
+    const conteudo = conteudoAtual()
+    if (['image', 'document', 'audio'].includes(tipoMensagem)) {
+      conteudo.arquivo = arquivo
+    }
+    if (tipoMensagem === 'carousel') {
+      conteudo.carousel = cartoes.map((cartao) => ({
         ...cartao,
         arquivo_id: cartao.arquivo?.id || null,
-      })),
+      }))
     }
+    return conteudo
   }
 
   function composicaoAtual(preview = false) {

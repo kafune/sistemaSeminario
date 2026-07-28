@@ -33,11 +33,13 @@ from ..services.uazapi import (
     descriptografar_token,
     sanitizar_resposta,
 )
+from ..services.notificacoes import criar_notificacao, entregar_lista
 
 router = APIRouter(prefix="/whatsapp", tags=["whatsapp"])
 public_router = APIRouter(prefix="/whatsapp-publico", tags=["whatsapp"])
 
 STATUS_FINAIS = {"CONCLUIDO", "CONCLUIDO_COM_FALHAS", "FALHA", "CANCELADO"}
+STATUS_NOTIFICAVEIS = {"CONCLUIDO", "CONCLUIDO_COM_FALHAS", "FALHA"}
 VARIAVEIS_SUPORTADAS = {"nome", "primeiro_nome"}
 RE_VARIAVEL = re.compile(r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}")
 TIPOS_MENSAGEM = {"text", "image", "document", "audio", "button", "poll", "carousel"}
@@ -501,6 +503,27 @@ def _disparo_dict(disparo: WhatsappDisparo) -> dict:
     }
 
 
+def _notificar_finalizacao_disparo(
+    db: Session, disparo: WhatsappDisparo, status_anterior: str | None
+):
+    if status_anterior == disparo.status or disparo.status not in STATUS_NOTIFICAVEIS:
+        return None
+    mensagens = {
+        "CONCLUIDO": "O disparo foi concluído.",
+        "CONCLUIDO_COM_FALHAS": "O disparo foi concluído com falhas.",
+        "FALHA": "O disparo não pôde ser concluído.",
+    }
+    return criar_notificacao(
+        db,
+        usuario=disparo.usuario,
+        categoria="WHATSAPP",
+        titulo=f"Disparo #{disparo.id}",
+        corpo=mensagens[disparo.status],
+        rota=f"/whatsapp?disparo={disparo.id}",
+        chave_evento=f"whatsapp:{disparo.id}:{disparo.status}",
+    )
+
+
 def _destinatario_dict(item: WhatsappDestinatario) -> dict:
     return {
         "id": item.id,
@@ -551,11 +574,17 @@ def _sincronizar_por_webhook() -> None:
                 )
             )
         )
+        notificacoes = []
         for disparo in ativos:
             pasta = por_id.get(str(disparo.pasta_uazapi_id))
             if pasta:
+                status_anterior = disparo.status
                 _aplicar_contadores_pasta(disparo, pasta)
+                notificacao = _notificar_finalizacao_disparo(db, disparo, status_anterior)
+                if notificacao:
+                    notificacoes.append(notificacao)
         db.commit()
+        entregar_lista(db, notificacoes)
     except Exception:
         db.rollback()
     finally:
@@ -963,6 +992,7 @@ def criar_disparo(
         db.commit()
         return _disparo_dict(disparo)
     except UazApiError as exc:
+        status_anterior = disparo.status
         disparo.status = "FALHA"
         disparo.erro = exc.mensagem
         disparo.atualizado_em = _agora()
@@ -974,7 +1004,10 @@ def criar_disparo(
             )
             .values(status="FALHA", erro=exc.mensagem)
         )
+        notificacao = _notificar_finalizacao_disparo(db, disparo, status_anterior)
         db.commit()
+        if notificacao:
+            entregar_lista(db, [notificacao])
         raise HTTPException(
             exc.status_code,
             f"Disparo #{disparo.id} registrado, mas não foi enfileirado: {exc.mensagem}",
@@ -1061,11 +1094,17 @@ def sincronizar_disparos_ativos(db: Session = Depends(get_db)):
             str(pasta.get("id") or pasta.get("folder_id")): pasta
             for pasta in pastas
         }
+        notificacoes = []
         for disparo in ativos:
             pasta = por_id.get(str(disparo.pasta_uazapi_id))
             if pasta:
+                status_anterior = disparo.status
                 _aplicar_contadores_pasta(disparo, pasta)
+                notificacao = _notificar_finalizacao_disparo(db, disparo, status_anterior)
+                if notificacao:
+                    notificacoes.append(notificacao)
         db.commit()
+        entregar_lista(db, notificacoes)
     return {
         "atualizados": len(ativos),
         "itens": [
@@ -1211,6 +1250,7 @@ def sincronizar_disparo(disparo_id: int, db: Session = Depends(get_db)):
         0, total_esperado - disparo.total_enviados - disparo.total_falhos
     )
     processados = disparo.total_enviados + disparo.total_falhos
+    status_anterior = disparo.status
     if processados >= total_esperado:
         disparo.status = (
             "CONCLUIDO_COM_FALHAS" if disparo.total_falhos else "CONCLUIDO"
@@ -1222,7 +1262,10 @@ def sincronizar_disparo(disparo_id: int, db: Session = Depends(get_db)):
     else:
         disparo.status = "NA_FILA"
     disparo.atualizado_em = _agora()
+    notificacao = _notificar_finalizacao_disparo(db, disparo, status_anterior)
     db.commit()
+    if notificacao:
+        entregar_lista(db, [notificacao])
     return obter_disparo(disparo_id, db)
 
 

@@ -14,6 +14,7 @@ from .whatsapp import (
     WhatsappDisparo,
     WhatsappTemplate,
 )
+from .notificacoes import Notificacao, NotificacaoPreferencia, PushInscricao
 
 __all__ = [
     "Materia", "Turma", "AluTurma", "DocTurma", "AluNota",
@@ -23,4 +24,5 @@ __all__ = [
     "Aula", "CalendarioPublico",
     "WhatsappConfiguracao", "WhatsappDisparo", "WhatsappDestinatario",
     "WhatsappArquivo", "WhatsappTemplate",
+    "Notificacao", "NotificacaoPreferencia", "PushInscricao",
 ]

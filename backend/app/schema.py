@@ -11,6 +11,8 @@ from sqlalchemy.engine import Engine
 def atualizar_schema(engine: Engine) -> None:
     inspector = inspect(engine)
     tabelas = inspector.get_table_names()
+    # Tabelas novas são criadas por metadata.create_all; os ajustes abaixo
+    # mantêm instalações anteriores compatíveis.
     if "alunos" not in tabelas:
         return
 

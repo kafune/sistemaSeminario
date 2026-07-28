@@ -12,6 +12,10 @@ do Centro TOV. Banco de dados novo e vazio — sem migração de dados legados.
   lista de alunos da turma, ficha do aluno, boletins da turma inteira em ZIP
   e geração em lote a partir de planilha (CSV/XLSX/XLS)
 - **Login** com senhas bcrypt e token JWT
+- **PWA instalável**: shell offline, atualização explícita, atalhos e fontes
+  locais; as respostas autenticadas da API nunca são armazenadas no cache
+- **Central de notificações e Web Push**: histórico de 90 dias, preferências
+  por categoria e alertas de campanhas, cadastros externos e aulas
 - **WhatsApp via UazAPI**: criação e conexão da instância por QR Code,
   mensagens personalizadas por aluno/turma, texto, imagens, documentos,
   áudios, botões, enquetes, carrosséis, sequências, teste para a secretaria,
@@ -142,3 +146,29 @@ Quando a instância está conectada, o app configura automaticamente um webhook
 assinado por URL para receber eventos de campanha, atualização de mensagens e
 conexão. A consulta rápida periódica continua ativa como contingência caso a
 UazAPI atrase ou não entregue algum evento.
+
+### PWA e notificações Web Push
+
+O frontend é instalado como “TOV Acadêmico”. Ele disponibiliza o shell quando
+não há rede, mas não mantém cópias de alunos, notas, contatos ou qualquer outra
+resposta de `/api`: quando a conexão volta, a sessão e a rota atual continuam
+intactas.
+
+Para ativar Web Push, gere um par VAPID e configure no backend (ou no `.env`
+do Docker):
+
+```dotenv
+TOV_VAPID_PUBLIC_KEY=chave-publica-base64url
+TOV_VAPID_PRIVATE_KEY=chave-privada-base64url
+TOV_VAPID_SUBJECT=mailto:secretaria@seu-dominio.com
+TOV_TIMEZONE=America/Sao_Paulo
+```
+
+Sem essas chaves, a central interna continua disponível e o aplicativo informa
+que o push está indisponível. A permissão é sempre iniciada pelo botão “Ativar
+push neste dispositivo”. Em iPhone/iPad, instale antes o app pela opção
+“Adicionar à Tela de Início” do Safari.
+
+O backend executa o resumo das aulas agendadas do dia seguinte depois das 18h
+em `America/Sao_Paulo` e limpa diariamente o histórico com mais de 90 dias.
+As chaves de idempotência impedem reenvios quando a aplicação reinicia.

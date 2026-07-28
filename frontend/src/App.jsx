@@ -16,6 +16,7 @@ import Notas from './pages/Notas'
 import Relatorios from './pages/Relatorios'
 import Usuarios from './pages/Usuarios'
 import WhatsApp from './pages/WhatsApp'
+import OfflineScreen from './OfflineScreen'
 
 function Protegida({ children }) {
   if (!getToken()) return <Navigate to="/login" replace />
@@ -24,7 +25,7 @@ function Protegida({ children }) {
 
 export default function App() {
   return (
-    <Routes>
+    <OfflineScreen><Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/agenda/:token" element={<CalendarioPublico />} />
       <Route path="/cadastro-professor/:token" element={<AutocadastroProfessor />} />
@@ -41,6 +42,6 @@ export default function App() {
       <Route path="/usuarios" element={<Protegida><Usuarios /></Protegida>} />
       <Route path="/whatsapp" element={<Protegida><WhatsApp /></Protegida>} />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    </Routes></OfflineScreen>
   )
 }

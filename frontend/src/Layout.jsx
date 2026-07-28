@@ -13,9 +13,10 @@ import DescriptionIcon from '@mui/icons-material/Description'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import LogoutIcon from '@mui/icons-material/Logout'
-import { clearSession, getUser } from './api'
+import { api, clearSession, getUser } from './api'
 import { TOV } from './theme'
 import { iniciais, resetBotao } from './ui'
+import NotificationCenter, { BotaoNotificacoes, useNotificacoes } from './NotificationCenter'
 
 const MENU = [
   { rotulo: 'Dashboard', rota: '/', icone: SpaceDashboardIcon, exato: true },
@@ -61,8 +62,20 @@ export default function Layout({ children }) {
   const location = useLocation()
   const usuario = getUser() || 'Usuário'
   const [menuAberto, setMenuAberto] = useState(false)
+  const [notificacoesAbertas, setNotificacoesAbertas] = useState(false)
+  const estadoNotificacoes = useNotificacoes()
 
-  function sair() {
+  async function sair() {
+    try {
+      const registro = await navigator.serviceWorker?.ready
+      const inscricao = await registro?.pushManager.getSubscription()
+      if (inscricao) {
+        await api.post('/notificacoes/push/desinscrever', { endpoint: inscricao.endpoint })
+        await inscricao.unsubscribe()
+      }
+    } catch {
+      // Sair não depende da rede; a inscrição local será removida quando possível.
+    }
     clearSession()
     navigate('/login')
   }
@@ -106,6 +119,7 @@ export default function Layout({ children }) {
           borderRadius: '12px', bgcolor: 'rgba(255,255,255,.12)',
         }}
       >
+        <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
         <Box sx={{ width: 40, height: 40, borderRadius: '50%', bgcolor: '#fff', color: TOV.coral, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, flexShrink: 0 }}>
           {iniciais(usuario)}
         </Box>
@@ -147,6 +161,7 @@ export default function Layout({ children }) {
             <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 20, letterSpacing: '-.02em' }}>TOV</Typography>
             <Typography noWrap sx={{ fontSize: 13, opacity: 0.85 }}>{tituloAtual}</Typography>
           </Box>
+          <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
           <IconButton edge="end" color="inherit" aria-label="Sair" onClick={sair} sx={{ ml: 'auto' }}>
             <LogoutIcon sx={{ fontSize: 20 }} />
           </IconButton>
@@ -189,6 +204,7 @@ export default function Layout({ children }) {
       >
         {children}
       </Box>
+      <NotificationCenter aberto={notificacoesAbertas} onFechar={() => setNotificacoesAbertas(false)} estado={estadoNotificacoes} />
     </Box>
   )
 }

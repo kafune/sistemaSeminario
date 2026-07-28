@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db, row_to_dict
 from ..models import ConviteProfessor, Materia, MatProf, Professor, TitProf
+from ..services.notificacoes import criar_para_todos, entregar_lista
 
 router = APIRouter(prefix="/professores", tags=["professores"])
 public_router = APIRouter(
@@ -236,6 +237,16 @@ def autocadastrar_professor(
     convite.ativo = "N"
     convite.professor_id = professor.cod_pro
     db.commit()
+    notificacoes = criar_para_todos(
+        db,
+        categoria="CADASTROS",
+        titulo="Novo cadastro de professor",
+        corpo="Um professor concluiu o autocadastro.",
+        rota="/professores",
+        chave_evento=f"autocadastro-professor:{professor.cod_pro}",
+    )
+    db.commit()
+    entregar_lista(db, notificacoes)
     return {
         "ok": True,
         "mensagem": "Cadastro enviado com sucesso",

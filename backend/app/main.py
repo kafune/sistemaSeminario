@@ -1,10 +1,11 @@
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .database import Base, engine
+from .database import Base, SessionLocal, engine
 from .schema import atualizar_schema
 from .security import usuario_atual
 from .routers import (
@@ -21,7 +22,25 @@ from .routers import (
     turmas,
     usuarios,
     whatsapp,
+    notificacoes,
 )
+from .services.notificacoes import entregar_lista, gerar_lembretes_aulas, limpar_notificacoes_antigas
+
+
+async def _rotina_notificacoes() -> None:
+    """Rotina simples para a única instância Uvicorn prevista no deploy."""
+    while True:
+        db = SessionLocal()
+        try:
+            limpar_notificacoes_antigas(db)
+            lembretes = gerar_lembretes_aulas(db)
+            if lembretes:
+                entregar_lista(db, lembretes)
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
+        await asyncio.sleep(60)
 
 
 @asynccontextmanager
@@ -29,7 +48,15 @@ async def lifespan(app: FastAPI):
     # Cria bancos novos e aplica ajustes aditivos em instalações existentes.
     Base.metadata.create_all(engine)
     atualizar_schema(engine)
-    yield
+    tarefa = asyncio.create_task(_rotina_notificacoes())
+    try:
+        yield
+    finally:
+        tarefa.cancel()
+        try:
+            await tarefa
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(
@@ -65,6 +92,7 @@ app.include_router(relatorios.router, dependencies=protegido)
 app.include_router(dashboard.router, dependencies=protegido)
 app.include_router(usuarios.router, dependencies=protegido)
 app.include_router(whatsapp.router, dependencies=protegido)
+app.include_router(notificacoes.router, dependencies=protegido)
 
 
 @app.get("/health")

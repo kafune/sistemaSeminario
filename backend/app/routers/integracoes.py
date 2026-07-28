@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..database import get_db
 from ..models import Aluno, ImportacaoGoogleForms, ItemImportacaoGoogleForms
+from ..services.notificacoes import criar_para_todos, entregar_lista
 
 router = APIRouter(prefix="/integracoes", tags=["integrações"])
 
@@ -144,6 +145,18 @@ def processar_pre_cadastro(
         raise
 
     db.refresh(aluno)
+    notificacoes = []
+    if acao == "pre_cadastro_criado":
+        notificacoes = criar_para_todos(
+            db,
+            categoria="CADASTROS",
+            titulo="Novo pré-cadastro",
+            corpo="Um novo pré-cadastro de aluno foi recebido.",
+            rota="/alunos?status=P",
+            chave_evento=f"pre-cadastro:{dados.inscricao_id}",
+        )
+        db.commit()
+        entregar_lista(db, notificacoes)
     return {"ok": True, "acao": acao, "cod_alu": aluno.cod_alu}
 
 

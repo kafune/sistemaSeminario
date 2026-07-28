@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     whatsapp_delay_max: int = 15
     whatsapp_upload_max_mb: int = 20
     public_api_url: str = ""
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = ""
+    timezone: str = "America/Sao_Paulo"
 
     class Config:
         env_prefix = "TOV_"

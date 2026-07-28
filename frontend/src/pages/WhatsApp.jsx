@@ -979,6 +979,7 @@ function Historico({ itens, onAbrir }) {
 export default function WhatsApp() {
   const [searchParams] = useSearchParams()
   const alunoInicial = searchParams.get('aluno')
+  const disparoInicial = searchParams.get('disparo')
   const [instancia, setInstancia] = useState(null)
   const [carregandoInstancia, setCarregandoInstancia] = useState(true)
   const [turmas, setTurmas] = useState([])
@@ -1033,6 +1034,12 @@ export default function WhatsApp() {
     carregarHistorico()
     api.get('/turmas').then(setTurmas).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (disparoInicial && Number.isInteger(Number(disparoInicial))) {
+      abrirDetalhe(Number(disparoInicial))
+    }
+  }, [disparoInicial])
 
   useEffect(() => {
     if (!instancia?.conectada || webhookAtivado) return

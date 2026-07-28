@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Alert, Box, Button, Snackbar, Table, TableBody, TableCell,
+  Alert, Box, Button, Menu, MenuItem, Snackbar, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Typography,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
+import DescriptionIcon from '@mui/icons-material/Description'
+import EditIcon from '@mui/icons-material/Edit'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
@@ -30,18 +32,17 @@ function CardResumo({ rotulo, valor, escuro, offwhite, corValor }) {
   )
 }
 
-function BotaoAcao({ children, primario, onClick }) {
-  return (
-    <Button variant={primario ? 'contained' : 'outlined'} onClick={onClick} sx={{ height: 44, flex: { xs: '1 1 40%', md: '0 0 auto' } }}>
-      {children}
-    </Button>
-  )
-}
-
 function numeroWhatsApp(celular) {
   let numero = String(celular || '').replace(/\D/g, '')
   if (numero.length === 10 || numero.length === 11) numero = `55${numero}`
   return numero.startsWith('55') && numero.length >= 12 ? numero : null
+}
+
+function formatarTelefone(valor) {
+  const digitos = String(valor || '').replace(/\D/g, '')
+  if (digitos.length === 11) return `(${digitos.slice(0, 2)}) ${digitos.slice(2, 7)}-${digitos.slice(7)}`
+  if (digitos.length === 10) return `(${digitos.slice(0, 2)}) ${digitos.slice(2, 6)}-${digitos.slice(6)}`
+  return valor
 }
 
 export default function AlunoDetalhe() {
@@ -51,6 +52,7 @@ export default function AlunoDetalhe() {
   const [editando, setEditando] = useState(false)
   const [confirmarExclusao, setConfirmarExclusao] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
+  const [documentosAnchor, setDocumentosAnchor] = useState(null)
   const [msg, setMsg] = useState('')
   const navigate = useNavigate()
 
@@ -88,10 +90,14 @@ export default function AlunoDetalhe() {
 
   const situacao = { P: 'Pré-cadastro', A: 'Em curso', I: 'Inativo', F: 'Formado', T: 'Trancado' }[aluno.status] || '—'
   const whatsapp = numeroWhatsApp(aluno.celular)
+  const abrirDocumento = (path) => {
+    setDocumentosAnchor(null)
+    abrirArquivo(path).catch((e) => setMsg(e.message))
+  }
 
   return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate('/alunos')} sx={{ ...resetBotao, fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 2.25, display: 'inline-block', '&:hover': { color: TOV.coral } }}>
+      <Box component="button" type="button" onClick={() => navigate('/alunos')} sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}>
         ‹ Voltar para Alunos
       </Box>
 
@@ -115,29 +121,46 @@ export default function AlunoDetalhe() {
             </Box>
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', justifyContent: 'flex-end', width: { xs: '100%', md: 'auto' } }}>
+        <Box
+          sx={{
+            display: 'flex', gap: 1.25, flexWrap: 'wrap', justifyContent: 'flex-end',
+            width: { xs: '100%', md: 'auto' },
+            '& > button': { flex: { xs: '1 1 42%', sm: '0 0 auto' } },
+          }}
+        >
           <Button
             variant="contained"
             disabled={!whatsapp}
             startIcon={<WhatsAppIcon />}
-            onClick={() => window.open(`https://wa.me/${whatsapp}`, '_blank', 'noopener,noreferrer')}
-            sx={{ height: 44, bgcolor: '#247A49', '&:hover': { bgcolor: '#17613A' } }}
+            onClick={() => navigate(`/whatsapp?aluno=${aluno.cod_alu}`)}
+            sx={{ height: 46 }}
           >
-            Abrir WhatsApp
+            Enviar mensagem
           </Button>
           <Button
             variant="outlined"
             disabled={!whatsapp}
             startIcon={<WhatsAppIcon />}
-            onClick={() => navigate(`/whatsapp?aluno=${aluno.cod_alu}`)}
-            sx={{ height: 44 }}
+            onClick={() => window.open(`https://wa.me/${whatsapp}`, '_blank', 'noopener,noreferrer')}
+            sx={{ height: 46, color: '#17613A', borderColor: '#17613A' }}
           >
-            Enviar pelo sistema
+            WhatsApp
           </Button>
-          <BotaoAcao onClick={() => setEditando(true)}>Editar</BotaoAcao>
-          <BotaoAcao primario onClick={() => abrirArquivo(`/relatorios/boletim/${codAlu}`).catch((e) => setMsg(e.message))}>Boletim</BotaoAcao>
-          <BotaoAcao onClick={() => abrirArquivo(`/relatorios/historico/${codAlu}`).catch((e) => setMsg(e.message))}>Histórico</BotaoAcao>
-          <BotaoAcao onClick={() => abrirArquivo(`/relatorios/ficha-aluno/${codAlu}`).catch((e) => setMsg(e.message))}>Ficha</BotaoAcao>
+          <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setEditando(true)}>Editar</Button>
+          <Button
+            variant="outlined"
+            startIcon={<DescriptionIcon />}
+            onClick={(e) => setDocumentosAnchor(e.currentTarget)}
+            aria-haspopup="menu"
+            aria-expanded={documentosAnchor ? 'true' : undefined}
+          >
+            Documentos
+          </Button>
+          <Menu anchorEl={documentosAnchor} open={!!documentosAnchor} onClose={() => setDocumentosAnchor(null)}>
+            <MenuItem onClick={() => abrirDocumento(`/relatorios/boletim/${codAlu}`)}>Boletim</MenuItem>
+            <MenuItem onClick={() => abrirDocumento(`/relatorios/historico/${codAlu}`)}>Histórico escolar</MenuItem>
+            <MenuItem onClick={() => abrirDocumento(`/relatorios/ficha-aluno/${codAlu}`)}>Ficha cadastral</MenuItem>
+          </Menu>
         </Box>
       </Box>
 
@@ -149,8 +172,8 @@ export default function AlunoDetalhe() {
             <Campo rotulo="CPF" valor={aluno.cpf} />
             <Campo rotulo="RG" valor={aluno.rg} />
             <Campo rotulo="E-mail" valor={aluno.e_mail} />
-            <Campo rotulo="Celular" valor={aluno.celular} />
-            <Campo rotulo="Telefone" valor={aluno.fone1} />
+            <Campo rotulo="Celular" valor={formatarTelefone(aluno.celular)} />
+            <Campo rotulo="Telefone" valor={formatarTelefone(aluno.fone1)} />
             <Campo rotulo="Cidade" valor={`${aluno.cidade || ''}${aluno.uf ? ' — ' + aluno.uf : ''}`.trim()} />
             <Campo rotulo="Endereço" valor={`${aluno.endereco || ''}${aluno.bairro ? ' · ' + aluno.bairro : ''}`.trim()} />
             <Campo rotulo="CEP" valor={aluno.cep} />

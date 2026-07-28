@@ -26,9 +26,9 @@ function semestreAtual(d) {
 /** Cartão de métrica. `escuro` inverte para o card preto de destaque. */
 function CardMetrica({ rotulo, valor, nota, escuro }) {
   return (
-    <Box sx={{ bgcolor: escuro ? TOV.ink : TOV.white, color: escuro ? '#fff' : TOV.ink, borderRadius: '16px', p: { xs: '20px', md: '24px 26px' }, boxShadow: TOV.shadowCard }}>
+    <Box sx={{ bgcolor: escuro ? TOV.ink : TOV.white, color: escuro ? '#fff' : TOV.ink, borderRadius: '16px', p: { xs: '16px', sm: '20px', md: '24px 26px' }, boxShadow: TOV.shadowCard, minWidth: 0 }}>
       <Eyebrow sx={{ color: escuro ? 'rgba(255,255,255,.55)' : TOV.caption }}>{rotulo}</Eyebrow>
-      <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 38, md: 46 }, mt: 1.25, lineHeight: 1 }}>{valor}</Typography>
+      <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 34, md: 46 }, mt: 1.25, lineHeight: 1 }}>{valor}</Typography>
       {nota && <Typography sx={{ mt: 0.75, fontSize: 13, fontWeight: nota.destaque ? 600 : 400, color: nota.destaque ? TOV.coral : (escuro ? 'rgba(255,255,255,.7)' : TOV.slate) }}>{nota.texto}</Typography>}
     </Box>
   )
@@ -69,7 +69,7 @@ export default function Dashboard() {
       />
 
       {/* Métricas */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', lg: 'repeat(4,1fr)' }, gap: '18px', mb: '22px' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,1fr)' }, gap: { xs: '12px', sm: '18px' }, mb: '22px' }}>
         {!dados ? (
           [0, 1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={132} sx={{ borderRadius: '16px' }} />)
         ) : (

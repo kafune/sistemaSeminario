@@ -5,10 +5,11 @@ import {
   MenuItem, TextField, Typography,
 } from '@mui/material'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import FilterListIcon from '@mui/icons-material/FilterList'
 import { getPublico } from '../api'
 import { TOV } from '../theme'
-import { cardSx } from '../ui'
-import CalendarioGrade, { intervaloGrade } from './CalendarioGrade'
+import { cardSx, useDialogoTelaCheia } from '../ui'
+import CalendarioGrade, { CalendarioAgenda, intervaloGrade } from './CalendarioGrade'
 
 const MESES = [
   'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -27,9 +28,10 @@ function unicos(aulas, campo, campoNome) {
 }
 
 function textoData(data) {
-  return new Intl.DateTimeFormat('pt-BR', {
+  const texto = new Intl.DateTimeFormat('pt-BR', {
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
   }).format(new Date(`${data}T12:00:00`))
+  return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
 export default function CalendarioPublico() {
@@ -38,8 +40,10 @@ export default function CalendarioPublico() {
   const [aulas, setAulas] = useState([])
   const [filtros, setFiltros] = useState({ cod_tur: '', cod_mat: '', cod_pro: '' })
   const [selecionada, setSelecionada] = useState(null)
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
+  const telaCheia = useDialogoTelaCheia()
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -72,7 +76,7 @@ export default function CalendarioPublico() {
     && (!filtros.cod_mat || String(aula.cod_mat) === filtros.cod_mat)
     && (!filtros.cod_pro || String(aula.cod_pro) === filtros.cod_pro))
 
-  const tituloMes = `${MESES[mes.getMonth()]} de ${mes.getFullYear()}`
+  const tituloMes = `${MESES[mes.getMonth()][0].toUpperCase()}${MESES[mes.getMonth()].slice(1)} de ${mes.getFullYear()}`
   const mudarMes = (delta) => setMes(new Date(mes.getFullYear(), mes.getMonth() + delta, 1))
 
   return (
@@ -96,27 +100,44 @@ export default function CalendarioPublico() {
           <>
             <Box sx={{ ...cardSx, p: 2, mb: 2 }}>
               <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', alignItems: 'center' }}>
-                <TextField select size="small" label="Turma" value={filtros.cod_tur} onChange={(e) => setFiltros({ ...filtros, cod_tur: e.target.value })} sx={{ minWidth: 170 }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<FilterListIcon />}
+                  onClick={() => setFiltrosAbertos((aberto) => !aberto)}
+                  aria-expanded={filtrosAbertos}
+                  sx={{ display: { xs: 'flex', sm: 'none' }, width: '100%' }}
+                >
+                  {filtrosAbertos ? 'Ocultar filtros' : 'Filtrar agenda'}
+                </Button>
+                <TextField select size="small" label="Turma" value={filtros.cod_tur} onChange={(e) => setFiltros({ ...filtros, cod_tur: e.target.value })} sx={{ display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' }, width: { xs: '100%', sm: 'auto' }, minWidth: 170 }}>
                   <MenuItem value="">Todas</MenuItem>
                   {turmas.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}
                 </TextField>
-                <TextField select size="small" label="Matéria" value={filtros.cod_mat} onChange={(e) => setFiltros({ ...filtros, cod_mat: e.target.value })} sx={{ minWidth: 190 }}>
+                <TextField select size="small" label="Matéria" value={filtros.cod_mat} onChange={(e) => setFiltros({ ...filtros, cod_mat: e.target.value })} sx={{ display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' }, width: { xs: '100%', sm: 'auto' }, minWidth: 190 }}>
                   <MenuItem value="">Todas</MenuItem>
                   {materias.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}
                 </TextField>
-                <TextField select size="small" label="Professor" value={filtros.cod_pro} onChange={(e) => setFiltros({ ...filtros, cod_pro: e.target.value })} sx={{ minWidth: 180 }}>
+                <TextField select size="small" label="Professor" value={filtros.cod_pro} onChange={(e) => setFiltros({ ...filtros, cod_pro: e.target.value })} sx={{ display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' }, width: { xs: '100%', sm: 'auto' }, minWidth: 180 }}>
                   <MenuItem value="">Todos</MenuItem>
                   {professores.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}
                 </TextField>
-                <Box sx={{ ml: { md: 'auto' }, display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Button variant="outlined" onClick={() => mudarMes(-1)} aria-label="Mês anterior">‹</Button>
-                  <Typography sx={{ minWidth: 185, textAlign: 'center', fontWeight: 700, textTransform: 'capitalize' }}>{tituloMes}</Typography>
-                  <Button variant="outlined" onClick={() => mudarMes(1)} aria-label="Próximo mês">›</Button>
+                <Box sx={{ ml: { md: 'auto' }, display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', md: 'auto' } }}>
+                  <Button variant="outlined" onClick={() => mudarMes(-1)} aria-label="Mês anterior" sx={{ minWidth: 44, px: 1 }}>‹</Button>
+                  <Typography sx={{ minWidth: 0, flex: 1, textAlign: 'center', fontWeight: 700 }}>{tituloMes}</Typography>
+                  <Button variant="outlined" onClick={() => mudarMes(1)} aria-label="Próximo mês" sx={{ minWidth: 44, px: 1 }}>›</Button>
                 </Box>
               </Box>
             </Box>
 
-            <Box sx={{ ...cardSx, overflowX: 'auto', position: 'relative', minHeight: 300 }}>
+            <Box sx={{ display: { xs: 'block', md: 'none' }, position: 'relative', minHeight: 220 }}>
+              {carregando && (
+                <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,.72)', borderRadius: '16px' }}>
+                  <CircularProgress size={34} />
+                </Box>
+              )}
+              <CalendarioAgenda mes={mes} aulas={filtradas} onSelecionar={setSelecionada} />
+            </Box>
+            <Box sx={{ ...cardSx, overflowX: 'auto', position: 'relative', minHeight: 300, display: { xs: 'none', md: 'block' } }}>
               {carregando && (
                 <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,.72)' }}>
                   <CircularProgress size={34} />
@@ -131,14 +152,14 @@ export default function CalendarioPublico() {
         )}
       </Box>
 
-      <Dialog open={!!selecionada} onClose={() => setSelecionada(null)} maxWidth="sm" fullWidth>
+      <Dialog open={!!selecionada} onClose={() => setSelecionada(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         {selecionada && (
           <>
             <DialogTitle>{selecionada.materia_nome}</DialogTitle>
             <DialogContent>
               <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 1, pb: 1 }}>
                 <Typography color="text.secondary">Data</Typography>
-                <Typography sx={{ textTransform: 'capitalize' }}>{textoData(selecionada.data)}</Typography>
+                <Typography>{textoData(selecionada.data)}</Typography>
                 <Typography color="text.secondary">Turma</Typography>
                 <Typography>{selecionada.turma_nome}</Typography>
                 <Typography color="text.secondary">Professor(a)</Typography>

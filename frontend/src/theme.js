@@ -6,8 +6,11 @@ import { ptBR } from '@mui/material/locale'
 
 // Tokens crus — reexportados para uso em sx pontual nas telas.
 export const TOV = {
-  coral: '#F14949',
-  coralHover: '#D93B3B',
+  // O coral vivo continua disponível para detalhes decorativos. Em superfícies
+  // funcionais usamos um tom mais escuro, com contraste AA para texto branco.
+  coralBright: '#F14949',
+  coral: '#C92F2F',
+  coralHover: '#B72B2B',
   slate: '#4A575E',
   offwhite: '#F7F4F1',
   white: '#FFFFFF',
@@ -16,14 +19,14 @@ export const TOV = {
   border: '#E2DBD5',
   desk: '#E8E3DE',
   divider: '#EDE6E0',
-  coralTint: 'rgba(241,73,73,.10)',
+  coralTint: 'rgba(201,47,47,.10)',
   slateTint: 'rgba(74,87,94,.12)',
   captionTint: 'rgba(138,148,154,.16)',
   fontHead: "'Bricolage Grotesque', sans-serif",
   fontBody: "'Open Sans', sans-serif",
   sidebarW: 262,
   shadowCard: '0 1px 2px rgba(22,24,26,.04)',
-  shadowBtn: '0 12px 24px -10px rgba(241,73,73,.7)',
+  shadowBtn: '0 12px 24px -10px rgba(201,47,47,.55)',
 }
 
 export const tovTheme = createTheme(
@@ -59,9 +62,15 @@ export const tovTheme = createTheme(
         defaultProps: { disableElevation: true },
         styleOverrides: {
           root: { borderRadius: 11, paddingInline: 18, minHeight: 46 },
-          sizeSmall: { minHeight: 38, paddingInline: 14 },
+          sizeSmall: { minHeight: 44, paddingInline: 14 },
           containedPrimary: { boxShadow: TOV.shadowBtn, '&:hover': { boxShadow: TOV.shadowBtn } },
           outlined: { borderColor: TOV.border, color: TOV.slate, borderWidth: 1.5, '&:hover': { borderWidth: 1.5, borderColor: TOV.slate, background: TOV.white } },
+        },
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: { minWidth: 44, minHeight: 44 },
+          sizeSmall: { minWidth: 44, minHeight: 44 },
         },
       },
       MuiChip: { styleOverrides: { root: { borderRadius: 999, fontWeight: 700 } } },

@@ -132,7 +132,7 @@ export default function TurmaDetalhe() {
 
   return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate('/turmas')} sx={{ ...resetBotao, fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 2.25, display: 'inline-block', '&:hover': { color: TOV.coral } }}>
+      <Box component="button" type="button" onClick={() => navigate('/turmas')} sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}>
         ‹ Voltar para Turmas
       </Box>
 

@@ -7,11 +7,12 @@ import AddIcon from '@mui/icons-material/Add'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DownloadIcon from '@mui/icons-material/Download'
+import FilterListIcon from '@mui/icons-material/FilterList'
 import LinkIcon from '@mui/icons-material/Link'
 import { api, baixarArquivo } from '../api'
 import { TOV } from '../theme'
 import { CabecalhoPagina, DialogoConfirmacao, cardSx, useDialogoTelaCheia } from '../ui'
-import CalendarioGrade, { intervaloGrade, isoLocal } from './CalendarioGrade'
+import CalendarioGrade, { CalendarioAgenda, intervaloGrade, isoLocal } from './CalendarioGrade'
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
 const FORM_VAZIO = {
@@ -42,6 +43,7 @@ export default function Calendario() {
   const [tokenPublico, setTokenPublico] = useState(null)
   const [turmaDiario, setTurmaDiario] = useState('')
   const [vinculoDiario, setVinculoDiario] = useState('')
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
   const telaCheia = useDialogoTelaCheia()
 
   const carregar = useCallback(() => {
@@ -146,12 +148,12 @@ export default function Calendario() {
     }
   }
 
-  const tituloMes = `${MESES[mes.getMonth()]} de ${mes.getFullYear()}`
+  const tituloMes = `${MESES[mes.getMonth()][0].toUpperCase()}${MESES[mes.getMonth()].slice(1)} de ${mes.getFullYear()}`
   const mudarMes = (delta) => setMes(new Date(mes.getFullYear(), mes.getMonth() + delta, 1))
 
   const acoes = (
     <>
-      <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={copiarLink}>Copiar link dos alunos</Button>
+      <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={copiarLink} sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Copiar link dos alunos</Button>
       <Button variant="contained" startIcon={<AddIcon />} onClick={() => abrirNovo()}>Nova aula</Button>
     </>
   )
@@ -162,30 +164,42 @@ export default function Calendario() {
 
       <Box sx={{ ...cardSx, p: 2.25, mb: 2 }}>
         <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', alignItems: 'center' }}>
-          <TextField select size="small" label="Turma" value={filtros.cod_tur} onChange={(e) => setFiltros({ ...filtros, cod_tur: e.target.value })} sx={{ minWidth: 180 }}>
+          <Button
+            variant="outlined"
+            startIcon={<FilterListIcon />}
+            onClick={() => setFiltrosAbertos((aberto) => !aberto)}
+            aria-expanded={filtrosAbertos}
+            sx={{ display: { xs: 'flex', sm: 'none' }, width: '100%' }}
+          >
+            {filtrosAbertos ? 'Ocultar filtros' : 'Filtrar agenda'}
+          </Button>
+          <TextField select size="small" label="Turma" value={filtros.cod_tur} onChange={(e) => setFiltros({ ...filtros, cod_tur: e.target.value })} sx={{ display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' }, width: { xs: '100%', sm: 'auto' }, minWidth: 180 }}>
             <MenuItem value="">Todas</MenuItem>
             {turmas.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Matéria" value={filtros.cod_mat} onChange={(e) => setFiltros({ ...filtros, cod_mat: e.target.value })} sx={{ minWidth: 200 }}>
+          <TextField select size="small" label="Matéria" value={filtros.cod_mat} onChange={(e) => setFiltros({ ...filtros, cod_mat: e.target.value })} sx={{ display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' }, width: { xs: '100%', sm: 'auto' }, minWidth: 200 }}>
             <MenuItem value="">Todas</MenuItem>
             {materias.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}
           </TextField>
-          <TextField select size="small" label="Professor" value={filtros.cod_pro} onChange={(e) => setFiltros({ ...filtros, cod_pro: e.target.value })} sx={{ minWidth: 190 }}>
+          <TextField select size="small" label="Professor" value={filtros.cod_pro} onChange={(e) => setFiltros({ ...filtros, cod_pro: e.target.value })} sx={{ display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' }, width: { xs: '100%', sm: 'auto' }, minWidth: 190 }}>
             <MenuItem value="">Todos</MenuItem>
             {professores.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}
           </TextField>
-          <Box sx={{ ml: { md: 'auto' }, display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Button variant="outlined" onClick={() => mudarMes(-1)}>‹</Button>
-            <Typography sx={{ minWidth: 190, textAlign: 'center', fontWeight: 700, textTransform: 'capitalize' }}>{tituloMes}</Typography>
-            <Button variant="outlined" onClick={() => mudarMes(1)}>›</Button>
+          <Box sx={{ ml: { md: 'auto' }, display: 'flex', alignItems: 'center', gap: 1, width: { xs: '100%', md: 'auto' } }}>
+            <Button variant="outlined" aria-label="Mês anterior" onClick={() => mudarMes(-1)} sx={{ minWidth: 44, px: 1 }}>‹</Button>
+            <Typography sx={{ minWidth: 0, flex: 1, textAlign: 'center', fontWeight: 700 }}>{tituloMes}</Typography>
+            <Button variant="outlined" aria-label="Próximo mês" onClick={() => mudarMes(1)} sx={{ minWidth: 44, px: 1 }}>›</Button>
           </Box>
         </Box>
       </Box>
 
-      <Box sx={{ ...cardSx, overflowX: 'auto', mb: 2.5 }}>
+      <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2.5 }}>
+        <CalendarioAgenda mes={mes} aulas={aulas} onSelecionar={abrirEdicao} onNovo={abrirNovo} />
+      </Box>
+      <Box sx={{ ...cardSx, overflowX: 'auto', mb: 2.5, display: { xs: 'none', md: 'block' } }}>
         <CalendarioGrade mes={mes} aulas={aulas} onSelecionar={abrirEdicao} onNovo={abrirNovo} />
       </Box>
-      <Typography sx={{ color: TOV.caption, fontSize: 13, mb: 3 }}>
+      <Typography sx={{ color: TOV.caption, fontSize: 13, mb: 3, display: { xs: 'none', md: 'block' } }}>
         Dica: dê dois cliques em um dia vazio para cadastrar uma aula naquela data.
       </Typography>
 
@@ -194,10 +208,10 @@ export default function Calendario() {
           <Typography variant="h3" sx={{ fontSize: 20, mb: 1 }}>Diário de classe em Excel</Typography>
           <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2 }}>Selecione a turma e depois a matéria. As datas vêm das aulas cadastradas acima.</Typography>
           <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
-            <TextField select size="small" label="Turma" value={turmaDiario} onChange={(e) => { setTurmaDiario(e.target.value); setVinculoDiario('') }} sx={{ minWidth: 180 }}>
+            <TextField select size="small" label="Turma" value={turmaDiario} onChange={(e) => { setTurmaDiario(e.target.value); setVinculoDiario('') }} sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: 180 }}>
               {turmas.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}
             </TextField>
-            <TextField select size="small" label="Matéria / professor" value={vinculoDiario} onChange={(e) => setVinculoDiario(e.target.value)} sx={{ minWidth: 260 }}>
+            <TextField select size="small" label="Matéria / professor" value={vinculoDiario} onChange={(e) => setVinculoDiario(e.target.value)} sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { xs: 0, sm: 260 } }}>
               {materiasDiario.map((item) => <MenuItem key={item.docturma_id} value={item.docturma_id}>{item.materia_nome} · {item.professor_nome || 'Sem professor'}</MenuItem>)}
             </TextField>
             <Button variant="contained" startIcon={<DownloadIcon />} disabled={!vinculoDiario} onClick={baixarDiario}>Baixar XLSX</Button>

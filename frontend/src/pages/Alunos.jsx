@@ -2,18 +2,19 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert, Box, Button, InputAdornment, Pagination, Paper, Snackbar, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
+  TableCell, TableContainer, TableHead, TableRow, TextField, Typography, IconButton,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
+import CloseIcon from '@mui/icons-material/Close'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import { CabecalhoPagina, CartaoLista, LinhaCartao, PilulaStatus, resetBotao } from '../ui'
 import AlunoForm from './AlunoForm'
 import ImportarAlunosDialog from './ImportarAlunosDialog'
 
-const POR_PAGINA = 25
+const POR_PAGINA = 15
 const FILTROS = [
   { rotulo: 'Todos', valor: '' },
   { rotulo: 'Pré-cadastros', valor: 'P' },
@@ -32,6 +33,7 @@ function ChipFiltro({ ativo, children, onClick }) {
       sx={{
         ...resetBotao,
         px: 2.25, py: 1, borderRadius: 999, fontSize: 14, fontWeight: 600, userSelect: 'none',
+        minHeight: 44, flexShrink: 0,
         bgcolor: ativo ? TOV.ink : TOV.white, color: ativo ? '#fff' : TOV.slate,
         boxShadow: ativo ? 'none' : TOV.shadowCard,
         '&:hover': ativo ? {} : { color: TOV.ink },
@@ -66,6 +68,14 @@ export default function Alunos() {
       .finally(() => setCarregando(false))
   }, [buscaAtiva, status, pagina, versaoLista])
 
+  useEffect(() => {
+    const temporizador = window.setTimeout(() => {
+      setPagina(1)
+      setBuscaAtiva(busca)
+    }, 350)
+    return () => window.clearTimeout(temporizador)
+  }, [busca])
+
   const recarregarLista = useCallback(() => {
     setPagina(1)
     setVersaoLista((versao) => versao + 1)
@@ -89,7 +99,16 @@ export default function Alunos() {
           onChange={(e) => setBusca(e.target.value)}
           sx={{ minWidth: { xs: '100%', sm: 280 }, '& .MuiOutlinedInput-root': { height: 46, bgcolor: TOV.white } }}
           inputProps={{ enterKeyHint: 'search', 'aria-label': 'Buscar por nome ou matrícula' }}
-          InputProps={{ startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ fontSize: 20, color: TOV.caption }} /></InputAdornment>) }}
+          InputProps={{
+            startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ fontSize: 20, color: TOV.caption }} /></InputAdornment>),
+            endAdornment: busca ? (
+              <InputAdornment position="end">
+                <IconButton size="small" aria-label="Limpar busca" onClick={() => setBusca('')}>
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : undefined,
+          }}
         />
       </Box>
       <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setImportacaoAberta(true)} sx={{ height: 46 }}>
@@ -109,7 +128,14 @@ export default function Alunos() {
         acoes={acoes}
       />
 
-      <Box sx={{ display: 'flex', gap: 1.25, mb: 2.25, flexWrap: 'wrap' }}>
+      <Box
+        aria-label="Filtrar alunos por status"
+        sx={{
+          display: 'flex', gap: 1.25, mb: 2.25, overflowX: 'auto',
+          pb: 0.5, mx: { xs: -2, sm: 0 }, px: { xs: 2, sm: 0 },
+          scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
         {FILTROS.map((f) => (
           <ChipFiltro key={f.valor} ativo={status === f.valor} onClick={() => { setStatus(f.valor); setPagina(1) }}>
             {f.rotulo}
@@ -135,13 +161,6 @@ export default function Alunos() {
               <PilulaStatus status={a.status} sx={{ flexShrink: 0 }} />
             </Box>
             <LinhaCartao rotulo="Celular" valor={a.celular || a.fone1} />
-            <Box
-              onClick={(e) => e.stopPropagation()}
-              sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}
-            >
-              <Button size="small" variant="outlined" fullWidth onClick={() => navigate(`/alunos/${a.cod_alu}`)}>Ver ficha</Button>
-              <Button size="small" variant="outlined" fullWidth onClick={() => abrirArquivo(`/relatorios/boletim/${a.cod_alu}`).catch((e) => setErro(e.message))}>Boletim (PDF)</Button>
-            </Box>
           </CartaoLista>
         ))}
       </Box>
@@ -193,7 +212,7 @@ export default function Alunos() {
         <Pagination
           count={totalPaginas} page={pagina} onChange={(_, p) => setPagina(p)} shape="rounded" siblingCount={0}
           sx={{
-            '& .MuiPaginationItem-root': { borderRadius: '10px', bgcolor: TOV.white, fontWeight: 600, color: TOV.slate, minWidth: 38, height: 38, boxShadow: TOV.shadowCard },
+            '& .MuiPaginationItem-root': { borderRadius: '10px', bgcolor: TOV.white, fontWeight: 600, color: TOV.slate, minWidth: 44, height: 44, boxShadow: TOV.shadowCard },
             '& .Mui-selected': { bgcolor: `${TOV.coral} !important`, color: '#fff' },
           }}
         />

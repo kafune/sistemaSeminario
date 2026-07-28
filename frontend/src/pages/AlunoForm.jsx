@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Button, Dialog, DialogActions, DialogContent,
-  DialogTitle, Grid, MenuItem, TextField,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent,
+  DialogTitle, Grid, LinearProgress, MenuItem, TextField, Typography,
 } from '@mui/material'
 import { api } from '../api'
-import { useDialogoTelaCheia } from '../ui'
+import { TOV } from '../theme'
+import {
+  DialogoConfirmacao, LinhaCartao, cardSx, useDialogoTelaCheia,
+} from '../ui'
 
 const VAZIO = {
   nome: '', endereco: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
@@ -14,29 +17,82 @@ const VAZIO = {
   turma_interesse: '', nome_conjuge: '', cur_teologicos: '', cod_tur: null,
 }
 
-/** Formulário de aluno (criação e edição). `aluno` preenchido = edição. */
+const ETAPAS = [
+  ['Identificação', 'Dados pessoais e documentos'],
+  ['Contato', 'Como falar com o aluno'],
+  ['Endereço', 'Onde o aluno reside'],
+  ['Igreja', 'Vínculo e informações da igreja'],
+  ['Acadêmico', 'Escolaridade e turma'],
+  ['Revisar', 'Confira antes de salvar'],
+]
+
+const STATUS_ALUNO = {
+  P: 'Pré-cadastro',
+  A: 'Ativo',
+  I: 'Inativo',
+  F: 'Formado',
+  T: 'Trancado',
+}
+
+function valorOuTraco(valor) {
+  return valor == null || valor === '' ? '—' : valor
+}
+
+/** Formulário de aluno em etapas. `aluno` preenchido = edição. */
 export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
   const [form, setForm] = useState(VAZIO)
+  const [inicial, setInicial] = useState(VAZIO)
   const [turmas, setTurmas] = useState([])
+  const [etapa, setEtapa] = useState(0)
   const [erro, setErro] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [confirmarFechar, setConfirmarFechar] = useState(false)
   const telaCheia = useDialogoTelaCheia()
 
   useEffect(() => {
     if (!aberto) return
+    const dados = aluno ? { ...VAZIO, ...aluno } : { ...VAZIO }
     setErro('')
-    setForm(aluno ? { ...VAZIO, ...aluno } : VAZIO)
+    setEtapa(0)
+    setForm(dados)
+    setInicial(dados)
+    setConfirmarFechar(false)
     api.get('/turmas').then(setTurmas).catch((e) => setErro(e.message))
   }, [aberto, aluno])
+
+  function alterar(nome, valor) {
+    setForm((atual) => ({ ...atual, [nome]: valor }))
+    if (erro) setErro('')
+  }
 
   function campo(nome, props = {}) {
     return (
       <TextField
-        size="small" fullWidth label={props.label} value={form[nome] ?? ''}
-        onChange={(e) => setForm({ ...form, [nome]: e.target.value })}
+        size="small"
+        fullWidth
+        label={props.label}
+        value={form[nome] ?? ''}
+        onChange={(e) => alterar(nome, e.target.value)}
         {...props}
       />
     )
+  }
+
+  const alterado = JSON.stringify(form) !== JSON.stringify(inicial)
+  const ultimaEtapa = etapa === ETAPAS.length - 1
+
+  function pedirFechar() {
+    if (alterado && !salvando) setConfirmarFechar(true)
+    else aoFechar()
+  }
+
+  function continuar() {
+    if (etapa === 0 && form.nome.trim().length < 2) {
+      setErro('Informe o nome completo para continuar.')
+      return
+    }
+    setErro('')
+    setEtapa((atual) => Math.min(ETAPAS.length - 1, atual + 1))
   }
 
   async function salvar() {
@@ -44,7 +100,6 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
     setSalvando(true)
     const corpo = { ...form }
     delete corpo.cod_alu
-    // strings vazias viram null para campos não-texto
     for (const k of ['dat_nas', 'membro_desde', 'cod_tur']) {
       if (corpo[k] === '') corpo[k] = null
     }
@@ -52,6 +107,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
       const salvo = aluno
         ? await api.put(`/alunos/${aluno.cod_alu}`, corpo)
         : await api.post('/alunos', corpo)
+      setInicial(form)
       aoSalvar(salvo)
     } catch (e) {
       setErro(e.message)
@@ -60,87 +116,252 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
     }
   }
 
+  function resumo(titulo, indice, linhas) {
+    return (
+      <Box sx={{ ...cardSx, border: `1px solid ${TOV.divider}`, p: 2, mb: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1.25 }}>
+          <Typography variant="h3" sx={{ fontSize: 17 }}>{titulo}</Typography>
+          <Button size="small" onClick={() => setEtapa(indice)}>Editar</Button>
+        </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+          {linhas.map(([rotulo, valor]) => (
+            <LinhaCartao key={rotulo} rotulo={rotulo} valor={valorOuTraco(valor)} />
+          ))}
+        </Box>
+      </Box>
+    )
+  }
+
   return (
-    <Dialog open={aberto} onClose={aoFechar} maxWidth="md" fullWidth fullScreen={telaCheia}>
-      <DialogTitle>{aluno ? `Editar aluno ${aluno.cod_alu}` : 'Novo aluno'}</DialogTitle>
-      <DialogContent>
-        {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
-        <Grid container spacing={1.5} sx={{ mt: 0 }}>
-          <Grid item xs={12} sm={8}>{campo('nome', { label: 'Nome completo', required: true })}</Grid>
-          <Grid item xs={6} sm={2}>
-            <TextField
-              select size="small" fullWidth label="Sexo" value={form.sexo ?? ''}
-              onChange={(e) => setForm({ ...form, sexo: e.target.value })}
-            >
-              <MenuItem value="M">M</MenuItem>
-              <MenuItem value="F">F</MenuItem>
-            </TextField>
-          </Grid>
-          <Grid item xs={6} sm={2}>
-            <TextField
-              select size="small" fullWidth label="Status" value={form.status ?? 'A'}
-              onChange={(e) => setForm({ ...form, status: e.target.value })}
-            >
-              <MenuItem value="P">Pré-cadastro</MenuItem>
-              <MenuItem value="A">Ativo</MenuItem>
-              <MenuItem value="I">Inativo</MenuItem>
-              <MenuItem value="F">Formado</MenuItem>
-            </TextField>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            {campo('dat_nas', { label: 'Nascimento', type: 'date', InputLabelProps: { shrink: true } })}
-          </Grid>
-          <Grid item xs={6} sm={3}>{campo('rg', { label: 'RG' })}</Grid>
-          <Grid item xs={6} sm={3}>{campo('cpf', { label: 'CPF' })}</Grid>
-          <Grid item xs={6} sm={3}>{campo('profissao', { label: 'Profissão' })}</Grid>
-          <Grid item xs={12} sm={6}>{campo('endereco', { label: 'Endereço' })}</Grid>
-          <Grid item xs={6} sm={3}>{campo('complemento', { label: 'Complemento' })}</Grid>
-          <Grid item xs={6} sm={3}>{campo('bairro', { label: 'Bairro' })}</Grid>
-          <Grid item xs={6} sm={4}>{campo('cidade', { label: 'Cidade' })}</Grid>
-          <Grid item xs={3} sm={2}>{campo('uf', { label: 'UF', inputProps: { maxLength: 2 } })}</Grid>
-          <Grid item xs={3} sm={3}>{campo('cep', { label: 'CEP' })}</Grid>
-          <Grid item xs={6} sm={3}>{campo('fone1', { label: 'Telefone' })}</Grid>
-          <Grid item xs={6} sm={3}>{campo('celular', { label: 'Celular' })}</Grid>
-          <Grid item xs={12} sm={6}>{campo('e_mail', { label: 'E-mail' })}</Grid>
-          <Grid item xs={6} sm={3}>{campo('escolaridade', { label: 'Escolaridade' })}</Grid>
-          <Grid item xs={6} sm={3}>{campo('est_civ', { label: 'Estado civil' })}</Grid>
-          <Grid item xs={12} sm={6}>{campo('igreja', { label: 'Igreja' })}</Grid>
-          <Grid item xs={12} sm={6}>
-            {campo('local_igreja', { label: 'Endereço completo da igreja', multiline: true, minRows: 2 })}
-          </Grid>
-          <Grid item xs={12} sm={6}>{campo('nome_pastor', { label: 'Pastor' })}</Grid>
-          <Grid item xs={6} sm={3}>
-            {campo('membro_desde', { label: 'Membro desde', type: 'date', InputLabelProps: { shrink: true } })}
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            {campo('cur_teologicos', {
-              label: 'Curso anterior de Teologia (onde?)', multiline: true, minRows: 2,
-            })}
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            {campo('nome_conjuge', { label: 'Nome do cônjuge participante' })}
-          </Grid>
-          <Grid item xs={12} sm={6}>
-            {campo('turma_interesse', { label: 'Turma de interesse' })}
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <TextField
-              select size="small" fullWidth label="Turma matriculada" value={form.cod_tur ?? ''}
-              onChange={(e) => setForm({ ...form, cod_tur: e.target.value || null })}
-            >
-              {turmas.map((t) => (
-                <MenuItem key={t.cod_tur} value={t.cod_tur}>{t.nome}</MenuItem>
-              ))}
-            </TextField>
-          </Grid>
-        </Grid>
-      </DialogContent>
-      <DialogActions sx={{ p: { xs: 2, sm: 3 }, pt: { xs: 1.5, sm: 1.5 }, '& > button': { flex: { xs: 1, sm: '0 0 auto' } } }}>
-        <Button variant="outlined" onClick={aoFechar} disabled={salvando}>Cancelar</Button>
-        <Button variant="contained" onClick={salvar} disabled={!form.nome || salvando}>
-          {salvando ? 'Salvando…' : 'Salvar'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    <>
+      <Dialog open={aberto} onClose={pedirFechar} maxWidth="md" fullWidth fullScreen={telaCheia}>
+        <DialogTitle sx={{ pb: 1.5 }}>
+          <Typography component="div" variant="h2" sx={{ fontSize: { xs: 23, sm: 27 } }}>
+            {aluno ? `Editar aluno ${aluno.cod_alu}` : 'Novo aluno'}
+          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 1.25 }}>
+            <Typography sx={{ color: TOV.slate, fontSize: 14, fontWeight: 700 }}>
+              {ETAPAS[etapa][0]}
+            </Typography>
+            <Typography sx={{ color: TOV.caption, fontSize: 13 }}>
+              Etapa {etapa + 1} de {ETAPAS.length}
+            </Typography>
+          </Box>
+          <LinearProgress
+            variant="determinate"
+            value={((etapa + 1) / ETAPAS.length) * 100}
+            aria-label={`Etapa ${etapa + 1} de ${ETAPAS.length}`}
+            sx={{ mt: 1, height: 6, borderRadius: 3, bgcolor: TOV.coralTint }}
+          />
+        </DialogTitle>
+
+        <DialogContent>
+          <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2.25 }}>
+            {ETAPAS[etapa][1]}
+          </Typography>
+          {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
+
+          {etapa === 0 && (
+            <Grid container spacing={1.5}>
+              <Grid item xs={12}>
+                {campo('nome', {
+                  label: 'Nome completo', required: true, autoFocus: true,
+                  autoComplete: 'name',
+                })}
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  select size="small" fullWidth label="Sexo" value={form.sexo ?? ''}
+                  onChange={(e) => alterar('sexo', e.target.value)}
+                >
+                  <MenuItem value="">Não informado</MenuItem>
+                  <MenuItem value="F">Feminino</MenuItem>
+                  <MenuItem value="M">Masculino</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  select size="small" fullWidth label="Status" value={form.status ?? 'A'}
+                  onChange={(e) => alterar('status', e.target.value)}
+                >
+                  <MenuItem value="P">Pré-cadastro</MenuItem>
+                  <MenuItem value="A">Ativo</MenuItem>
+                  <MenuItem value="I">Inativo</MenuItem>
+                  <MenuItem value="F">Formado</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                {campo('dat_nas', {
+                  label: 'Data de nascimento', type: 'date',
+                  InputLabelProps: { shrink: true }, autoComplete: 'bday',
+                })}
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                {campo('cpf', { label: 'CPF', inputProps: { inputMode: 'numeric', maxLength: 20 } })}
+              </Grid>
+              <Grid item xs={6} sm={4}>
+                {campo('rg', { label: 'RG', inputProps: { inputMode: 'numeric', maxLength: 20 } })}
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                {campo('nacionalidade', { label: 'Nacionalidade', autoComplete: 'country-name' })}
+              </Grid>
+              <Grid item xs={12} sm={6}>{campo('profissao', { label: 'Profissão' })}</Grid>
+            </Grid>
+          )}
+
+          {etapa === 1 && (
+            <Grid container spacing={1.5}>
+              <Grid item xs={12} sm={6}>
+                {campo('celular', {
+                  label: 'Celular / WhatsApp', type: 'tel', autoComplete: 'tel',
+                  inputProps: { inputMode: 'tel', maxLength: 20 },
+                })}
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                {campo('fone1', {
+                  label: 'Outro telefone', type: 'tel',
+                  inputProps: { inputMode: 'tel', maxLength: 20 },
+                })}
+              </Grid>
+              <Grid item xs={12}>
+                {campo('e_mail', { label: 'E-mail', type: 'email', autoComplete: 'email' })}
+              </Grid>
+            </Grid>
+          )}
+
+          {etapa === 2 && (
+            <Grid container spacing={1.5}>
+              <Grid item xs={12}>{campo('endereco', { label: 'Endereço', autoComplete: 'street-address' })}</Grid>
+              <Grid item xs={12} sm={6}>{campo('complemento', { label: 'Complemento' })}</Grid>
+              <Grid item xs={12} sm={6}>{campo('bairro', { label: 'Bairro' })}</Grid>
+              <Grid item xs={8}>{campo('cidade', { label: 'Cidade', autoComplete: 'address-level2' })}</Grid>
+              <Grid item xs={4}>
+                {campo('uf', {
+                  label: 'UF', autoComplete: 'address-level1',
+                  inputProps: { maxLength: 2, style: { textTransform: 'uppercase' } },
+                  onChange: (e) => alterar('uf', e.target.value.toUpperCase()),
+                })}
+              </Grid>
+              <Grid item xs={12} sm={5}>
+                {campo('cep', {
+                  label: 'CEP', autoComplete: 'postal-code',
+                  inputProps: { inputMode: 'numeric', maxLength: 10 },
+                })}
+              </Grid>
+            </Grid>
+          )}
+
+          {etapa === 3 && (
+            <Grid container spacing={1.5}>
+              <Grid item xs={12}>{campo('igreja', { label: 'Igreja' })}</Grid>
+              <Grid item xs={12}>{campo('nome_pastor', { label: 'Pastor' })}</Grid>
+              <Grid item xs={12} sm={5}>
+                {campo('membro_desde', {
+                  label: 'Membro desde', type: 'date', InputLabelProps: { shrink: true },
+                })}
+              </Grid>
+              <Grid item xs={12}>
+                {campo('local_igreja', {
+                  label: 'Endereço completo da igreja', multiline: true, minRows: 3,
+                })}
+              </Grid>
+            </Grid>
+          )}
+
+          {etapa === 4 && (
+            <Grid container spacing={1.5}>
+              <Grid item xs={12} sm={6}>{campo('escolaridade', { label: 'Escolaridade' })}</Grid>
+              <Grid item xs={12} sm={6}>{campo('est_civ', { label: 'Estado civil' })}</Grid>
+              <Grid item xs={12}>
+                {campo('cur_teologicos', {
+                  label: 'Curso anterior de Teologia (onde?)', multiline: true, minRows: 2,
+                })}
+              </Grid>
+              <Grid item xs={12}>{campo('nome_conjuge', { label: 'Nome do cônjuge participante' })}</Grid>
+              <Grid item xs={12}>{campo('turma_interesse', { label: 'Turma de interesse' })}</Grid>
+              <Grid item xs={12}>
+                <TextField
+                  select size="small" fullWidth label="Turma matriculada"
+                  value={form.cod_tur ?? ''}
+                  onChange={(e) => alterar('cod_tur', e.target.value || null)}
+                >
+                  <MenuItem value="">Nenhuma turma</MenuItem>
+                  {turmas.map((t) => (
+                    <MenuItem key={t.cod_tur} value={t.cod_tur}>{t.nome}</MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            </Grid>
+          )}
+
+          {etapa === 5 && (
+            <Box>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Confira os dados. Você pode voltar a qualquer etapa antes de salvar.
+              </Alert>
+              {resumo('Identificação', 0, [
+                ['Nome', form.nome],
+                ['Nascimento', form.dat_nas],
+                ['CPF', form.cpf],
+                ['RG', form.rg],
+                ['Status', STATUS_ALUNO[form.status] || form.status],
+              ])}
+              {resumo('Contato', 1, [
+                ['Celular', form.celular],
+                ['Telefone', form.fone1],
+                ['E-mail', form.e_mail],
+              ])}
+              {resumo('Endereço', 2, [
+                ['Endereço', form.endereco],
+                ['Bairro', form.bairro],
+                ['Cidade / UF', `${form.cidade || ''}${form.uf ? ` / ${form.uf}` : ''}`],
+                ['CEP', form.cep],
+              ])}
+              {resumo('Igreja', 3, [
+                ['Igreja', form.igreja],
+                ['Pastor', form.nome_pastor],
+                ['Membro desde', form.membro_desde],
+              ])}
+              {resumo('Acadêmico', 4, [
+                ['Escolaridade', form.escolaridade],
+                ['Turma de interesse', form.turma_interesse],
+                ['Turma matriculada', turmas.find((t) => String(t.cod_tur) === String(form.cod_tur))?.nome],
+              ])}
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            p: { xs: 2, sm: 3 }, pt: 1.5, gap: 1,
+            borderTop: `1px solid ${TOV.divider}`,
+          }}
+        >
+          <Button onClick={pedirFechar} disabled={salvando} sx={{ mr: 'auto' }}>Cancelar</Button>
+          {etapa > 0 && (
+            <Button variant="outlined" onClick={() => { setErro(''); setEtapa((atual) => atual - 1) }} disabled={salvando}>
+              Voltar
+            </Button>
+          )}
+          <Button
+            variant="contained"
+            onClick={ultimaEtapa ? salvar : continuar}
+            disabled={salvando || (etapa === 0 && form.nome.trim().length < 2)}
+          >
+            {salvando ? 'Salvando…' : ultimaEtapa ? 'Salvar aluno' : 'Continuar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <DialogoConfirmacao
+        aberto={confirmarFechar}
+        titulo="Descartar cadastro?"
+        descricao="As informações preenchidas neste formulário serão perdidas."
+        rotuloConfirmar="Descartar"
+        processando={false}
+        onConfirmar={() => { setConfirmarFechar(false); aoFechar() }}
+        onFechar={() => setConfirmarFechar(false)}
+      />
+    </>
   )
 }

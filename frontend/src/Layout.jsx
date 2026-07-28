@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { AppBar, Box, Drawer, IconButton, Toolbar, Typography } from '@mui/material'
+import {
+  AppBar, BottomNavigation, BottomNavigationAction, Box, Drawer, IconButton,
+  Paper, Toolbar, Typography,
+} from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import SpaceDashboardIcon from '@mui/icons-material/SpaceDashboard'
 import SchoolIcon from '@mui/icons-material/School'
 import PersonIcon from '@mui/icons-material/Person'
@@ -15,8 +19,9 @@ import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import LogoutIcon from '@mui/icons-material/Logout'
 import { api, clearSession, getUser } from './api'
 import { TOV } from './theme'
-import { iniciais, resetBotao } from './ui'
+import { DialogoConfirmacao, iniciais, resetBotao } from './ui'
 import NotificationCenter, { BotaoInstalarPwa, BotaoNotificacoes, useNotificacoes } from './NotificationCenter'
+import { UnsavedChangesContext } from './UnsavedChanges'
 
 const MENU = [
   { rotulo: 'Dashboard', rota: '/', icone: SpaceDashboardIcon, exato: true },
@@ -63,9 +68,11 @@ export default function Layout({ children }) {
   const usuario = getUser() || 'Usuário'
   const [menuAberto, setMenuAberto] = useState(false)
   const [notificacoesAbertas, setNotificacoesAbertas] = useState(false)
+  const [alteracoesPendentes, setAlteracoesPendentes] = useState(null)
+  const [destinoPendente, setDestinoPendente] = useState(null)
   const estadoNotificacoes = useNotificacoes()
 
-  async function sair() {
+  async function executarSaida() {
     try {
       const registro = await navigator.serviceWorker?.ready
       const inscricao = await registro?.pushManager?.getSubscription?.()
@@ -80,15 +87,44 @@ export default function Layout({ children }) {
     navigate('/login')
   }
 
+  function sair() {
+    if (alteracoesPendentes) {
+      setMenuAberto(false)
+      setDestinoPendente({ tipo: 'sair' })
+      return
+    }
+    executarSaida()
+  }
+
   function irPara(rota) {
     setMenuAberto(false)
+    if (rota === location.pathname) return
+    if (alteracoesPendentes) {
+      setDestinoPendente({ tipo: 'rota', rota })
+      return
+    }
     navigate(rota)
+  }
+
+  function confirmarNavegacao() {
+    const destino = destinoPendente
+    setDestinoPendente(null)
+    setAlteracoesPendentes(null)
+    if (destino?.tipo === 'sair') executarSaida()
+    else if (destino?.rota) navigate(destino.rota)
   }
 
   const estaAtivo = (item) =>
     item.exato ? location.pathname === item.rota : location.pathname.startsWith(item.rota)
 
   const tituloAtual = MENU.find(estaAtivo)?.rotulo || 'TOV'
+  const valorNavegacao = location.pathname === '/'
+    ? '/'
+    : location.pathname.startsWith('/alunos')
+      ? '/alunos'
+      : location.pathname.startsWith('/turmas')
+        ? '/turmas'
+        : 'mais'
 
   // Título da aba acompanha a seção e o scroll volta ao topo a cada rota.
   useEffect(() => {
@@ -136,7 +172,7 @@ export default function Layout({ children }) {
           type="button"
           onClick={sair}
           title="Sair"
-          sx={{ ...resetBotao, ml: 'auto', display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 12, opacity: 0.85, p: 0.5, '&:hover': { opacity: 1 }, '&:focus-visible': { outline: '2px solid #fff', outlineOffset: 2, borderRadius: '6px' } }}
+          sx={{ ...resetBotao, ml: 'auto', minHeight: 44, px: 0.75, display: 'flex', alignItems: 'center', gap: 0.5, fontSize: 12, opacity: 0.85, '&:hover': { opacity: 1 }, '&:focus-visible': { outline: '2px solid #fff', outlineOffset: 2, borderRadius: '6px' } }}
         >
           <LogoutIcon sx={{ fontSize: 16 }} /> Sair
         </Box>
@@ -150,26 +186,34 @@ export default function Layout({ children }) {
   }
 
   return (
+    <UnsavedChangesContext.Provider value={setAlteracoesPendentes}>
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: TOV.offwhite }}>
       {/* Barra superior — só no mobile/tablet */}
       <AppBar
         position="fixed"
         elevation={0}
-        sx={{ display: { xs: 'flex', md: 'none' }, bgcolor: TOV.coral }}
+        sx={{
+          display: { xs: 'flex', md: 'none' }, bgcolor: TOV.coral,
+          pt: 'env(safe-area-inset-top)',
+        }}
       >
         <Toolbar sx={{ gap: 1, minHeight: { xs: 60 } }}>
-          <IconButton edge="start" color="inherit" aria-label="Abrir menu" onClick={() => setMenuAberto(true)}>
+          <IconButton
+            edge="start"
+            color="inherit"
+            aria-label="Abrir menu"
+            onClick={() => setMenuAberto(true)}
+            sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
+          >
             <MenuIcon />
           </IconButton>
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
             <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 20, letterSpacing: '-.02em' }}>TOV</Typography>
             <Typography noWrap sx={{ fontSize: 13, opacity: 0.85 }}>{tituloAtual}</Typography>
           </Box>
-          <BotaoInstalarPwa compacto />
-          <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
-          <IconButton edge="end" color="inherit" aria-label="Sair" onClick={sair} sx={{ ml: 'auto' }}>
-            <LogoutIcon sx={{ fontSize: 20 }} />
-          </IconButton>
+          <Box sx={{ ml: 'auto' }}>
+            <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -181,7 +225,11 @@ export default function Layout({ children }) {
         ModalProps={{ keepMounted: true }}
         sx={{
           display: { xs: 'block', md: 'none' },
-          '& .MuiDrawer-paper': { ...estiloPainel, width: 280, maxWidth: '85vw', border: 0 },
+          '& .MuiDrawer-paper': {
+            ...estiloPainel, width: 280, maxWidth: '85vw', border: 0,
+            pt: 'calc(30px + env(safe-area-inset-top))',
+            pb: 'calc(30px + env(safe-area-inset-bottom))',
+          },
         }}
       >
         {conteudoMenu}
@@ -204,12 +252,59 @@ export default function Layout({ children }) {
         component="main"
         sx={{
           flexGrow: 1, minWidth: 0, bgcolor: TOV.offwhite,
-          p: { xs: '80px 16px 32px', sm: '84px 24px 40px', md: '38px 44px' },
+          pt: { xs: 'calc(80px + env(safe-area-inset-top))', sm: 'calc(84px + env(safe-area-inset-top))', md: '38px' },
+          px: { xs: '16px', sm: '24px', md: '44px' },
+          pb: { xs: 'calc(96px + env(safe-area-inset-bottom))', sm: '40px', md: '38px' },
         }}
       >
         {children}
       </Box>
-      <NotificationCenter aberto={notificacoesAbertas} onFechar={() => setNotificacoesAbertas(false)} estado={estadoNotificacoes} />
+      <NotificationCenter
+        aberto={notificacoesAbertas}
+        onFechar={() => setNotificacoesAbertas(false)}
+        onNavigate={irPara}
+        estado={estadoNotificacoes}
+      />
+
+      {/* Atalhos de uso frequente — somente em celulares. */}
+      <Paper
+        elevation={8}
+        sx={{
+          display: { xs: 'block', sm: 'none' }, position: 'fixed', inset: 'auto 0 0',
+          zIndex: (theme) => theme.zIndex.appBar,
+          pb: 'env(safe-area-inset-bottom)', borderRadius: 0,
+        }}
+      >
+        <BottomNavigation
+          showLabels
+          value={valorNavegacao}
+          onChange={(_, valor) => {
+            if (valor === 'mais') setMenuAberto(true)
+            else irPara(valor)
+          }}
+          sx={{
+            height: 66,
+            '& .MuiBottomNavigationAction-root': { minWidth: 64, minHeight: 58, color: TOV.caption },
+            '& .Mui-selected': { color: TOV.coral },
+            '& .MuiBottomNavigationAction-label': { fontSize: 12, fontWeight: 700 },
+          }}
+        >
+          <BottomNavigationAction label="Início" value="/" icon={<SpaceDashboardIcon />} />
+          <BottomNavigationAction label="Alunos" value="/alunos" icon={<SchoolIcon />} />
+          <BottomNavigationAction label="Turmas" value="/turmas" icon={<GroupsIcon />} />
+          <BottomNavigationAction label="Mais" value="mais" icon={<MoreHorizIcon />} />
+        </BottomNavigation>
+      </Paper>
     </Box>
+    <DialogoConfirmacao
+      aberto={!!destinoPendente}
+      titulo="Descartar alterações?"
+      descricao={alteracoesPendentes || 'Há alterações que ainda não foram salvas.'}
+      rotuloConfirmar="Descartar e continuar"
+      processando={false}
+      onConfirmar={confirmarNavegacao}
+      onFechar={() => setDestinoPendente(null)}
+    />
+    </UnsavedChangesContext.Provider>
   )
 }

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   Alert, Box, Button, MenuItem, Snackbar, Switch, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TextField, Typography,
+  TableContainer, TableHead, TableRow, TextField, Typography, Paper,
 } from '@mui/material'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import SaveIcon from '@mui/icons-material/Save'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import { CartaoLista, Regua, cardSx } from '../ui'
+import { useUnsavedChanges } from '../UnsavedChanges'
 
 const ANO_ATUAL = String(new Date().getFullYear())
 
@@ -84,6 +85,12 @@ export default function Notas() {
   }
 
   const sujas = linhas.filter((l) => l._dirty)
+  useUnsavedChanges(
+    sujas.length > 0,
+    sujas.length === 1
+      ? 'Há 1 lançamento alterado que ainda não foi salvo.'
+      : `Há ${sujas.length} lançamentos alterados que ainda não foram salvos.`,
+  )
 
   const notaInvalida = (l) => l.nota !== '' && (Number.isNaN(Number(l.nota)) || Number(l.nota) < 0 || Number(l.nota) > 10)
   const faltaInvalida = (l) => l.falta !== '' && (Number.isNaN(Number(l.falta)) || Number(l.falta) < 0)
@@ -288,6 +295,35 @@ export default function Notas() {
           <Typography sx={{ mt: 1.75, fontSize: 13, color: TOV.caption, display: { xs: 'none', md: 'block' } }}>
             Dica: use Tab para navegar célula a célula. Alterações não salvas ficam destacadas em coral.
           </Typography>
+        </>
+      )}
+
+      {sujas.length > 0 && (
+        <>
+          <Box sx={{ display: { xs: 'block', sm: 'none' }, height: 76 }} />
+          <Paper
+            elevation={10}
+            sx={{
+              display: { xs: 'block', sm: 'none' },
+              position: 'fixed',
+              left: 12,
+              right: 12,
+              bottom: 'calc(74px + env(safe-area-inset-bottom))',
+              zIndex: (theme) => theme.zIndex.appBar + 1,
+              p: 1,
+              border: `1px solid ${TOV.divider}`,
+            }}
+          >
+            <Button
+              variant="contained"
+              startIcon={<SaveIcon />}
+              fullWidth
+              disabled={salvando || temInvalida}
+              onClick={salvarGrade}
+            >
+              {salvando ? 'Salvando…' : temInvalida ? 'Corrija os valores' : `Salvar ${sujas.length} ${sujas.length === 1 ? 'alteração' : 'alterações'}`}
+            </Button>
+          </Paper>
         </>
       )}
 

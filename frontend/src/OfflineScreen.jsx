@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Box, Button, Typography } from '@mui/material'
+import { Alert, Snackbar } from '@mui/material'
 import CloudOffIcon from '@mui/icons-material/CloudOff'
-import { TOV } from './theme'
 
 export default function OfflineScreen({ children }) {
   const [online, setOnline] = useState(() => navigator.onLine)
@@ -14,17 +13,27 @@ export default function OfflineScreen({ children }) {
       window.removeEventListener('offline', atualizar)
     }
   }, [])
-  if (online) return children
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: TOV.offwhite, display: 'grid', placeItems: 'center', p: 3 }}>
-      <Box sx={{ maxWidth: 440, textAlign: 'center' }}>
-        <CloudOffIcon sx={{ fontSize: 54, color: TOV.coral, mb: 2 }} />
-        <Typography variant="h2" sx={{ fontSize: 31 }}>Você está offline</Typography>
-        <Typography sx={{ color: TOV.caption, mt: 1.5 }}>
-          O TOV foi aberto, mas os dados acadêmicos são consultados somente online. Sua sessão e a rota atual serão preservadas quando a conexão voltar.
-        </Typography>
-        <Button variant="contained" sx={{ mt: 3 }} onClick={() => window.location.reload()}>Tentar novamente</Button>
-      </Box>
-    </Box>
+    <>
+      {children}
+      <Snackbar
+        open={!online}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{
+          bottom: { xs: 'calc(78px + env(safe-area-inset-bottom))', sm: 24 },
+          maxWidth: { xs: 'calc(100% - 24px)', sm: 520 },
+        }}
+      >
+        <Alert
+          severity="warning"
+          icon={<CloudOffIcon />}
+          variant="filled"
+          role="status"
+          sx={{ width: '100%', alignItems: 'center' }}
+        >
+          Sem conexão. Seu trabalho continua nesta tela e será possível salvar quando a internet voltar.
+        </Alert>
+      </Snackbar>
+    </>
   )
 }

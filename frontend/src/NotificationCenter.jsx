@@ -150,7 +150,7 @@ export function BotaoNotificacoes({ naoLidas, onClick, color = 'inherit' }) {
   )
 }
 
-export default function NotificationCenter({ aberto, onFechar, estado }) {
+export default function NotificationCenter({ aberto, onFechar, onNavigate, estado }) {
   const navigate = useNavigate()
   const {
     itens, naoLidas, preferencias, configuracao, erro, setErro, atualizar,
@@ -183,7 +183,8 @@ export default function NotificationCenter({ aberto, onFechar, estado }) {
         setNaoLidas((quantidade) => Math.max(0, quantidade - 1))
       }
       onFechar()
-      navigate(item.rota || '/')
+      if (onNavigate) onNavigate(item.rota || '/')
+      else navigate(item.rota || '/')
     } catch (e) { setErro(e.message) }
   }
 

@@ -130,8 +130,14 @@ export function CartaoLista({ children, onClick, sx }) {
   return (
     <Box
       onClick={onClick}
+      role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === 'Enter' && e.target === e.currentTarget) onClick(e) } : undefined}
+      onKeyDown={onClick ? (e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+          e.preventDefault()
+          onClick(e)
+        }
+      } : undefined}
       sx={{
         ...cardSx, p: '16px 18px', display: 'flex', flexDirection: 'column', gap: 1,
         ...(onClick ? {

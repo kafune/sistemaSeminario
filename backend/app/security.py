@@ -4,8 +4,11 @@ import bcrypt
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
 from .config import settings
+from .database import get_db
+from .models import Usuario
 
 ALGORITHM = "HS256"
 _bearer = HTTPBearer(auto_error=False)
@@ -40,3 +43,27 @@ def usuario_atual(
         return payload["sub"]
     except jwt.PyJWTError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sessão inválida ou expirada")
+
+
+def perfil_atual(
+    user: str = Depends(usuario_atual),
+    db: Session = Depends(get_db),
+) -> str:
+    usuario = db.get(Usuario, user)
+    if not usuario:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Usuário não encontrado")
+    return (usuario.perfil or "ADMIN").upper()
+
+
+def exigir_perfis(*perfis_permitidos: str):
+    permitidos = {perfil.upper() for perfil in perfis_permitidos}
+
+    def dependencia(perfil: str = Depends(perfil_atual)) -> str:
+        if perfil not in permitidos:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Seu perfil não possui acesso a esta área.",
+            )
+        return perfil
+
+    return dependencia

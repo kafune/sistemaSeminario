@@ -4,18 +4,24 @@ export function getToken() {
   return localStorage.getItem('tov_token')
 }
 
-export function setSession(token, user) {
+export function setSession(token, user, perfil = 'ADMIN') {
   localStorage.setItem('tov_token', token)
   localStorage.setItem('tov_user', user)
+  localStorage.setItem('tov_perfil', perfil)
 }
 
 export function clearSession() {
   localStorage.removeItem('tov_token')
   localStorage.removeItem('tov_user')
+  localStorage.removeItem('tov_perfil')
 }
 
 export function getUser() {
   return localStorage.getItem('tov_user')
+}
+
+export function getPerfil() {
+  return localStorage.getItem('tov_perfil') || 'ADMIN'
 }
 
 async function request(method, path, body) {

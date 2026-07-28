@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
   Paper, Snackbar, Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, TextField,
+  TableRow, TextField, MenuItem, Chip,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
@@ -34,11 +34,11 @@ export default function Usuarios() {
   useEffect(carregar, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   function novo() {
-    setForm({ user: '', senha: '', confirmar: '', novo: true })
+    setForm({ user: '', senha: '', confirmar: '', perfil: 'SECRETARIA', novo: true })
   }
 
   function redefinir(u) {
-    setForm({ user: u.user, senha: '', confirmar: '', novo: false })
+    setForm({ user: u.user, senha: '', confirmar: '', perfil: u.perfil || 'ADMIN', novo: false })
   }
 
   const senhaCurta = form && form.senha.length > 0 && form.senha.length < SENHA_MINIMA
@@ -46,18 +46,21 @@ export default function Usuarios() {
   const podeSalvar =
     form &&
     (!form.novo || form.user.trim()) &&
-    form.senha.length >= SENHA_MINIMA &&
+    (form.novo ? form.senha.length >= SENHA_MINIMA : !form.senha || form.senha.length >= SENHA_MINIMA) &&
     form.senha === form.confirmar
 
   async function salvar() {
     setSalvando(true)
     try {
       if (form.novo) {
-        await api.post('/usuarios', { user: form.user, senha: form.senha })
+        await api.post('/usuarios', { user: form.user, senha: form.senha, perfil: form.perfil })
         setOk('Usuário criado.')
       } else {
-        await api.put(`/usuarios/${encodeURIComponent(form.user)}/senha`, { senha: form.senha })
-        setOk('Senha redefinida.')
+        if (form.senha) {
+          await api.put(`/usuarios/${encodeURIComponent(form.user)}/senha`, { senha: form.senha })
+        }
+        await api.put(`/usuarios/${encodeURIComponent(form.user)}/perfil`, { perfil: form.perfil })
+        setOk('Acesso atualizado.')
       }
       setForm(null)
       carregar()
@@ -117,7 +120,8 @@ export default function Usuarios() {
                 }}>
                   {iniciais(u.user)}
                 </Box>
-                <Box component="span" sx={{ fontWeight: 700, fontSize: 16 }}>{u.user}</Box>
+                      <Box component="span" sx={{ fontWeight: 700, fontSize: 16 }}>{u.user}</Box>
+                      <Chip size="small" variant="outlined" label={u.perfil || 'ADMIN'} />
                 {euMesmo && (
                   <Box component="span" sx={{
                     px: 1.25, py: '3px', borderRadius: 999, bgcolor: TOV.coralTint,
@@ -128,7 +132,7 @@ export default function Usuarios() {
                 )}
               </Box>
               <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
-                <Button size="small" variant="outlined" fullWidth onClick={() => redefinir(u)}>Redefinir senha</Button>
+                <Button size="small" variant="outlined" fullWidth onClick={() => redefinir(u)}>Gerenciar acesso</Button>
                 <Button size="small" variant="outlined" color="error" fullWidth disabled={euMesmo} onClick={() => setParaExcluir(u)}>Excluir</Button>
               </Box>
             </CartaoLista>
@@ -166,6 +170,7 @@ export default function Usuarios() {
                         {iniciais(u.user)}
                       </Box>
                       <Box component="span" sx={{ fontWeight: 700 }}>{u.user}</Box>
+                      <Chip size="small" variant="outlined" label={u.perfil || 'ADMIN'} />
                       {euMesmo && (
                         <Box component="span" sx={{
                           px: 1.25, py: '3px', borderRadius: 999, bgcolor: TOV.coralTint,
@@ -180,7 +185,7 @@ export default function Usuarios() {
                     <Box sx={{ display: 'inline-flex', gap: 1.25, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
                       <Box component="button" type="button" onClick={() => redefinir(u)}
                         sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
-                        Redefinir senha
+                        Gerenciar acesso
                       </Box>
                       <Box component="span" sx={{ color: TOV.border }}>·</Box>
                       {euMesmo ? (
@@ -204,7 +209,7 @@ export default function Usuarios() {
       </TableContainer>
 
       <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="xs" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{form?.novo ? 'Novo usuário' : `Redefinir senha — ${form?.user}`}</DialogTitle>
+        <DialogTitle>{form?.novo ? 'Novo usuário' : `Gerenciar acesso — ${form?.user}`}</DialogTitle>
         <DialogContent>
           {form && (
             <Grid container spacing={1.5} sx={{ mt: 0 }}>
@@ -220,12 +225,23 @@ export default function Usuarios() {
               )}
               <Grid item xs={12}>
                 <TextField
+                  select fullWidth label="Perfil de acesso"
+                  value={form.perfil}
+                  onChange={(e) => setForm({ ...form, perfil: e.target.value })}
+                >
+                  <MenuItem value="SECRETARIA">Secretaria</MenuItem>
+                  <MenuItem value="MARKETING">Marketing</MenuItem>
+                  <MenuItem value="ADMIN">Administrador</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
                   fullWidth required type="password" label="Senha"
                   autoFocus={!form.novo}
                   value={form.senha}
                   onChange={(e) => setForm({ ...form, senha: e.target.value })}
                   error={senhaCurta}
-                  helperText={senhaCurta ? `Mínimo de ${SENHA_MINIMA} caracteres.` : ' '}
+                  helperText={senhaCurta ? `Mínimo de ${SENHA_MINIMA} caracteres.` : form.novo ? 'Obrigatória para novo usuário.' : 'Deixe em branco para manter a senha atual.'}
                 />
               </Grid>
               <Grid item xs={12}>

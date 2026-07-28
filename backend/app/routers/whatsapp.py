@@ -2,6 +2,7 @@ import json
 import hashlib
 import hmac
 import re
+import unicodedata
 import uuid
 from datetime import datetime, timezone
 from typing import Literal
@@ -18,14 +19,18 @@ from ..database import SessionLocal, get_db
 from ..models import (
     Aluno,
     AluTurma,
+    Lead,
+    LeadConsentimentoEvento,
+    LeadInteracao,
     Turma,
+    Usuario,
     WhatsappArquivo,
     WhatsappConfiguracao,
     WhatsappDestinatario,
     WhatsappDisparo,
     WhatsappTemplate,
 )
-from ..security import usuario_atual
+from ..security import exigir_perfis, perfil_atual, usuario_atual
 from ..services.uazapi import (
     UazApiClient,
     UazApiError,
@@ -168,9 +173,17 @@ class InstanciaInput(BaseModel):
 
 
 class PublicoInput(BaseModel):
-    tipo: Literal["alunos", "turma", "todos"]
+    tipo: Literal["alunos", "turma", "todos", "leads"]
     aluno_ids: list[int] = Field(default_factory=list)
     cod_tur: int | None = None
+    lead_ids: list[int] = Field(default_factory=list)
+    segmento_leads: Literal[
+        "todos", "selecionados", "campanha", "origem", "tag", "status_funil"
+    ] | None = None
+    campanha: str | None = Field(default=None, max_length=100)
+    origem: str | None = Field(default=None, max_length=100)
+    tag: str | None = Field(default=None, max_length=100)
+    status_funil: str | None = Field(default=None, max_length=30)
 
 
 class BotaoInput(BaseModel):
@@ -202,6 +215,8 @@ class ConteudoMensagemInput(BaseModel):
 class PrevisualizacaoInput(BaseModel):
     publico: PublicoInput
     conteudo: ConteudoMensagemInput
+    categoria_api: Literal["MARKETING", "UTILIDADE", "AUTENTICACAO"] = "UTILIDADE"
+    finalidade: Literal["NUTRICAO", "COMERCIAL", "OPERACIONAL"] = "OPERACIONAL"
 
 
 class DisparoInput(PrevisualizacaoInput):
@@ -212,6 +227,8 @@ class DisparoInput(PrevisualizacaoInput):
 class TemplateInput(BaseModel):
     nome: str = Field(min_length=2, max_length=100)
     categoria: str = Field(default="Geral", min_length=1, max_length=60)
+    categoria_api: Literal["MARKETING", "UTILIDADE", "AUTENTICACAO"] = "UTILIDADE"
+    finalidade: Literal["NUTRICAO", "COMERCIAL", "OPERACIONAL"] = "OPERACIONAL"
     favorito: bool = False
     conteudo: ConteudoMensagemInput
 
@@ -366,6 +383,58 @@ def _mensagens_uazapi(conteudo: dict, numero: str, nome: str) -> list[dict]:
     ]
 
 
+RODAPE_OPTOUT = "Para não receber mais mensagens, responda SAIR."
+
+
+def _aplicar_optout(conteudo: dict) -> dict:
+    """Garante o opt-out no último item da composição de marketing."""
+    copia = json.loads(json.dumps(conteudo, ensure_ascii=False))
+    itens = [copia, *(copia.get("sequencia") or [])]
+    ultimo = itens[-1]
+    mensagem = (ultimo.get("mensagem") or "").strip()
+    if RODAPE_OPTOUT.casefold() not in mensagem.casefold():
+        ultimo["mensagem"] = (
+            f"{mensagem}\n\n{RODAPE_OPTOUT}" if mensagem else RODAPE_OPTOUT
+        )
+    if len(ultimo["mensagem"]) > 4096:
+        raise HTTPException(
+            400,
+            "Reduza a última mensagem para comportar o rodapé obrigatório de opt-out.",
+        )
+    if len(itens) > 1:
+        copia["sequencia"] = itens[1:]
+    return copia
+
+
+def _perfil_usuario(db: Session, usuario: str) -> str:
+    registro = db.get(Usuario, usuario)
+    return (registro.perfil if registro else "ADMIN") or "ADMIN"
+
+
+def _validar_acesso_publico(db: Session, usuario: str, publico: PublicoInput) -> None:
+    perfil = _perfil_usuario(db, usuario).upper()
+    if perfil == "MARKETING" and publico.tipo != "leads":
+        raise HTTPException(403, "O perfil Marketing acessa somente a base de leads.")
+    if perfil == "SECRETARIA" and publico.tipo == "leads":
+        raise HTTPException(403, "O perfil Secretaria não acessa a base de leads.")
+
+
+def _validar_classificacao(
+    publico: PublicoInput, categoria_api: str, finalidade: str
+) -> None:
+    if publico.tipo == "leads":
+        if categoria_api != "MARKETING":
+            raise HTTPException(
+                400,
+                "Disparos para leads devem usar a categoria API Marketing.",
+            )
+        if finalidade not in {"NUTRICAO", "COMERCIAL"}:
+            raise HTTPException(
+                400,
+                "Defina a finalidade do disparo como Nutrição ou Comercial.",
+            )
+
+
 def _alunos_publico(
     db: Session, publico: PublicoInput
 ) -> tuple[list[tuple[Aluno, str | None]], str]:
@@ -419,9 +488,103 @@ def _alunos_publico(
     return [(aluno, None) for aluno in alunos], "Todos os alunos ativos"
 
 
+def _leads_publico(
+    db: Session, publico: PublicoInput
+) -> tuple[list[tuple[Lead, str | None]], str]:
+    segmento = publico.segmento_leads or "todos"
+    consulta = select(Lead)
+    descricao = "Todos os leads ativos com opt-in"
+    if segmento == "selecionados":
+        ids = list(dict.fromkeys(publico.lead_ids))
+        if not ids:
+            raise HTTPException(400, "Selecione ao menos um lead.")
+        encontrados = list(
+            db.scalars(select(Lead).where(Lead.id.in_(ids)).order_by(Lead.nome))
+        )
+        mapa = {lead.id: lead for lead in encontrados}
+        if len(mapa) != len(ids):
+            raise HTTPException(400, "Um ou mais leads selecionados não existem.")
+        leads = [mapa[item] for item in ids]
+        descricao = (
+            leads[0].nome
+            if len(leads) == 1
+            else f"{len(leads)} leads selecionados"
+        )
+    else:
+        if segmento == "campanha":
+            if not publico.campanha:
+                raise HTTPException(400, "Selecione uma campanha.")
+            consulta = consulta.where(Lead.campanha == publico.campanha)
+            descricao = f"Leads da campanha {publico.campanha}"
+        elif segmento == "origem":
+            if not publico.origem:
+                raise HTTPException(400, "Selecione uma origem.")
+            consulta = consulta.where(Lead.origem == publico.origem)
+            descricao = f"Leads da origem {publico.origem}"
+        elif segmento == "tag":
+            if not publico.tag:
+                raise HTTPException(400, "Selecione uma tag.")
+            consulta = consulta.where(Lead.tags.like(f"%{publico.tag}%"))
+            descricao = f"Leads com a tag {publico.tag}"
+        elif segmento == "status_funil":
+            if not publico.status_funil:
+                raise HTTPException(400, "Selecione um status do funil.")
+            consulta = consulta.where(
+                Lead.status_funil == publico.status_funil.upper()
+            )
+            descricao = f"Leads no estágio {publico.status_funil}"
+        leads = list(db.scalars(consulta.order_by(Lead.nome)))
+
+    itens: list[tuple[Lead, str | None]] = []
+    for lead in leads:
+        motivo = None
+        if lead.status != "ATIVO":
+            motivo = "Lead inativo"
+        elif lead.consentimento_status == "PENDENTE":
+            motivo = "Opt-in pendente"
+        elif lead.consentimento_status == "RECUSADO":
+            motivo = "Consentimento recusado"
+        elif lead.consentimento_status == "REVOGADO":
+            motivo = "Lead solicitou opt-out"
+        elif lead.consentimento_status != "CONFIRMADO":
+            motivo = "Opt-in não confirmado"
+        itens.append((lead, motivo))
+    return itens, descricao
+
+
 def _resolver_publico(
     db: Session, publico: PublicoInput, conteudo: dict
 ) -> tuple[list[dict], str]:
+    if publico.tipo == "leads":
+        leads, descricao = _leads_publico(db, publico)
+        vistos: set[str] = set()
+        itens = []
+        for lead, motivo_status in leads:
+            numero, motivo_numero = normalizar_celular(lead.telefone)
+            motivo = motivo_status or motivo_numero
+            if not motivo and numero in vistos:
+                motivo = "Telefone duplicado neste disparo"
+            if not motivo and numero:
+                vistos.add(numero)
+            itens.append(
+                {
+                    "cod_alu": None,
+                    "lead_id": lead.id,
+                    "nome": lead.nome,
+                    "celular": lead.telefone,
+                    "numero_normalizado": numero,
+                    "valido": motivo is None,
+                    "motivo": motivo,
+                    "mensagem_final": personalizar_mensagem(
+                        conteudo.get("mensagem") or f"[{conteudo['tipo']}]",
+                        lead.nome,
+                    )
+                    if motivo is None
+                    else None,
+                }
+            )
+        return itens, descricao
+
     alunos, descricao = _alunos_publico(db, publico)
     vistos: set[str] = set()
     itens = []
@@ -435,6 +598,7 @@ def _resolver_publico(
         itens.append(
             {
                 "cod_alu": aluno.cod_alu,
+                "lead_id": None,
                 "nome": aluno.nome or f"Aluno {aluno.cod_alu}",
                 "celular": aluno.celular,
                 "numero_normalizado": numero,
@@ -494,6 +658,10 @@ def _disparo_dict(disparo: WhatsappDisparo) -> dict:
         "total_entregues": disparo.total_entregues or 0,
         "total_lidos": disparo.total_lidos or 0,
         "total_reproduzidos": disparo.total_reproduzidos or 0,
+        "total_respostas": disparo.total_respostas or 0,
+        "total_optouts": disparo.total_optouts or 0,
+        "categoria_api": disparo.categoria_api or "UTILIDADE",
+        "finalidade": disparo.finalidade or "OPERACIONAL",
         "disparo_origem_id": disparo.disparo_origem_id,
         "erro": disparo.erro,
         "criado_em": disparo.criado_em.isoformat() if disparo.criado_em else None,
@@ -528,6 +696,7 @@ def _destinatario_dict(item: WhatsappDestinatario) -> dict:
     return {
         "id": item.id,
         "cod_alu": item.cod_alu,
+        "lead_id": item.lead_id,
         "nome": item.nome,
         "celular": item.celular_original,
         "numero_normalizado": item.numero_normalizado,
@@ -535,6 +704,31 @@ def _destinatario_dict(item: WhatsappDestinatario) -> dict:
         "motivo": item.motivo,
         "status": item.status,
         "erro": item.erro,
+    }
+
+
+def _validar_acesso_disparo(
+    db: Session, usuario: str, disparo: WhatsappDisparo
+) -> None:
+    perfil = _perfil_usuario(db, usuario).upper()
+    eh_leads = disparo.tipo_publico == "leads"
+    if perfil == "MARKETING" and not eh_leads:
+        raise HTTPException(403, "O perfil Marketing acessa somente disparos de leads.")
+    if perfil == "SECRETARIA" and eh_leads:
+        raise HTTPException(403, "O perfil Secretaria não acessa disparos de leads.")
+
+
+def _detalhe_disparo(disparo: WhatsappDisparo, db: Session) -> dict:
+    destinatarios = list(
+        db.scalars(
+            select(WhatsappDestinatario)
+            .where(WhatsappDestinatario.disparo_id == disparo.id)
+            .order_by(WhatsappDestinatario.nome)
+        )
+    )
+    return {
+        **_disparo_dict(disparo),
+        "destinatarios": [_destinatario_dict(item) for item in destinatarios],
     }
 
 
@@ -591,15 +785,244 @@ def _sincronizar_por_webhook() -> None:
         db.close()
 
 
+def _mensagens_recebidas(payload: dict) -> list[dict]:
+    if str(payload.get("event") or "").lower() not in {"messages", "message"}:
+        return []
+    dados = payload.get("data", payload)
+    if isinstance(dados, list):
+        candidatos = dados
+    elif isinstance(dados, dict):
+        candidatos = dados.get("messages") or dados.get("items") or [dados]
+    else:
+        return []
+    return [
+        item
+        for item in candidatos
+        if isinstance(item, dict)
+        and not item.get("fromMe")
+        and not item.get("isGroup")
+        and not item.get("wasSentByApi")
+    ]
+
+
+def _texto_mensagem_recebida(mensagem: dict) -> str:
+    texto = mensagem.get("text")
+    conteudo = mensagem.get("content")
+    if not texto and isinstance(conteudo, dict):
+        texto = (
+            conteudo.get("conversation")
+            or (conteudo.get("extendedTextMessage") or {}).get("text")
+        )
+    return str(texto or "").strip()
+
+
+def _numero_remetente(mensagem: dict) -> str | None:
+    candidato = (
+        mensagem.get("sender_pn")
+        or mensagem.get("sender")
+        or mensagem.get("chatid")
+        or mensagem.get("chatId")
+    )
+    if not candidato:
+        return None
+    parte = str(candidato).split("@")[0].split(":")[-1]
+    numero = re.sub(r"\D", "", parte)
+    return numero if 12 <= len(numero) <= 15 else None
+
+
+def _eh_optout(texto: str) -> bool:
+    normalizado = unicodedata.normalize("NFKD", texto)
+    normalizado = normalizado.encode("ascii", "ignore").decode().upper()
+    normalizado = re.sub(r"[^A-Z0-9]+", " ", normalizado).strip()
+    return normalizado in {
+        "SAIR",
+        "STOP",
+        "CANCELAR",
+        "PARAR",
+        "REMOVER",
+        "REMOVA ME",
+        "NAO QUERO",
+        "NAO TENHO INTERESSE",
+    }
+
+
+def _processar_interacoes_webhook(
+    db: Session,
+    payload: dict,
+    optouts: set[int] | None = None,
+) -> int:
+    processadas = 0
+    instancia = str(payload.get("instance") or "")
+    for mensagem in _mensagens_recebidas(payload):
+        numero = _numero_remetente(mensagem)
+        texto = _texto_mensagem_recebida(mensagem)
+        identificador = str(
+            mensagem.get("messageid") or mensagem.get("id") or ""
+        )
+        if not numero or not texto or not identificador:
+            continue
+        evento_id = f"{instancia}:{identificador}"[:150]
+        if db.scalar(
+            select(LeadInteracao).where(
+                LeadInteracao.mensagem_externa_id == evento_id
+            )
+        ):
+            continue
+        lead = db.scalar(
+            select(Lead).where(Lead.telefone_normalizado == numero)
+        )
+        if not lead:
+            continue
+        linha = db.execute(
+            select(WhatsappDestinatario, WhatsappDisparo)
+            .join(
+                WhatsappDisparo,
+                WhatsappDisparo.id == WhatsappDestinatario.disparo_id,
+            )
+            .where(
+                WhatsappDestinatario.lead_id == lead.id,
+                WhatsappDisparo.categoria_api == "MARKETING",
+            )
+            .order_by(WhatsappDisparo.criado_em.desc())
+            .limit(1)
+        ).first()
+        disparo = linha[1] if linha else None
+        optout = _eh_optout(texto)
+        db.add(
+            LeadInteracao(
+                lead_id=lead.id,
+                disparo_id=disparo.id if disparo else None,
+                tipo="OPTOUT" if optout else "RESPOSTA",
+                mensagem_externa_id=evento_id,
+                texto=texto[:4096],
+                criado_em=_agora(),
+            )
+        )
+        if disparo:
+            disparo.total_respostas = (disparo.total_respostas or 0) + 1
+        if optout and lead.consentimento_status != "REVOGADO":
+            anterior = lead.consentimento_status
+            agora = _agora()
+            lead.consentimento_status = "REVOGADO"
+            lead.opt_out_em = agora
+            lead.opt_out_origem = "WHATSAPP"
+            lead.status = "INATIVO"
+            lead.atualizado_em = agora
+            db.add(
+                LeadConsentimentoEvento(
+                    lead_id=lead.id,
+                    status_anterior=anterior,
+                    status_novo="REVOGADO",
+                    origem="WHATSAPP",
+                    usuario=None,
+                    detalhes=f"Opt-out pela mensagem {identificador}"[:255],
+                    criado_em=agora,
+                )
+            )
+            if disparo:
+                disparo.total_optouts = (disparo.total_optouts or 0) + 1
+        if optout and optouts is not None:
+            optouts.add(lead.id)
+        processadas += 1
+    if processadas:
+        db.commit()
+    return processadas
+
+
+def _cancelar_campanhas_por_optout(lead_ids: list[int]) -> None:
+    """Interrompe filas de marketing que ainda possam enviar para quem optou sair."""
+    if not lead_ids:
+        return
+    db = SessionLocal()
+    try:
+        disparos = list(
+            db.scalars(
+                select(WhatsappDisparo)
+                .join(
+                    WhatsappDestinatario,
+                    WhatsappDestinatario.disparo_id == WhatsappDisparo.id,
+                )
+                .where(
+                    WhatsappDestinatario.lead_id.in_(lead_ids),
+                    WhatsappDisparo.categoria_api == "MARKETING",
+                    WhatsappDisparo.status.notin_(STATUS_FINAIS),
+                    WhatsappDisparo.pasta_uazapi_id.is_not(None),
+                )
+                .distinct()
+            )
+        )
+        for disparo in disparos:
+            cancelada_na_uazapi = False
+            falhas: list[str] = []
+            try:
+                _, cliente = _cliente_instancia(db)
+                cliente.controlar_campanha(disparo.pasta_uazapi_id, "delete")
+                cancelada_na_uazapi = True
+            except (HTTPException, UazApiError) as exc:
+                detalhe = exc.detail if isinstance(exc, HTTPException) else exc
+                falhas.append(getattr(exc, "mensagem", str(detalhe)))
+                try:
+                    _, cliente = _cliente_instancia(db)
+                    cliente.controlar_campanha(disparo.pasta_uazapi_id, "stop")
+                    cancelada_na_uazapi = True
+                except (HTTPException, UazApiError) as pausa_exc:
+                    falhas.append(
+                        getattr(
+                            pausa_exc,
+                            "mensagem",
+                            str(
+                                pausa_exc.detail
+                                if isinstance(pausa_exc, HTTPException)
+                                else pausa_exc
+                            ),
+                        )
+                    )
+
+            motivo = (
+                "Campanha cancelada automaticamente após opt-out de lead."
+                if cancelada_na_uazapi
+                else "ALERTA: não foi possível interromper a fila externa após opt-out."
+            )
+            if falhas:
+                motivo = f"{motivo} {' | '.join(falhas)}"[:4000]
+            disparo.status = "CANCELADO" if cancelada_na_uazapi else "FALHA"
+            disparo.erro = motivo
+            disparo.total_agendados = 0
+            disparo.atualizado_em = _agora()
+            db.execute(
+                WhatsappDestinatario.__table__.update()
+                .where(
+                    WhatsappDestinatario.disparo_id == disparo.id,
+                    WhatsappDestinatario.status == "AGENDADO",
+                )
+                .values(
+                    status="CANCELADO" if cancelada_na_uazapi else "FALHA",
+                    erro=motivo[:255],
+                )
+            )
+        db.commit()
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
 @public_router.post("/webhook/{segredo}")
 def receber_webhook(
     segredo: str,
     payload: dict,
     tarefas: BackgroundTasks,
+    db: Session = Depends(get_db),
 ):
     if not hmac.compare_digest(segredo, _segredo_webhook()):
         raise HTTPException(404, "Webhook não encontrado.")
-    tarefas.add_task(_sincronizar_por_webhook)
+    optouts: set[int] = set()
+    _processar_interacoes_webhook(db, payload, optouts)
+    if optouts:
+        tarefas.add_task(_cancelar_campanhas_por_optout, sorted(optouts))
+    evento = str(payload.get("event") or "").lower()
+    if evento not in {"message", "messages"}:
+        tarefas.add_task(_sincronizar_por_webhook)
     return {"ok": True}
 
 
@@ -643,6 +1066,8 @@ def _template_dict(db: Session, template: WhatsappTemplate) -> dict:
         "nome": template.nome,
         "tipo_mensagem": template.tipo_mensagem,
         "categoria": template.categoria or "Geral",
+        "categoria_api": template.categoria_api or "UTILIDADE",
+        "finalidade": template.finalidade or "OPERACIONAL",
         "favorito": template.favorito == "S",
         "versao": template.versao or 1,
         "conteudo": _validar_conteudo(db, conteudo_input),
@@ -652,12 +1077,49 @@ def _template_dict(db: Session, template: WhatsappTemplate) -> dict:
     }
 
 
+def _template_permitido(perfil: str, categoria_api: str, finalidade: str) -> bool:
+    perfil = perfil.upper()
+    categoria_api = (categoria_api or "UTILIDADE").upper()
+    finalidade = (finalidade or "OPERACIONAL").upper()
+    if perfil == "ADMIN":
+        return True
+    if perfil == "MARKETING":
+        return (
+            categoria_api == "MARKETING"
+            and finalidade in {"NUTRICAO", "COMERCIAL"}
+        )
+    return categoria_api != "MARKETING" and finalidade == "OPERACIONAL"
+
+
+def _validar_escopo_template(
+    perfil: str,
+    categoria_api: str,
+    finalidade: str,
+) -> None:
+    if not _template_permitido(perfil, categoria_api, finalidade):
+        raise HTTPException(
+            403,
+            "Este template pertence a uma área diferente do seu perfil.",
+        )
+
+
 @router.get("/templates")
-def listar_templates(db: Session = Depends(get_db)):
+def listar_templates(
+    db: Session = Depends(get_db),
+    perfil: str = Depends(perfil_atual),
+):
     templates = list(
         db.scalars(select(WhatsappTemplate).order_by(WhatsappTemplate.nome))
     )
-    return [_template_dict(db, template) for template in templates]
+    return [
+        _template_dict(db, template)
+        for template in templates
+        if _template_permitido(
+            perfil,
+            template.categoria_api or "UTILIDADE",
+            template.finalidade or "OPERACIONAL",
+        )
+    ]
 
 
 @router.post("/templates")
@@ -665,13 +1127,17 @@ def criar_template(
     dados: TemplateInput,
     db: Session = Depends(get_db),
     usuario: str = Depends(usuario_atual),
+    perfil: str = Depends(perfil_atual),
 ):
+    _validar_escopo_template(perfil, dados.categoria_api, dados.finalidade)
     _validar_conteudo(db, dados.conteudo)
     agora = _agora()
     template = WhatsappTemplate(
         nome=dados.nome.strip(),
         tipo_mensagem=dados.conteudo.tipo,
         categoria=dados.categoria.strip(),
+        categoria_api=dados.categoria_api,
+        finalidade=dados.finalidade,
         favorito="S" if dados.favorito else "N",
         versao=1,
         conteudo_json=json.dumps(dados.conteudo.model_dump(), ensure_ascii=False),
@@ -694,14 +1160,23 @@ def atualizar_template(
     template_id: int,
     dados: TemplateInput,
     db: Session = Depends(get_db),
+    perfil: str = Depends(perfil_atual),
 ):
     template = db.get(WhatsappTemplate, template_id)
     if not template:
         raise HTTPException(404, "Template não encontrado.")
+    _validar_escopo_template(
+        perfil,
+        template.categoria_api or "UTILIDADE",
+        template.finalidade or "OPERACIONAL",
+    )
+    _validar_escopo_template(perfil, dados.categoria_api, dados.finalidade)
     _validar_conteudo(db, dados.conteudo)
     template.nome = dados.nome.strip()
     template.tipo_mensagem = dados.conteudo.tipo
     template.categoria = dados.categoria.strip()
+    template.categoria_api = dados.categoria_api
+    template.finalidade = dados.finalidade
     template.favorito = "S" if dados.favorito else "N"
     template.versao = (template.versao or 1) + 1
     template.conteudo_json = json.dumps(dados.conteudo.model_dump(), ensure_ascii=False)
@@ -719,10 +1194,16 @@ def duplicar_template(
     template_id: int,
     db: Session = Depends(get_db),
     usuario: str = Depends(usuario_atual),
+    perfil: str = Depends(perfil_atual),
 ):
     original = db.get(WhatsappTemplate, template_id)
     if not original:
         raise HTTPException(404, "Template não encontrado.")
+    _validar_escopo_template(
+        perfil,
+        original.categoria_api or "UTILIDADE",
+        original.finalidade or "OPERACIONAL",
+    )
     base_nome = f"{original.nome} (cópia)"
     nome = base_nome
     sufixo = 2
@@ -734,6 +1215,8 @@ def duplicar_template(
         nome=nome,
         tipo_mensagem=original.tipo_mensagem,
         categoria=original.categoria,
+        categoria_api=original.categoria_api,
+        finalidade=original.finalidade,
         favorito=original.favorito,
         versao=1,
         conteudo_json=original.conteudo_json,
@@ -748,10 +1231,19 @@ def duplicar_template(
 
 
 @router.delete("/templates/{template_id}")
-def excluir_template(template_id: int, db: Session = Depends(get_db)):
+def excluir_template(
+    template_id: int,
+    db: Session = Depends(get_db),
+    perfil: str = Depends(perfil_atual),
+):
     template = db.get(WhatsappTemplate, template_id)
     if not template:
         raise HTTPException(404, "Template não encontrado.")
+    _validar_escopo_template(
+        perfil,
+        template.categoria_api or "UTILIDADE",
+        template.finalidade or "OPERACIONAL",
+    )
     db.delete(template)
     db.commit()
     return {"ok": True}
@@ -777,7 +1269,11 @@ def obter_instancia(db: Session = Depends(get_db)):
 
 
 @router.post("/instancia")
-def criar_instancia(dados: InstanciaInput, db: Session = Depends(get_db)):
+def criar_instancia(
+    dados: InstanciaInput,
+    db: Session = Depends(get_db),
+    _perfil: str = Depends(exigir_perfis("ADMIN")),
+):
     if _configuracao(db):
         raise HTTPException(409, "Já existe uma instância configurada.")
     try:
@@ -807,7 +1303,10 @@ def criar_instancia(dados: InstanciaInput, db: Session = Depends(get_db)):
 
 
 @router.post("/instancia/conectar")
-def conectar_instancia(db: Session = Depends(get_db)):
+def conectar_instancia(
+    db: Session = Depends(get_db),
+    _perfil: str = Depends(exigir_perfis("ADMIN")),
+):
     config, cliente = _cliente_instancia(db)
     try:
         resposta = cliente.conectar()
@@ -819,7 +1318,10 @@ def conectar_instancia(db: Session = Depends(get_db)):
 
 
 @router.post("/instancia/desconectar")
-def desconectar_instancia(db: Session = Depends(get_db)):
+def desconectar_instancia(
+    db: Session = Depends(get_db),
+    _perfil: str = Depends(exigir_perfis("ADMIN")),
+):
     config, cliente = _cliente_instancia(db)
     try:
         resposta = cliente.desconectar()
@@ -831,23 +1333,44 @@ def desconectar_instancia(db: Session = Depends(get_db)):
 
 
 @router.post("/instancia/configurar-webhook")
-def configurar_webhook(db: Session = Depends(get_db)):
+def configurar_webhook(
+    db: Session = Depends(get_db),
+    _perfil: str = Depends(exigir_perfis("ADMIN")),
+):
     url = _url_webhook()
     if not url:
         raise HTTPException(503, "TOV_PUBLIC_API_URL não está configurada.")
     _, cliente = _cliente_instancia(db)
     try:
         cliente.configurar_webhook(url)
-        return {"ok": True, "eventos": ["sender", "messages_update", "connection"]}
+        return {
+            "ok": True,
+            "eventos": ["sender", "messages", "messages_update", "connection"],
+        }
     except UazApiError as exc:
         raise HTTPException(exc.status_code, exc.mensagem) from exc
 
 
 @router.post("/previsualizar")
-def previsualizar(dados: PrevisualizacaoInput, db: Session = Depends(get_db)):
+def previsualizar(
+    dados: PrevisualizacaoInput,
+    db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
+    _validar_acesso_publico(db, usuario, dados.publico)
+    _validar_classificacao(
+        dados.publico, dados.categoria_api, dados.finalidade
+    )
     conteudo = _validar_conteudo(db, dados.conteudo)
+    if dados.publico.tipo == "leads":
+        conteudo = _aplicar_optout(conteudo)
     itens, descricao = _resolver_publico(db, dados.publico, conteudo)
-    return {**_resumo_previa(itens, descricao), "conteudo": conteudo}
+    return {
+        **_resumo_previa(itens, descricao),
+        "conteudo": conteudo,
+        "categoria_api": dados.categoria_api,
+        "finalidade": dados.finalidade,
+    }
 
 
 @router.post("/testar")
@@ -889,6 +1412,10 @@ def criar_disparo(
 ):
     if not dados.consentimento_confirmado:
         raise HTTPException(400, "Confirme o consentimento dos destinatários.")
+    _validar_acesso_publico(db, usuario, dados.publico)
+    _validar_classificacao(
+        dados.publico, dados.categoria_api, dados.finalidade
+    )
     config, cliente = _cliente_instancia(db)
     try:
         estado = _instancia_publica(cliente.status(), config)
@@ -898,10 +1425,19 @@ def criar_disparo(
         raise HTTPException(409, "Conecte a instância do WhatsApp antes do disparo.")
 
     conteudo = _validar_conteudo(db, dados.conteudo)
+    if dados.publico.tipo == "leads":
+        conteudo = _aplicar_optout(conteudo)
     itens, descricao = _resolver_publico(db, dados.publico, conteudo)
     validos = [item for item in itens if item["valido"]]
     if not validos:
         raise HTTPException(400, "Nenhum destinatário possui celular válido para o envio.")
+    limite = max(1, settings.whatsapp_mass_max_recipients)
+    if len(validos) > limite:
+        raise HTTPException(
+            400,
+            f"O segmento possui {len(validos)} destinatários; o limite configurado "
+            f"por disparo é {limite}. Divida o público em segmentos menores.",
+        )
 
     agora = _agora()
     agendado_para = dados.agendado_para
@@ -931,6 +1467,10 @@ def criar_disparo(
         total_entregues=0,
         total_lidos=0,
         total_reproduzidos=0,
+        total_respostas=0,
+        total_optouts=0,
+        categoria_api=dados.categoria_api,
+        finalidade=dados.finalidade,
         criado_em=agora,
         atualizado_em=agora,
     )
@@ -941,6 +1481,7 @@ def criar_disparo(
             WhatsappDestinatario(
                 disparo_id=disparo.id,
                 cod_alu=item["cod_alu"],
+                lead_id=item["lead_id"],
                 nome=item["nome"],
                 celular_original=item["celular"],
                 numero_normalizado=item["numero_normalizado"],
@@ -1019,13 +1560,20 @@ def listar_disparos(
     pagina: int = 1,
     por_pagina: int = 20,
     db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
 ):
     pagina = max(1, pagina)
     por_pagina = min(100, max(1, por_pagina))
-    total = db.scalar(select(func.count()).select_from(WhatsappDisparo)) or 0
+    consulta = select(WhatsappDisparo)
+    perfil = _perfil_usuario(db, usuario).upper()
+    if perfil == "MARKETING":
+        consulta = consulta.where(WhatsappDisparo.tipo_publico == "leads")
+    elif perfil == "SECRETARIA":
+        consulta = consulta.where(WhatsappDisparo.tipo_publico != "leads")
+    total = db.scalar(select(func.count()).select_from(consulta.subquery())) or 0
     disparos = list(
         db.scalars(
-            select(WhatsappDisparo)
+            consulta
             .order_by(WhatsappDisparo.criado_em.desc(), WhatsappDisparo.id.desc())
             .offset((pagina - 1) * por_pagina)
             .limit(por_pagina)
@@ -1075,7 +1623,10 @@ def _aplicar_contadores_pasta(disparo: WhatsappDisparo, pasta: dict) -> None:
 
 
 @router.post("/disparos/sincronizar-ativos")
-def sincronizar_disparos_ativos(db: Session = Depends(get_db)):
+def sincronizar_disparos_ativos(
+    db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     ativos = list(
         db.scalars(
             select(WhatsappDisparo).where(
@@ -1105,35 +1656,40 @@ def sincronizar_disparos_ativos(db: Session = Depends(get_db)):
                     notificacoes.append(notificacao)
         db.commit()
         entregar_lista(db, notificacoes)
+    consulta_retorno = (
+        select(WhatsappDisparo)
+        .order_by(WhatsappDisparo.criado_em.desc(), WhatsappDisparo.id.desc())
+        .limit(30)
+    )
+    perfil = _perfil_usuario(db, usuario).upper()
+    if perfil == "MARKETING":
+        consulta_retorno = consulta_retorno.where(
+            WhatsappDisparo.tipo_publico == "leads"
+        )
+    elif perfil == "SECRETARIA":
+        consulta_retorno = consulta_retorno.where(
+            WhatsappDisparo.tipo_publico != "leads"
+        )
     return {
         "atualizados": len(ativos),
         "itens": [
             _disparo_dict(item)
-            for item in db.scalars(
-                select(WhatsappDisparo)
-                .order_by(WhatsappDisparo.criado_em.desc(), WhatsappDisparo.id.desc())
-                .limit(30)
-            )
+            for item in db.scalars(consulta_retorno)
         ],
     }
 
 
 @router.get("/disparos/{disparo_id}")
-def obter_disparo(disparo_id: int, db: Session = Depends(get_db)):
+def obter_disparo(
+    disparo_id: int,
+    db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     disparo = db.get(WhatsappDisparo, disparo_id)
     if not disparo:
         raise HTTPException(404, "Disparo não encontrado.")
-    destinatarios = list(
-        db.scalars(
-            select(WhatsappDestinatario)
-            .where(WhatsappDestinatario.disparo_id == disparo_id)
-            .order_by(WhatsappDestinatario.nome)
-        )
-    )
-    return {
-        **_disparo_dict(disparo),
-        "destinatarios": [_destinatario_dict(item) for item in destinatarios],
-    }
+    _validar_acesso_disparo(db, usuario, disparo)
+    return _detalhe_disparo(disparo, db)
 
 
 @router.post("/disparos/{disparo_id}/previsualizar-edicao")
@@ -1141,13 +1697,17 @@ def previsualizar_edicao(
     disparo_id: int,
     conteudo_input: ConteudoMensagemInput,
     db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
 ):
     disparo = db.get(WhatsappDisparo, disparo_id)
     if not disparo:
         raise HTTPException(404, "Disparo não encontrado.")
+    _validar_acesso_disparo(db, usuario, disparo)
     if disparo.status in STATUS_FINAIS or disparo.total_enviados or disparo.total_falhos:
         raise HTTPException(409, "Este disparo não pode mais ser editado.")
     conteudo = _validar_conteudo(db, conteudo_input)
+    if disparo.tipo_publico == "leads":
+        conteudo = _aplicar_optout(conteudo)
     destinatarios = list(
         db.scalars(
             select(WhatsappDestinatario)
@@ -1158,6 +1718,7 @@ def previsualizar_edicao(
     itens = [
         {
             "cod_alu": item.cod_alu,
+            "lead_id": item.lead_id,
             "nome": item.nome,
             "celular": item.celular_original,
             "numero_normalizado": item.numero_normalizado,
@@ -1188,12 +1749,19 @@ def _numero_mensagem(mensagem: dict) -> str | None:
 
 
 @router.post("/disparos/{disparo_id}/sincronizar")
-def sincronizar_disparo(disparo_id: int, db: Session = Depends(get_db)):
+def sincronizar_disparo(
+    disparo_id: int,
+    db: Session = Depends(get_db),
+    usuario: str | None = Depends(usuario_atual),
+):
     disparo = db.get(WhatsappDisparo, disparo_id)
     if not disparo:
         raise HTTPException(404, "Disparo não encontrado.")
+    # Chamadas internas reutilizam esta rotina sem passar pelo resolvedor do FastAPI.
+    if isinstance(usuario, str):
+        _validar_acesso_disparo(db, usuario, disparo)
     if not disparo.pasta_uazapi_id:
-        return obter_disparo(disparo_id, db)
+        return _detalhe_disparo(disparo, db)
 
     _, cliente = _cliente_instancia(db)
     try:
@@ -1266,7 +1834,7 @@ def sincronizar_disparo(disparo_id: int, db: Session = Depends(get_db)):
     db.commit()
     if notificacao:
         entregar_lista(db, [notificacao])
-    return obter_disparo(disparo_id, db)
+    return _detalhe_disparo(disparo, db)
 
 
 def _controlar_disparo(
@@ -1274,10 +1842,12 @@ def _controlar_disparo(
     acao: str,
     novo_status: str,
     db: Session,
+    usuario: str,
 ) -> dict:
     disparo = db.get(WhatsappDisparo, disparo_id)
     if not disparo or not disparo.pasta_uazapi_id:
         raise HTTPException(404, "Campanha da UazAPI não encontrada.")
+    _validar_acesso_disparo(db, usuario, disparo)
     if disparo.status in STATUS_FINAIS:
         raise HTTPException(409, "Esta campanha já foi encerrada.")
     _, cliente = _cliente_instancia(db)
@@ -1297,28 +1867,42 @@ def _controlar_disparo(
             .values(status="CANCELADO")
         )
     db.commit()
-    return obter_disparo(disparo_id, db)
+    return _detalhe_disparo(disparo, db)
 
 
 @router.post("/disparos/{disparo_id}/pausar")
-def pausar_disparo(disparo_id: int, db: Session = Depends(get_db)):
-    return _controlar_disparo(disparo_id, "stop", "PAUSADO", db)
+def pausar_disparo(
+    disparo_id: int,
+    db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
+    return _controlar_disparo(disparo_id, "stop", "PAUSADO", db, usuario)
 
 
 @router.post("/disparos/{disparo_id}/retomar")
-def retomar_disparo(disparo_id: int, db: Session = Depends(get_db)):
+def retomar_disparo(
+    disparo_id: int,
+    db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     disparo = db.get(WhatsappDisparo, disparo_id)
+    if disparo:
+        _validar_acesso_disparo(db, usuario, disparo)
     status = (
         "AGENDADO"
         if disparo and disparo.agendado_para and disparo.agendado_para > _agora()
         else "NA_FILA"
     )
-    return _controlar_disparo(disparo_id, "continue", status, db)
+    return _controlar_disparo(disparo_id, "continue", status, db, usuario)
 
 
 @router.post("/disparos/{disparo_id}/cancelar")
-def cancelar_disparo(disparo_id: int, db: Session = Depends(get_db)):
-    return _controlar_disparo(disparo_id, "delete", "CANCELADO", db)
+def cancelar_disparo(
+    disparo_id: int,
+    db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
+    return _controlar_disparo(disparo_id, "delete", "CANCELADO", db, usuario)
 
 
 @router.post("/disparos/{disparo_id}/reagendar")
@@ -1326,10 +1910,14 @@ def reagendar_disparo(
     disparo_id: int,
     dados: ReagendamentoInput,
     db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
 ):
     disparo = db.get(WhatsappDisparo, disparo_id)
     if not disparo or not disparo.pasta_uazapi_id:
         raise HTTPException(404, "Disparo não encontrado.")
+    _validar_acesso_disparo(db, usuario, disparo)
+    if disparo.status in STATUS_FINAIS:
+        raise HTTPException(409, "Esta campanha já foi encerrada.")
     if disparo.total_enviados or disparo.total_falhos:
         raise HTTPException(409, "Só é possível reagendar antes do primeiro envio.")
     nova_data = dados.agendado_para
@@ -1379,7 +1967,7 @@ def reagendar_disparo(
     disparo.erro = None
     disparo.atualizado_em = _agora()
     db.commit()
-    return obter_disparo(disparo_id, db)
+    return _detalhe_disparo(disparo, db)
 
 
 @router.post("/disparos/{disparo_id}/editar-agendamento")
@@ -1387,10 +1975,12 @@ def editar_agendamento(
     disparo_id: int,
     dados: EdicaoAgendamentoInput,
     db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
 ):
     disparo = db.get(WhatsappDisparo, disparo_id)
     if not disparo or not disparo.pasta_uazapi_id:
         raise HTTPException(404, "Disparo não encontrado.")
+    _validar_acesso_disparo(db, usuario, disparo)
     if disparo.status in STATUS_FINAIS:
         raise HTTPException(409, "Esta campanha já foi encerrada.")
     if disparo.total_enviados or disparo.total_falhos:
@@ -1401,6 +1991,8 @@ def editar_agendamento(
     if nova_data <= _agora():
         raise HTTPException(400, "A campanha editada precisa permanecer agendada para uma data futura.")
     conteudo = _validar_conteudo(db, dados.conteudo)
+    if disparo.tipo_publico == "leads":
+        conteudo = _aplicar_optout(conteudo)
     destinatarios = list(
         db.scalars(
             select(WhatsappDestinatario).where(
@@ -1445,7 +2037,7 @@ def editar_agendamento(
     disparo.erro = None
     disparo.atualizado_em = _agora()
     db.commit()
-    return obter_disparo(disparo_id, db)
+    return _detalhe_disparo(disparo, db)
 
 
 @router.post("/disparos/{disparo_id}/reenviar-falhos")
@@ -1457,6 +2049,7 @@ def reenviar_falhos(
     original = db.get(WhatsappDisparo, disparo_id)
     if not original:
         raise HTTPException(404, "Disparo não encontrado.")
+    _validar_acesso_disparo(db, usuario, original)
     if original.pasta_uazapi_id:
         sincronizar_disparo(disparo_id, db)
         db.refresh(original)
@@ -1469,13 +2062,34 @@ def reenviar_falhos(
             )
         )
     )
+    if original.tipo_publico == "leads":
+        leads_permitidos = {
+            lead.id
+            for lead in db.scalars(
+                select(Lead).where(
+                    Lead.id.in_(
+                        [item.lead_id for item in falhos if item.lead_id is not None]
+                    ),
+                    Lead.status == "ATIVO",
+                    Lead.consentimento_status == "CONFIRMADO",
+                )
+            )
+        }
+        falhos = [
+            item
+            for item in falhos
+            if item.lead_id is not None and item.lead_id in leads_permitidos
+        ]
     if not falhos:
-        raise HTTPException(409, "Não há destinatários com falha para reenviar.")
+        raise HTTPException(
+            409,
+            "Não há destinatários elegíveis com falha para reenviar.",
+        )
     conteudo = json.loads(original.conteudo_json)
     agora = _agora()
     novo = WhatsappDisparo(
         usuario=usuario,
-        tipo_publico="reenvio",
+        tipo_publico=original.tipo_publico,
         cod_tur=original.cod_tur,
         publico_descricao=f"Reenvio das falhas do disparo #{original.id}",
         mensagem_modelo=original.mensagem_modelo,
@@ -1494,6 +2108,10 @@ def reenviar_falhos(
         total_entregues=0,
         total_lidos=0,
         total_reproduzidos=0,
+        total_respostas=0,
+        total_optouts=0,
+        categoria_api=original.categoria_api or "UTILIDADE",
+        finalidade=original.finalidade or "OPERACIONAL",
         criado_em=agora,
         atualizado_em=agora,
     )
@@ -1503,6 +2121,7 @@ def reenviar_falhos(
         db.add(WhatsappDestinatario(
             disparo_id=novo.id,
             cod_alu=item.cod_alu,
+            lead_id=item.lead_id,
             nome=item.nome,
             celular_original=item.celular_original,
             numero_normalizado=item.numero_normalizado,

@@ -170,8 +170,8 @@ class UazApiClient:
             json={
                 "enabled": True,
                 "url": url,
-                "events": ["sender", "messages_update", "connection"],
-                "excludeMessages": [],
+                "events": ["sender", "messages", "messages_update", "connection"],
+                "excludeMessages": ["wasSentByApi", "fromMeYes", "isGroupYes"],
                 "addUrlEvents": False,
                 "addUrlTypesMessages": False,
             },

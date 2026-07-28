@@ -21,7 +21,7 @@ export default function Login() {
     setCarregando(true)
     try {
       const r = await api.post('/auth/login', { user, senha })
-      setSession(r.token, r.user)
+      setSession(r.token, r.user, r.perfil)
       navigate('/')
     } catch (err) {
       setErro(err.message)

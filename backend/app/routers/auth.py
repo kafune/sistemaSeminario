@@ -24,7 +24,22 @@ def login(dados: LoginInput, db: Session = Depends(get_db)):
     usuario = db.get(Usuario, dados.user.strip().upper())
     if not usuario or not verificar_senha(dados.senha, usuario.senha_hash):
         raise HTTPException(401, "Usuário ou senha incorretos")
-    return {"token": criar_token(usuario.user), "user": usuario.user}
+    return {
+        "token": criar_token(usuario.user),
+        "user": usuario.user,
+        "perfil": usuario.perfil or "ADMIN",
+    }
+
+
+@router.get("/me")
+def obter_sessao(
+    user: str = Depends(usuario_atual),
+    db: Session = Depends(get_db),
+):
+    usuario = db.get(Usuario, user)
+    if not usuario:
+        raise HTTPException(404, "Usuário não encontrado")
+    return {"user": usuario.user, "perfil": usuario.perfil or "ADMIN"}
 
 
 @router.post("/trocar-senha")

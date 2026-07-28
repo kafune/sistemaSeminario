@@ -13,6 +13,7 @@ from getpass import getpass
 
 from app.database import Base, SessionLocal, engine
 from app.models import Usuario
+from app.schema import atualizar_schema
 from app.security import gerar_hash
 
 
@@ -28,6 +29,7 @@ def main() -> None:
         sys.exit("As senhas não conferem")
 
     Base.metadata.create_all(engine)
+    atualizar_schema(engine)
     db = SessionLocal()
     try:
         usuario = db.get(Usuario, user)

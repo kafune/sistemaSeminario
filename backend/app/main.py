@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .database import Base, SessionLocal, engine
 from .schema import atualizar_schema
-from .security import usuario_atual
+from .security import exigir_perfis, usuario_atual
 from .routers import (
     alunos,
     auth,
@@ -15,6 +15,7 @@ from .routers import (
     calendario,
     integracoes,
     importacoes,
+    leads,
     materias,
     notas,
     professores,
@@ -81,16 +82,22 @@ app.include_router(calendario.public_router)
 app.include_router(professores.public_router)
 app.include_router(whatsapp.public_router)
 protegido = [Depends(usuario_atual)]
-app.include_router(alunos.router, dependencies=protegido)
-app.include_router(calendario.router, dependencies=protegido)
-app.include_router(importacoes.router, dependencies=protegido)
-app.include_router(professores.router, dependencies=protegido)
-app.include_router(materias.router, dependencies=protegido)
-app.include_router(turmas.router, dependencies=protegido)
-app.include_router(notas.router, dependencies=protegido)
-app.include_router(relatorios.router, dependencies=protegido)
-app.include_router(dashboard.router, dependencies=protegido)
-app.include_router(usuarios.router, dependencies=protegido)
+academico = [
+    Depends(usuario_atual),
+    Depends(exigir_perfis("ADMIN", "SECRETARIA")),
+]
+administracao = [Depends(usuario_atual), Depends(exigir_perfis("ADMIN"))]
+app.include_router(alunos.router, dependencies=academico)
+app.include_router(calendario.router, dependencies=academico)
+app.include_router(importacoes.router, dependencies=academico)
+app.include_router(leads.router, dependencies=protegido)
+app.include_router(professores.router, dependencies=academico)
+app.include_router(materias.router, dependencies=academico)
+app.include_router(turmas.router, dependencies=academico)
+app.include_router(notas.router, dependencies=academico)
+app.include_router(relatorios.router, dependencies=academico)
+app.include_router(dashboard.router, dependencies=academico)
+app.include_router(usuarios.router, dependencies=administracao)
 app.include_router(whatsapp.router, dependencies=protegido)
 app.include_router(notificacoes.router, dependencies=protegido)
 

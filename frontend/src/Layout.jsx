@@ -16,24 +16,26 @@ import EditNoteIcon from '@mui/icons-material/EditNote'
 import DescriptionIcon from '@mui/icons-material/Description'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
+import CampaignIcon from '@mui/icons-material/Campaign'
 import LogoutIcon from '@mui/icons-material/Logout'
-import { api, clearSession, getUser } from './api'
+import { api, clearSession, getPerfil, getUser } from './api'
 import { TOV } from './theme'
 import { DialogoConfirmacao, iniciais, resetBotao } from './ui'
 import NotificationCenter, { BotaoInstalarPwa, BotaoNotificacoes, useNotificacoes } from './NotificationCenter'
 import { UnsavedChangesContext } from './UnsavedChanges'
 
 const MENU = [
-  { rotulo: 'Dashboard', rota: '/', icone: SpaceDashboardIcon, exato: true },
-  { rotulo: 'Alunos', rota: '/alunos', icone: SchoolIcon },
-  { rotulo: 'Professores', rota: '/professores', icone: PersonIcon },
-  { rotulo: 'Matérias', rota: '/materias', icone: MenuBookIcon },
-  { rotulo: 'Turmas', rota: '/turmas', icone: GroupsIcon },
-  { rotulo: 'Calendário', rota: '/calendario', icone: CalendarMonthIcon },
-  { rotulo: 'Notas e Faltas', rota: '/notas', icone: EditNoteIcon },
-  { rotulo: 'Relatórios', rota: '/relatorios', icone: DescriptionIcon },
+  { rotulo: 'Dashboard', rota: '/', icone: SpaceDashboardIcon, exato: true, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Alunos', rota: '/alunos', icone: SchoolIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Professores', rota: '/professores', icone: PersonIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Matérias', rota: '/materias', icone: MenuBookIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Turmas', rota: '/turmas', icone: GroupsIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Calendário', rota: '/calendario', icone: CalendarMonthIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Notas e Faltas', rota: '/notas', icone: EditNoteIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Relatórios', rota: '/relatorios', icone: DescriptionIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Leads', rota: '/leads', icone: CampaignIcon, perfis: ['ADMIN', 'MARKETING'] },
   { rotulo: 'WhatsApp', rota: '/whatsapp', icone: WhatsAppIcon },
-  { rotulo: 'Usuários', rota: '/usuarios', icone: ManageAccountsIcon },
+  { rotulo: 'Usuários', rota: '/usuarios', icone: ManageAccountsIcon, perfis: ['ADMIN'] },
 ]
 
 function ItemNav({ item, ativo, onClick }) {
@@ -66,6 +68,8 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const usuario = getUser() || 'Usuário'
+  const perfil = getPerfil()
+  const menuVisivel = MENU.filter((item) => !item.perfis || item.perfis.includes(perfil))
   const [menuAberto, setMenuAberto] = useState(false)
   const [notificacoesAbertas, setNotificacoesAbertas] = useState(false)
   const [alteracoesPendentes, setAlteracoesPendentes] = useState(null)
@@ -117,14 +121,16 @@ export default function Layout({ children }) {
   const estaAtivo = (item) =>
     item.exato ? location.pathname === item.rota : location.pathname.startsWith(item.rota)
 
-  const tituloAtual = MENU.find(estaAtivo)?.rotulo || 'TOV'
+  const tituloAtual = menuVisivel.find(estaAtivo)?.rotulo || 'TOV'
   const valorNavegacao = location.pathname === '/'
     ? '/'
     : location.pathname.startsWith('/alunos')
       ? '/alunos'
-      : location.pathname.startsWith('/turmas')
-        ? '/turmas'
-        : 'mais'
+        : location.pathname.startsWith('/turmas')
+          ? '/turmas'
+          : location.pathname.startsWith('/leads')
+            ? '/leads'
+          : 'mais'
 
   // Título da aba acompanha a seção e o scroll volta ao topo a cada rota.
   useEffect(() => {
@@ -142,10 +148,10 @@ export default function Layout({ children }) {
       </Box>
 
       <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 600, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,.6)', px: 1.25, mb: 0.75 }}>
-        Secretaria
+        {perfil === 'MARKETING' ? 'Marketing' : 'Secretaria'}
       </Box>
 
-      {MENU.map((item) => (
+      {menuVisivel.map((item) => (
         <ItemNav key={item.rota} item={item} ativo={estaAtivo(item)} onClick={() => irPara(item.rota)} />
       ))}
 
@@ -165,7 +171,9 @@ export default function Layout({ children }) {
         </Box>
         <Box sx={{ lineHeight: 1.2, overflow: 'hidden' }}>
           <Box sx={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{usuario}</Box>
-          <Box sx={{ fontSize: 12, opacity: 0.8 }}>Secretaria</Box>
+          <Box sx={{ fontSize: 12, opacity: 0.8 }}>
+            {perfil === 'ADMIN' ? 'Administrador' : perfil === 'MARKETING' ? 'Marketing' : 'Secretaria'}
+          </Box>
         </Box>
         <Box
           component="button"
@@ -289,9 +297,17 @@ export default function Layout({ children }) {
             '& .MuiBottomNavigationAction-label': { fontSize: 12, fontWeight: 700 },
           }}
         >
-          <BottomNavigationAction label="Início" value="/" icon={<SpaceDashboardIcon />} />
-          <BottomNavigationAction label="Alunos" value="/alunos" icon={<SchoolIcon />} />
-          <BottomNavigationAction label="Turmas" value="/turmas" icon={<GroupsIcon />} />
+          {perfil === 'MARKETING' ? (
+            <BottomNavigationAction label="Leads" value="/leads" icon={<CampaignIcon />} />
+          ) : (
+            <BottomNavigationAction label="Início" value="/" icon={<SpaceDashboardIcon />} />
+          )}
+          {perfil === 'MARKETING' ? (
+            <BottomNavigationAction label="WhatsApp" value="/whatsapp" icon={<WhatsAppIcon />} />
+          ) : (
+            <BottomNavigationAction label="Alunos" value="/alunos" icon={<SchoolIcon />} />
+          )}
+          {perfil !== 'MARKETING' && <BottomNavigationAction label="Turmas" value="/turmas" icon={<GroupsIcon />} />}
           <BottomNavigationAction label="Mais" value="mais" icon={<MoreHorizIcon />} />
         </BottomNavigation>
       </Paper>

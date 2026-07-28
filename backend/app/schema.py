@@ -118,6 +118,10 @@ def atualizar_schema(engine: Engine) -> None:
             ("total_entregues", "INT NOT NULL DEFAULT 0"),
             ("total_lidos", "INT NOT NULL DEFAULT 0"),
             ("total_reproduzidos", "INT NOT NULL DEFAULT 0"),
+            ("total_respostas", "INT NOT NULL DEFAULT 0"),
+            ("total_optouts", "INT NOT NULL DEFAULT 0"),
+            ("categoria_api", "VARCHAR(20) NOT NULL DEFAULT 'UTILIDADE'"),
+            ("finalidade", "VARCHAR(20) NOT NULL DEFAULT 'OPERACIONAL'"),
         ]:
             if coluna not in colunas_disparo:
                 comandos.append(
@@ -142,6 +146,49 @@ def atualizar_schema(engine: Engine) -> None:
         if "versao" not in colunas_template:
             comandos.append(
                 "ALTER TABLE whatsapp_templates ADD COLUMN versao INT NOT NULL DEFAULT 1"
+            )
+        if "categoria_api" not in colunas_template:
+            comandos.append(
+                "ALTER TABLE whatsapp_templates ADD COLUMN categoria_api "
+                "VARCHAR(20) NOT NULL DEFAULT 'UTILIDADE'"
+            )
+        if "finalidade" not in colunas_template:
+            comandos.append(
+                "ALTER TABLE whatsapp_templates ADD COLUMN finalidade "
+                "VARCHAR(20) NOT NULL DEFAULT 'OPERACIONAL'"
+            )
+
+    if "whatsapp_destinatarios" in tabelas:
+        colunas_destinatario = {
+            coluna["name"]
+            for coluna in inspector.get_columns("whatsapp_destinatarios")
+        }
+        if "lead_id" not in colunas_destinatario:
+            comandos.append(
+                "ALTER TABLE whatsapp_destinatarios ADD COLUMN lead_id INT NULL"
+            )
+        cod_alu = next(
+            (
+                coluna
+                for coluna in inspector.get_columns("whatsapp_destinatarios")
+                if coluna["name"] == "cod_alu"
+            ),
+            None,
+        )
+        if cod_alu and not cod_alu.get("nullable", True):
+            comandos.append(
+                "ALTER TABLE whatsapp_destinatarios MODIFY COLUMN cod_alu INT NULL"
+            )
+
+    if "usuarios" in tabelas:
+        colunas_usuario = {
+            coluna["name"] for coluna in inspector.get_columns("usuarios")
+        }
+        if "perfil" not in colunas_usuario:
+            # ADMIN preserva o acesso integral dos usuários já existentes.
+            comandos.append(
+                "ALTER TABLE usuarios ADD COLUMN perfil VARCHAR(20) "
+                "NOT NULL DEFAULT 'ADMIN'"
             )
 
     if comandos:

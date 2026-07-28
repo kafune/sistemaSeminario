@@ -13,7 +13,7 @@ import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import SaveIcon from '@mui/icons-material/Save'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
-import { api, enviarArquivoJson } from '../api'
+import { api, enviarArquivoJson, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
   CabecalhoPagina, DialogoConfirmacao, Eyebrow, cardSx, useDialogoTelaCheia,
@@ -77,7 +77,8 @@ function PilulaDisparo({ status }) {
 }
 
 function CardInstancia({
-  instancia, carregando, onCriar, onConectar, onDesconectar, onAtualizar,
+  instancia, carregando, podeAdministrar,
+  onCriar, onConectar, onDesconectar, onAtualizar,
 }) {
   const conectada = instancia?.conectada
   const configurada = instancia?.configurada
@@ -108,6 +109,11 @@ function CardInstancia({
               Última desconexão: {instancia.motivo_desconexao}
             </Typography>
           )}
+          {!podeAdministrar && !conectada && (
+            <Typography sx={{ color: TOV.caption, fontSize: 12, mt: 0.5 }}>
+              Solicite a um administrador para configurar ou reconectar a instância.
+            </Typography>
+          )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
           <Button
@@ -116,15 +122,15 @@ function CardInstancia({
           >
             Atualizar
           </Button>
-          {!configurada && (
+          {podeAdministrar && !configurada && (
             <Button variant="contained" onClick={onCriar}>Criar instância</Button>
           )}
-          {configurada && !conectada && (
+          {podeAdministrar && configurada && !conectada && (
             <Button variant="contained" startIcon={<QrCode2Icon />} onClick={onConectar}>
               Conectar
             </Button>
           )}
-          {conectada && (
+          {podeAdministrar && conectada && (
             <Button variant="outlined" color="error" onClick={onDesconectar}>
               Desconectar
             </Button>
@@ -255,12 +261,19 @@ function EditorBotoes({ botoes, onChange }) {
 function Compositor({
   turmas, conectada, onPrevia, carregando, onAviso, alunoInicial, disparoEdicao,
 }) {
+  const perfil = getPerfil()
   const [etapa, setEtapa] = useState(1)
-  const [tipo, setTipo] = useState('turma')
+  const [tipo, setTipo] = useState(() => perfil === 'MARKETING' ? 'leads' : 'turma')
   const [codTur, setCodTur] = useState('')
   const [alunos, setAlunos] = useState([])
   const [opcoes, setOpcoes] = useState([])
   const [busca, setBusca] = useState('')
+  const [segmentoLeads, setSegmentoLeads] = useState('todos')
+  const [leads, setLeads] = useState([])
+  const [opcoesLead, setOpcoesLead] = useState([])
+  const [buscaLead, setBuscaLead] = useState('')
+  const [filtrosLead, setFiltrosLead] = useState({ origens: [], campanhas: [], tags: [], status_funil: [] })
+  const [valorSegmentoLead, setValorSegmentoLead] = useState('')
   const [tipoMensagem, setTipoMensagem] = useState('text')
   const [mensagem, setMensagem] = useState('')
   const [linkPreview, setLinkPreview] = useState(true)
@@ -284,6 +297,8 @@ function Compositor({
   const [intervaloSequencia, setIntervaloSequencia] = useState(8)
   const [categoriaTemplate, setCategoriaTemplate] = useState('Geral')
   const [favoritoTemplate, setFavoritoTemplate] = useState(false)
+  const [categoriaApi, setCategoriaApi] = useState('UTILIDADE')
+  const [finalidade, setFinalidade] = useState('OPERACIONAL')
   const [confirmarTeste, setConfirmarTeste] = useState(false)
   const [testando, setTestando] = useState(false)
 
@@ -306,7 +321,15 @@ function Compositor({
     carregarNoEditor(itens.at(-1))
     setIntervaloSequencia(disparoEdicao.conteudo?.intervalo_segundos || 8)
     setAgendadoPara(valorDataLocal(disparoEdicao.agendado_para))
-    if (disparoEdicao.tipo_publico === 'turma') {
+    if (disparoEdicao.tipo_publico === 'leads') {
+      const selecionados = (disparoEdicao.destinatarios || [])
+        .filter((item) => item.valido && item.lead_id)
+        .map((item) => ({ id: item.lead_id, nome: item.nome, telefone: item.celular }))
+      setTipo('leads')
+      setSegmentoLeads('selecionados')
+      setLeads(selecionados)
+      setOpcoesLead(selecionados)
+    } else if (disparoEdicao.tipo_publico === 'turma') {
       setTipo('turma')
       setCodTur(disparoEdicao.cod_tur || '')
     } else if (disparoEdicao.tipo_publico === 'todos') {
@@ -319,19 +342,43 @@ function Compositor({
       setAlunos(selecionados)
       setOpcoes(selecionados)
     }
+    setCategoriaApi(disparoEdicao.categoria_api || 'UTILIDADE')
+    setFinalidade(disparoEdicao.finalidade || 'OPERACIONAL')
     setEtapa(2)
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [disparoEdicao?.id])
 
   useEffect(() => {
-    if (busca.trim().length < 2) return undefined
+    if (tipo === 'leads' || busca.trim().length < 2) return undefined
     const timer = setTimeout(() => {
       api.get(`/alunos?busca=${encodeURIComponent(busca)}&status=A&por_pagina=30`)
         .then((resposta) => setOpcoes(resposta.itens))
         .catch(() => {})
     }, 300)
     return () => clearTimeout(timer)
-  }, [busca])
+  }, [busca, tipo])
+
+  useEffect(() => {
+    if (tipo !== 'leads' || buscaLead.trim().length < 2) return undefined
+    const timer = setTimeout(() => {
+      api.get(`/leads?busca=${encodeURIComponent(buscaLead)}&por_pagina=30`)
+        .then((resposta) => setOpcoesLead(resposta.itens))
+        .catch(() => {})
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [buscaLead, tipo])
+
+  useEffect(() => {
+    if (perfil === 'SECRETARIA') return
+    api.get('/leads/opcoes').then(setFiltrosLead).catch(() => {})
+  }, [perfil])
+
+  useEffect(() => {
+    if (tipo === 'leads') {
+      setCategoriaApi('MARKETING')
+      if (finalidade === 'OPERACIONAL') setFinalidade('NUTRICAO')
+    }
+  }, [tipo])
 
   function carregarTemplates() {
     api.get('/whatsapp/templates').then(setTemplates).catch(() => {})
@@ -428,13 +475,24 @@ function Compositor({
   }
 
   function preparar() {
+    const filtroLead = {
+      campanha: segmentoLeads === 'campanha' ? valorSegmentoLead : null,
+      origem: segmentoLeads === 'origem' ? valorSegmentoLead : null,
+      tag: segmentoLeads === 'tag' ? valorSegmentoLead : null,
+      status_funil: segmentoLeads === 'status_funil' ? valorSegmentoLead : null,
+    }
     onPrevia({
       publico: {
         tipo,
         aluno_ids: alunos.map((aluno) => aluno.cod_alu),
         cod_tur: tipo === 'turma' ? Number(codTur) : null,
+        lead_ids: leads.map((lead) => lead.id),
+        segmento_leads: tipo === 'leads' ? segmentoLeads : null,
+        ...filtroLead,
       },
       conteudo: composicaoAtual(),
+      categoria_api: categoriaApi,
+      finalidade,
       agendado_para: agendadoPara ? new Date(agendadoPara).toISOString() : null,
       editar_id: disparoEdicao?.id || null,
     })
@@ -462,6 +520,8 @@ function Compositor({
     setIntervaloSequencia(template.conteudo.intervalo_segundos || 8)
     setNomeTemplate(template.nome)
     setCategoriaTemplate(template.categoria || 'Geral')
+    setCategoriaApi(template.categoria_api || 'UTILIDADE')
+    setFinalidade(template.finalidade || 'OPERACIONAL')
     setFavoritoTemplate(!!template.favorito)
     onAviso(`Template “${template.nome}” carregado.`, false)
   }
@@ -472,6 +532,8 @@ function Compositor({
       const novo = await api.post('/whatsapp/templates', {
         nome: nomeTemplate,
         categoria: categoriaTemplate,
+        categoria_api: categoriaApi,
+        finalidade,
         favorito: favoritoTemplate,
         conteudo: composicaoAtual(),
       })
@@ -496,6 +558,8 @@ function Compositor({
       await api.put(`/whatsapp/templates/${templateId}`, {
         nome: nomeTemplate,
         categoria: categoriaTemplate,
+        categoria_api: categoriaApi,
+        finalidade,
         favorito: favoritoTemplate,
         conteudo: composicaoAtual(),
       })
@@ -546,13 +610,21 @@ function Compositor({
     }
   }
 
-  const publicoValido = tipo === 'todos' || (tipo === 'turma' ? !!codTur : alunos.length > 0)
-  const resumoPublico = tipo === 'todos'
+  const publicoValido = tipo === 'leads'
+    ? (segmentoLeads === 'todos' || (segmentoLeads === 'selecionados' ? leads.length > 0 : !!valorSegmentoLead))
+    : tipo === 'todos' || (tipo === 'turma' ? !!codTur : alunos.length > 0)
+  const resumoPublico = tipo === 'leads'
+    ? (segmentoLeads === 'todos'
+      ? 'Todos os leads ativos com opt-in'
+      : segmentoLeads === 'selecionados'
+        ? `${leads.length} ${leads.length === 1 ? 'lead selecionado' : 'leads selecionados'}`
+        : `${segmentoLeads.replace('_', ' ')}: ${valorSegmentoLead || 'selecione'}`)
+    : tipo === 'todos'
     ? 'Todos os alunos ativos'
     : tipo === 'turma'
       ? (turmas.find((turma) => turma.cod_tur === Number(codTur))?.nome || 'Selecione uma turma')
       : `${alunos.length} ${alunos.length === 1 ? 'aluno selecionado' : 'alunos selecionados'}`
-  const nomePrevia = alunos[0]?.nome || 'Maria da Silva'
+  const nomePrevia = (tipo === 'leads' ? leads[0]?.nome : alunos[0]?.nome) || 'Maria da Silva'
   const primeiroNomePrevia = nomePrevia.split(/\s+/)[0]
   const conteudoPrevia = composicaoAtual(true)
   const conteudoValido = tipoMensagem === 'text'
@@ -627,10 +699,70 @@ function Compositor({
           select fullWidth size="small" label="Público" value={tipo}
           onChange={(evento) => setTipo(evento.target.value)} sx={{ mb: 2 }}
         >
-          <MenuItem value="alunos">Um ou vários alunos</MenuItem>
-          <MenuItem value="turma">Uma turma inteira</MenuItem>
-          <MenuItem value="todos">Todos os alunos ativos</MenuItem>
+          {perfil !== 'MARKETING' && <MenuItem value="alunos">Um ou vários alunos</MenuItem>}
+          {perfil !== 'MARKETING' && <MenuItem value="turma">Uma turma inteira</MenuItem>}
+          {perfil !== 'MARKETING' && <MenuItem value="todos">Todos os alunos ativos</MenuItem>}
+          {perfil !== 'SECRETARIA' && <MenuItem value="leads">Leads / Base de Marketing</MenuItem>}
         </TextField>
+        {tipo === 'leads' && (
+          <>
+            <TextField
+              select fullWidth size="small" label="Segmentar leads" value={segmentoLeads}
+              onChange={(evento) => {
+                setSegmentoLeads(evento.target.value)
+                setValorSegmentoLead('')
+              }}
+              sx={{ mb: 2 }}
+            >
+              <MenuItem value="todos">Todos os leads ativos com opt-in</MenuItem>
+              <MenuItem value="selecionados">Selecionar contatos</MenuItem>
+              <MenuItem value="campanha">Por campanha</MenuItem>
+              <MenuItem value="origem">Por origem</MenuItem>
+              <MenuItem value="tag">Por tag</MenuItem>
+              <MenuItem value="status_funil">Por status no funil</MenuItem>
+            </TextField>
+            {segmentoLeads === 'selecionados' && (
+              <Autocomplete
+                multiple options={opcoesLead} value={leads}
+                filterOptions={(itens) => itens}
+                getOptionLabel={(lead) => `${lead.nome} — ${lead.telefone}`}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
+                onInputChange={(_, valor) => setBuscaLead(valor)}
+                onChange={(_, valor) => setLeads(valor)}
+                renderInput={(props) => <TextField {...props} size="small" label="Buscar e selecionar leads" />}
+                noOptionsText={buscaLead.length < 2 ? 'Digite ao menos 2 letras' : 'Nenhum lead encontrado'}
+                sx={{ mb: 2 }}
+              />
+            )}
+            {!['todos', 'selecionados'].includes(segmentoLeads) && (
+              <TextField
+                select fullWidth size="small"
+                label={{
+                  campanha: 'Campanha',
+                  origem: 'Origem',
+                  tag: 'Tag',
+                  status_funil: 'Status no funil',
+                }[segmentoLeads]}
+                value={valorSegmentoLead}
+                onChange={(evento) => setValorSegmentoLead(evento.target.value)}
+                sx={{ mb: 2 }}
+              >
+                {(segmentoLeads === 'campanha'
+                  ? filtrosLead.campanhas
+                  : segmentoLeads === 'origem'
+                    ? filtrosLead.origens
+                    : segmentoLeads === 'tag'
+                      ? filtrosLead.tags
+                      : filtrosLead.status_funil
+                )?.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
+              </TextField>
+            )}
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Somente leads ativos com opt-in confirmado serão enviados. O rodapé de
+              saída será incluído automaticamente pelo sistema.
+            </Alert>
+          </>
+        )}
         {tipo === 'turma' && (
           <TextField
             select fullWidth size="small" label="Turma" value={codTur}
@@ -672,6 +804,32 @@ function Compositor({
       )}
       {etapa === 2 && (
         <>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.25, mb: 2 }}>
+            <TextField
+              select size="small" label="Categoria da API do WhatsApp"
+              value={categoriaApi}
+              disabled={tipo === 'leads'}
+              onChange={(e) => setCategoriaApi(e.target.value)}
+              helperText={tipo === 'leads' ? 'Obrigatoriamente Marketing para a base de leads.' : 'Classificação do conteúdo enviado.'}
+            >
+              <MenuItem value="MARKETING">Marketing</MenuItem>
+              <MenuItem value="UTILIDADE">Utilidade</MenuItem>
+              <MenuItem value="AUTENTICACAO">Autenticação</MenuItem>
+            </TextField>
+            <TextField
+              select size="small" label="Finalidade"
+              value={finalidade}
+              onChange={(e) => setFinalidade(e.target.value)}
+            >
+              <MenuItem value="NUTRICAO">Educativa / nutrição</MenuItem>
+              <MenuItem value="COMERCIAL">Comercial</MenuItem>
+              {tipo !== 'leads' && <MenuItem value="OPERACIONAL">Operacional</MenuItem>}
+            </TextField>
+          </Box>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            A classificação é auditada pelo TOV. A integração UazAPI atual não
+            substitui a aprovação de templates na API oficial da Meta.
+          </Alert>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2, flexWrap: 'wrap' }}>
             <TextField
               select size="small" label="Usar template" value={templateId}
@@ -683,7 +841,7 @@ function Compositor({
                 .sort((a, b) => Number(b.favorito) - Number(a.favorito) || a.categoria.localeCompare(b.categoria) || a.nome.localeCompare(b.nome))
                 .map((template) => (
                   <MenuItem key={template.id} value={template.id}>
-                    {template.favorito ? '★ ' : ''}{template.categoria} · {template.nome} · v{template.versao}
+                    {template.favorito ? '★ ' : ''}{template.categoria_api || 'UTILIDADE'} · {template.categoria} · {template.nome} · v{template.versao}
                   </MenuItem>
                 ))}
             </TextField>
@@ -861,7 +1019,7 @@ function Compositor({
                 </Box>
               </Box>
               <Typography sx={{ color: TOV.caption, fontSize: 11, mt: 1 }}>
-                Exemplo com {nomePrevia}; cada aluno receberá seu próprio nome.
+                Exemplo com {nomePrevia}; cada contato receberá seu próprio nome.
               </Typography>
             </Box>
           </Box>
@@ -962,7 +1120,9 @@ function Historico({ itens, onAbrir }) {
               </Box>
               <Typography sx={{ fontSize: 13, color: TOV.caption, mt: 0.75 }}>
                 Por {item.usuario} · {item.total_enviados} enviados · {item.total_entregues} entregues · {item.total_lidos} lidos
-                {item.total_reproduzidos ? ` · ${item.total_reproduzidos} reproduzidos` : ''} · {item.total_falhos} falhos · {item.total_invalidos} ignorados
+                {item.total_reproduzidos ? ` · ${item.total_reproduzidos} reproduzidos` : ''}
+                {item.total_respostas ? ` · ${item.total_respostas} respostas` : ''}
+                {item.total_optouts ? ` · ${item.total_optouts} opt-outs` : ''} · {item.total_falhos} falhos · {item.total_invalidos} ignorados
               </Typography>
               <Typography
                 sx={{
@@ -990,6 +1150,7 @@ function Historico({ itens, onAbrir }) {
 
 export default function WhatsApp() {
   const [searchParams] = useSearchParams()
+  const podeAdministrar = getPerfil() === 'ADMIN'
   const alunoInicial = searchParams.get('aluno')
   const disparoInicial = searchParams.get('disparo')
   const [instancia, setInstancia] = useState(null)
@@ -1044,7 +1205,9 @@ export default function WhatsApp() {
   useEffect(() => {
     carregarInstancia()
     carregarHistorico()
-    api.get('/turmas').then(setTurmas).catch(() => {})
+    if (getPerfil() !== 'MARKETING') {
+      api.get('/turmas').then(setTurmas).catch(() => {})
+    }
   }, [])
 
   useEffect(() => {
@@ -1054,11 +1217,11 @@ export default function WhatsApp() {
   }, [disparoInicial])
 
   useEffect(() => {
-    if (!instancia?.conectada || webhookAtivado) return
+    if (!podeAdministrar || !instancia?.conectada || webhookAtivado) return
     setWebhookAtivado(true)
     api.post('/whatsapp/instancia/configurar-webhook', {})
       .catch(() => {})
-  }, [instancia?.conectada, webhookAtivado])
+  }, [instancia?.conectada, podeAdministrar, webhookAtivado])
 
   useEffect(() => {
     if (!qrAberto || instancia?.conectada) return undefined
@@ -1151,6 +1314,8 @@ export default function WhatsApp() {
         : await api.post('/whatsapp/previsualizar', {
           publico: dados.publico,
           conteudo: dados.conteudo,
+          categoria_api: dados.categoria_api,
+          finalidade: dados.finalidade,
         })
       setDadosDisparo(dados)
       setPrevia(resposta)
@@ -1251,11 +1416,12 @@ export default function WhatsApp() {
     <Box>
       <CabecalhoPagina
         titulo="WhatsApp"
-        subtitulo="Conecte a conta e envie comunicados personalizados aos alunos."
+        subtitulo="Envie comunicados acadêmicos e nutra leads com públicos segregados."
       />
       <CardInstancia
         instancia={instancia}
         carregando={carregandoInstancia}
+        podeAdministrar={podeAdministrar}
         onCriar={() => setCriacaoAberta(true)}
         onConectar={conectar}
         onDesconectar={() => setDesconectarAberto(true)}
@@ -1395,6 +1561,8 @@ export default function WhatsApp() {
                   ['Entregues', detalhe.total_entregues],
                   ['Lidos', detalhe.total_lidos],
                   ['Áudios ouvidos', detalhe.total_reproduzidos],
+                  ['Respostas', detalhe.total_respostas],
+                  ['Opt-outs', detalhe.total_optouts],
                   ['Falhos', detalhe.total_falhos],
                   ['Ignorados', detalhe.total_invalidos],
                 ].map(([rotulo, valor]) => (

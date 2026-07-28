@@ -15,6 +15,13 @@ from .whatsapp import (
     WhatsappTemplate,
 )
 from .notificacoes import Notificacao, NotificacaoPreferencia, PushInscricao
+from .leads import (
+    Lead,
+    LeadConsentimentoEvento,
+    LeadImportacao,
+    LeadImportacaoItem,
+    LeadInteracao,
+)
 
 __all__ = [
     "Materia", "Turma", "AluTurma", "DocTurma", "AluNota",
@@ -25,4 +32,6 @@ __all__ = [
     "WhatsappConfiguracao", "WhatsappDisparo", "WhatsappDestinatario",
     "WhatsappArquivo", "WhatsappTemplate",
     "Notificacao", "NotificacaoPreferencia", "PushInscricao",
+    "Lead", "LeadConsentimentoEvento", "LeadImportacao",
+    "LeadImportacaoItem", "LeadInteracao",
 ]

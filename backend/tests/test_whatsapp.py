@@ -2,9 +2,13 @@ import unittest
 from types import SimpleNamespace
 
 from app.routers.whatsapp import (
+    RODAPE_OPTOUT,
     _aplicar_contadores_pasta,
+    _aplicar_optout,
+    _eh_optout,
     _mensagem_uazapi,
     _mensagens_uazapi,
+    _template_permitido,
     normalizar_celular,
     personalizar_mensagem,
 )
@@ -107,6 +111,30 @@ class PersonalizacaoTest(unittest.TestCase):
         self.assertEqual(mensagens[1]["text"], "Segundo passo, Maria da Silva")
         self.assertEqual(mensagens[2]["choices"], ["Sim", "Não"])
 
+    def test_optout_e_incluido_uma_unica_vez_no_fim_da_sequencia(self):
+        conteudo = {
+            "tipo": "text",
+            "mensagem": "Primeira",
+            "sequencia": [{"tipo": "text", "mensagem": "Última"}],
+        }
+        ajustado = _aplicar_optout(conteudo)
+        self.assertNotIn(RODAPE_OPTOUT, ajustado["mensagem"])
+        self.assertEqual(
+            ajustado["sequencia"][0]["mensagem"].count(RODAPE_OPTOUT),
+            1,
+        )
+        self.assertEqual(
+            _aplicar_optout(ajustado)["sequencia"][0]["mensagem"].count(
+                RODAPE_OPTOUT
+            ),
+            1,
+        )
+
+    def test_reconhece_optout_sem_acentos_e_nao_confunde_frase(self):
+        self.assertTrue(_eh_optout("SAIR"))
+        self.assertTrue(_eh_optout("não quero"))
+        self.assertFalse(_eh_optout("Quero sair da turma atual e entrar em outra"))
+
 
 class SanitizacaoTest(unittest.TestCase):
     def test_criptografia_do_token(self):
@@ -124,6 +152,15 @@ class SanitizacaoTest(unittest.TestCase):
             sanitizar_resposta(resposta),
             {"instance": {"id": "1"}, "items": [{"status": "ok"}]},
         )
+
+
+class SegregacaoTemplateTest(unittest.TestCase):
+    def test_marketing_e_secretaria_enxergam_apenas_seus_templates(self):
+        self.assertTrue(_template_permitido("ADMIN", "MARKETING", "COMERCIAL"))
+        self.assertTrue(_template_permitido("MARKETING", "MARKETING", "NUTRICAO"))
+        self.assertFalse(_template_permitido("MARKETING", "UTILIDADE", "OPERACIONAL"))
+        self.assertTrue(_template_permitido("SECRETARIA", "UTILIDADE", "OPERACIONAL"))
+        self.assertFalse(_template_permitido("SECRETARIA", "MARKETING", "COMERCIAL"))
 
 
 class SincronizacaoCampanhaTest(unittest.TestCase):

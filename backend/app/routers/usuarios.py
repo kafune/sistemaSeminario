@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
+from typing import Literal
+
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -15,10 +17,15 @@ SENHA_MINIMA = 6
 class UsuarioInput(BaseModel):
     user: str
     senha: str
+    perfil: Literal["ADMIN", "SECRETARIA", "MARKETING"] = "SECRETARIA"
 
 
 class SenhaInput(BaseModel):
     senha: str
+
+
+class PerfilInput(BaseModel):
+    perfil: Literal["ADMIN", "SECRETARIA", "MARKETING"]
 
 
 def _validar_senha(senha: str) -> None:
@@ -29,7 +36,10 @@ def _validar_senha(senha: str) -> None:
 @router.get("")
 def listar(db: Session = Depends(get_db)):
     """Lista os usuários de acesso (nunca expõe o hash da senha)."""
-    return [{"user": u.user} for u in db.scalars(select(Usuario).order_by(Usuario.user))]
+    return [
+        {"user": u.user, "perfil": u.perfil or "ADMIN"}
+        for u in db.scalars(select(Usuario).order_by(Usuario.user))
+    ]
 
 
 @router.post("")
@@ -40,10 +50,37 @@ def criar(dados: UsuarioInput, db: Session = Depends(get_db)):
     _validar_senha(dados.senha)
     if db.get(Usuario, user):
         raise HTTPException(409, "Já existe um usuário com esse nome")
-    novo = Usuario(user=user, senha_hash=gerar_hash(dados.senha))
+    novo = Usuario(
+        user=user,
+        senha_hash=gerar_hash(dados.senha),
+        perfil=dados.perfil,
+    )
     db.add(novo)
     db.commit()
-    return {"user": novo.user}
+    return {"user": novo.user, "perfil": novo.perfil}
+
+
+@router.put("/{user}/perfil")
+def alterar_perfil(
+    user: str,
+    dados: PerfilInput,
+    atual: str = Depends(usuario_atual),
+    db: Session = Depends(get_db),
+):
+    usuario = db.get(Usuario, user)
+    if not usuario:
+        raise HTTPException(404, "Usuário não encontrado")
+    if user == atual and dados.perfil != "ADMIN":
+        administradores = db.scalar(
+            select(func.count())
+            .select_from(Usuario)
+            .where(Usuario.perfil == "ADMIN")
+        ) or 0
+        if administradores <= 1:
+            raise HTTPException(400, "O sistema precisa manter ao menos um administrador")
+    usuario.perfil = dados.perfil
+    db.commit()
+    return {"user": usuario.user, "perfil": usuario.perfil}
 
 
 @router.put("/{user}/senha")

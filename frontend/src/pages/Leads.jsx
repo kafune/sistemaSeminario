@@ -10,7 +10,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  AvatarIniciais, CabecalhoPagina, CartaoLista, LinhaCartao, resetBotao,
+  AvatarIniciais, CabecalhoPagina, CartaoLista, LinhaCartao, cardSx, resetBotao,
   useDialogoTelaCheia,
 } from '../ui'
 import ImportarLeadsDialog from './ImportarLeadsDialog'

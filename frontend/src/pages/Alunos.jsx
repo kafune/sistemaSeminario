@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Alert, Box, Button, InputAdornment, Pagination, Paper, Snackbar, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography, IconButton,
+  MenuItem,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
@@ -21,6 +22,12 @@ const FILTROS = [
   { rotulo: 'Ativos', valor: 'A' },
   { rotulo: 'Inativos', valor: 'I' },
   { rotulo: 'Formados', valor: 'F' },
+]
+const ORDENACOES = [
+  { rotulo: 'Nome (A–Z)', valor: 'nome_asc' },
+  { rotulo: 'Nome (Z–A)', valor: 'nome_desc' },
+  { rotulo: 'Mais recentes', valor: 'recentes' },
+  { rotulo: 'Mais antigos', valor: 'antigos' },
 ]
 
 function ChipFiltro({ ativo, children, onClick }) {
@@ -49,6 +56,7 @@ export default function Alunos() {
   const [busca, setBusca] = useState('')
   const [buscaAtiva, setBuscaAtiva] = useState('')
   const [status, setStatus] = useState('')
+  const [ordenacao, setOrdenacao] = useState('nome_asc')
   const [dados, setDados] = useState({ total: 0, itens: [] })
   const [carregando, setCarregando] = useState(true)
   const [pagina, setPagina] = useState(1)
@@ -62,11 +70,11 @@ export default function Alunos() {
     setCarregando(true)
     const filtroStatus = status ? `&status=${status}` : ''
     api
-      .get(`/alunos?busca=${encodeURIComponent(buscaAtiva)}${filtroStatus}&pagina=${pagina}&por_pagina=${POR_PAGINA}`)
+      .get(`/alunos?busca=${encodeURIComponent(buscaAtiva)}${filtroStatus}&ordenacao=${ordenacao}&pagina=${pagina}&por_pagina=${POR_PAGINA}`)
       .then(setDados)
       .catch((e) => setErro(e.message))
       .finally(() => setCarregando(false))
-  }, [buscaAtiva, status, pagina, versaoLista])
+  }, [buscaAtiva, status, ordenacao, pagina, versaoLista])
 
   useEffect(() => {
     const temporizador = window.setTimeout(() => {
@@ -129,18 +137,42 @@ export default function Alunos() {
       />
 
       <Box
-        aria-label="Filtrar alunos por status"
         sx={{
-          display: 'flex', gap: 1.25, mb: 2.25, overflowX: 'auto',
-          pb: 0.5, mx: { xs: -2, sm: 0 }, px: { xs: 2, sm: 0 },
-          scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
+          display: 'flex', flexDirection: { xs: 'column', sm: 'row' },
+          alignItems: { sm: 'center' }, justifyContent: 'space-between',
+          gap: 1.5, mb: 2.25,
         }}
       >
-        {FILTROS.map((f) => (
-          <ChipFiltro key={f.valor} ativo={status === f.valor} onClick={() => { setStatus(f.valor); setPagina(1) }}>
-            {f.rotulo}
-          </ChipFiltro>
-        ))}
+        <Box
+          aria-label="Filtrar alunos por status"
+          sx={{
+            display: 'flex', gap: 1.25, overflowX: 'auto', pb: 0.5,
+            mx: { xs: -2, sm: 0 }, px: { xs: 2, sm: 0 },
+            scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
+          }}
+        >
+          {FILTROS.map((f) => (
+            <ChipFiltro key={f.valor} ativo={status === f.valor} onClick={() => { setStatus(f.valor); setPagina(1) }}>
+              {f.rotulo}
+            </ChipFiltro>
+          ))}
+        </Box>
+        <TextField
+          select
+          size="small"
+          label="Ordenar por"
+          value={ordenacao}
+          onChange={(e) => { setOrdenacao(e.target.value); setPagina(1) }}
+          sx={{
+            width: { xs: '100%', sm: 190 }, flexShrink: 0,
+            '& .MuiOutlinedInput-root': { height: 46, bgcolor: TOV.white },
+          }}
+          inputProps={{ 'aria-label': 'Ordenar alunos' }}
+        >
+          {ORDENACOES.map((opcao) => (
+            <MenuItem key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</MenuItem>
+          ))}
+        </TextField>
       </Box>
 
       {/* Lista em cards — celular/tablet */}

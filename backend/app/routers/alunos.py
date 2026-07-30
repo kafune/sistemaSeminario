@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -50,6 +51,7 @@ def listar(
     busca: str = "",
     cod_tur: int | None = None,
     status: str | None = None,
+    ordenacao: Literal["nome_asc", "nome_desc", "recentes", "antigos"] = "nome_asc",
     pagina: int = 1,
     por_pagina: int = 50,
     db: Session = Depends(get_db),
@@ -65,7 +67,25 @@ def listar(
     if status:
         q = q.where(Aluno.status == status)
     total = db.scalar(select(func.count()).select_from(q.subquery()))
-    q = q.order_by(Aluno.nome).offset((pagina - 1) * por_pagina).limit(por_pagina)
+    criterios_ordenacao = {
+        "nome_asc": (Aluno.nome.asc(), Aluno.cod_alu.asc()),
+        "nome_desc": (Aluno.nome.desc(), Aluno.cod_alu.desc()),
+        "recentes": (
+            Aluno.dat_cad.is_(None),
+            Aluno.dat_cad.desc(),
+            Aluno.cod_alu.desc(),
+        ),
+        "antigos": (
+            Aluno.dat_cad.is_(None),
+            Aluno.dat_cad.asc(),
+            Aluno.cod_alu.asc(),
+        ),
+    }
+    q = (
+        q.order_by(*criterios_ordenacao[ordenacao])
+        .offset((pagina - 1) * por_pagina)
+        .limit(por_pagina)
+    )
     return {
         "total": total,
         "pagina": pagina,

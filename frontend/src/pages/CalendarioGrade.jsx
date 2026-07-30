@@ -104,10 +104,10 @@ export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
                     {aula.hora_inicio || '—'}
                   </Box>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3 }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
                       {aula.materia_nome}
                     </Typography>
-                    <Typography sx={{ color: TOV.caption, fontSize: 13, mt: '3px' }}>
+                    <Typography sx={{ color: TOV.caption, fontSize: 13, mt: '3px', overflowWrap: 'anywhere' }}>
                       {[aula.turma_nome, aula.professor_nome, aula.local].filter(Boolean).join(' · ')}
                     </Typography>
                   </Box>

@@ -20,6 +20,32 @@ const FORM_VAZIO = {
   tema: '', observacao: '', status: 'AGENDADA', repetir_ate: '',
 }
 
+const MENU_SELECT_RESPONSIVO = {
+  PaperProps: {
+    sx: {
+      maxWidth: 'calc(100vw - 32px)',
+      '& .MuiMenuItem-root': {
+        whiteSpace: 'normal',
+        overflowWrap: 'anywhere',
+      },
+    },
+  },
+}
+
+const SELECT_DIARIO_SX = {
+  width: { xs: '100%', sm: 'auto' },
+  minWidth: { xs: 0, sm: 180 },
+  maxWidth: '100%',
+  '& .MuiInputBase-root': { minWidth: 0, maxWidth: '100%' },
+  '& .MuiSelect-select': {
+    display: 'block',
+    minWidth: '0 !important',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+}
+
 function unicos(itens, chave, rotulo) {
   const mapa = new Map()
   itens.forEach((item) => {
@@ -160,7 +186,7 @@ export default function Calendario() {
   )
 
   return (
-    <Box>
+    <Box sx={{ minWidth: 0, maxWidth: '100%' }}>
       <CabecalhoPagina titulo="Calendário de aulas" subtitulo="Turmas, matérias e professores em uma única agenda" acoes={acoes} />
 
       <Box sx={{ ...cardSx, p: 2.25, mb: 2 }}>
@@ -204,21 +230,40 @@ export default function Calendario() {
         Dica: dê dois cliques em um dia vazio para cadastrar uma aula naquela data.
       </Typography>}
 
-      <Box sx={{ ...cardSx, p: { xs: 2.25, md: 3 }, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
-        <Box>
+      <Box sx={{ ...cardSx, p: { xs: 2.25, md: 3 }, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 3 }}>
+        <Box sx={{ minWidth: 0 }}>
           <Typography variant="h3" sx={{ fontSize: 20, mb: 1 }}>Diário de classe em Excel</Typography>
           <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2 }}>Selecione a turma e depois a matéria. As datas vêm das aulas cadastradas acima.</Typography>
-          <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
-            <TextField select size="small" label="Turma" value={turmaDiario} onChange={(e) => { setTurmaDiario(e.target.value); setVinculoDiario('') }} sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: 180 }}>
-              {turmas.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}
+          <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', width: '100%', minWidth: 0 }}>
+            <TextField
+              select
+              size="small"
+              label="Turma"
+              value={turmaDiario}
+              onChange={(e) => { setTurmaDiario(e.target.value); setVinculoDiario('') }}
+              SelectProps={{ MenuProps: MENU_SELECT_RESPONSIVO }}
+              sx={SELECT_DIARIO_SX}
+            >
+              {turmas.map((item) => <MenuItem key={item.valor} value={item.valor} title={item.nome}>{item.nome}</MenuItem>)}
             </TextField>
-            <TextField select size="small" label="Matéria / professor" value={vinculoDiario} onChange={(e) => setVinculoDiario(e.target.value)} sx={{ width: { xs: '100%', sm: 'auto' }, minWidth: { xs: 0, sm: 260 } }}>
-              {materiasDiario.map((item) => <MenuItem key={item.docturma_id} value={item.docturma_id}>{item.materia_nome} · {item.professor_nome || 'Sem professor'}</MenuItem>)}
+            <TextField
+              select
+              size="small"
+              label="Matéria / professor"
+              value={vinculoDiario}
+              onChange={(e) => setVinculoDiario(e.target.value)}
+              SelectProps={{ MenuProps: MENU_SELECT_RESPONSIVO }}
+              sx={{ ...SELECT_DIARIO_SX, minWidth: { xs: 0, sm: 260 } }}
+            >
+              {materiasDiario.map((item) => {
+                const rotulo = `${item.materia_nome} · ${item.professor_nome || 'Sem professor'}`
+                return <MenuItem key={item.docturma_id} value={item.docturma_id} title={rotulo}>{rotulo}</MenuItem>
+              })}
             </TextField>
             <Button variant="contained" startIcon={<DownloadIcon />} disabled={!vinculoDiario} onClick={baixarDiario}>Baixar XLSX</Button>
           </Box>
         </Box>
-        <Box>
+        <Box sx={{ minWidth: 0 }}>
           <Typography variant="h3" sx={{ fontSize: 20, mb: 1 }}>Visualização para alunos</Typography>
           <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2 }}>O link mostra apenas a agenda. Cadastro, notas e ações de edição continuam protegidos.</Typography>
           <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>

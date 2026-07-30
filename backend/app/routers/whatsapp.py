@@ -760,14 +760,23 @@ def _sincronizar_por_webhook() -> None:
             str(pasta.get("id") or pasta.get("folder_id")): pasta
             for pasta in pastas
         }
-        ativos = list(
+        ids_ativos = list(
             db.scalars(
-                select(WhatsappDisparo).where(
+                select(WhatsappDisparo.id).where(
                     WhatsappDisparo.status.notin_(STATUS_FINAIS),
                     WhatsappDisparo.pasta_uazapi_id.is_not(None),
                 )
             )
         )
+        ativos = list(
+            db.scalars(
+                select(WhatsappDisparo)
+                .where(WhatsappDisparo.id.in_(ids_ativos))
+                .order_by(WhatsappDisparo.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        ) if ids_ativos else []
         notificacoes = []
         for disparo in ativos:
             pasta = por_id.get(str(disparo.pasta_uazapi_id))
@@ -1586,30 +1595,80 @@ def listar_disparos(
     }
 
 
-def _aplicar_contadores_pasta(disparo: WhatsappDisparo, pasta: dict) -> None:
-    enviados = int(pasta.get("log_sucess") or pasta.get("log_success") or 0)
-    falhos = int(pasta.get("log_failed") or 0)
+def _mesclar_progresso(
+    disparo: WhatsappDisparo,
+    *,
+    enviados: int = 0,
+    falhos: int = 0,
+    entregues: int = 0,
+    lidos: int = 0,
+    reproduzidos: int = 0,
+    status_externo: str = "",
+) -> None:
+    """Consolida métricas sem regredir por respostas parciais da UazAPI."""
     total_esperado = disparo.total_mensagens or disparo.total_validos
-    total = int(pasta.get("log_total") or total_esperado)
-    disparo.total_enviados = min(enviados, total_esperado)
-    disparo.total_falhos = min(falhos, max(0, total_esperado - enviados))
-    disparo.total_entregues = min(
-        int(pasta.get("log_delivered") or 0), total_esperado
+    total_esperado = max(0, int(total_esperado or 0))
+    enviados = max(0, int(enviados or 0))
+    falhos = max(0, int(falhos or 0))
+    entregues = max(0, int(entregues or 0))
+    lidos = max(0, int(lidos or 0))
+    reproduzidos = max(0, int(reproduzidos or 0))
+
+    # Entrega, leitura e reprodução também confirmam que a mensagem foi enviada.
+    novo_enviados = min(
+        total_esperado,
+        max(
+            int(disparo.total_enviados or 0),
+            enviados,
+            entregues,
+            lidos,
+            reproduzidos,
+        ),
     )
-    disparo.total_lidos = min(int(pasta.get("log_read") or 0), total_esperado)
-    disparo.total_reproduzidos = min(
-        int(pasta.get("log_played") or 0), total_esperado
+    novo_entregues = min(
+        novo_enviados,
+        max(
+            int(disparo.total_entregues or 0),
+            entregues,
+            lidos,
+            reproduzidos,
+        ),
     )
+    novo_lidos = min(
+        novo_entregues,
+        max(int(disparo.total_lidos or 0), lidos, reproduzidos),
+    )
+    novo_reproduzidos = min(
+        novo_lidos,
+        max(int(disparo.total_reproduzidos or 0), reproduzidos),
+    )
+    # Se a UazAPI reclassificar uma falha como sucesso, o sucesso prevalece sem
+    # permitir que a soma ultrapasse o tamanho real da campanha.
+    novo_falhos = min(
+        max(int(disparo.total_falhos or 0), falhos),
+        max(0, total_esperado - novo_enviados),
+    )
+
+    disparo.total_enviados = novo_enviados
+    disparo.total_falhos = novo_falhos
+    disparo.total_entregues = novo_entregues
+    disparo.total_lidos = novo_lidos
+    disparo.total_reproduzidos = novo_reproduzidos
     disparo.total_agendados = max(
-        0, min(total, total_esperado) - disparo.total_enviados - disparo.total_falhos
+        0, total_esperado - disparo.total_enviados - disparo.total_falhos
     )
+
     processados = disparo.total_enviados + disparo.total_falhos
-    status_pasta = str(pasta.get("status") or "").lower()
-    if status_pasta == "paused":
+    status_atual = str(disparo.status or "").upper()
+    status_externo = str(status_externo or "").lower()
+    if status_atual in STATUS_FINAIS:
+        # Estados finais são aderentes; respostas atrasadas não reabrem a fila.
+        pass
+    elif status_externo == "paused":
         disparo.status = "PAUSADO"
-    elif status_pasta in {"deleting", "deleted", "canceled", "cancelled"}:
+    elif status_externo in {"deleting", "deleted", "canceled", "cancelled"}:
         disparo.status = "CANCELADO"
-    elif processados >= total_esperado:
+    elif total_esperado and processados >= total_esperado:
         disparo.status = (
             "CONCLUIDO_COM_FALHAS" if disparo.total_falhos else "CONCLUIDO"
         )
@@ -1622,20 +1681,32 @@ def _aplicar_contadores_pasta(disparo: WhatsappDisparo, pasta: dict) -> None:
     disparo.atualizado_em = _agora()
 
 
+def _aplicar_contadores_pasta(disparo: WhatsappDisparo, pasta: dict) -> None:
+    _mesclar_progresso(
+        disparo,
+        enviados=int(pasta.get("log_sucess") or pasta.get("log_success") or 0),
+        falhos=int(pasta.get("log_failed") or 0),
+        entregues=int(pasta.get("log_delivered") or 0),
+        lidos=int(pasta.get("log_read") or 0),
+        reproduzidos=int(pasta.get("log_played") or 0),
+        status_externo=str(pasta.get("status") or ""),
+    )
+
+
 @router.post("/disparos/sincronizar-ativos")
 def sincronizar_disparos_ativos(
     db: Session = Depends(get_db),
     usuario: str = Depends(usuario_atual),
 ):
-    ativos = list(
+    ids_ativos = list(
         db.scalars(
-            select(WhatsappDisparo).where(
+            select(WhatsappDisparo.id).where(
                 WhatsappDisparo.status.notin_(STATUS_FINAIS),
                 WhatsappDisparo.pasta_uazapi_id.is_not(None),
             )
         )
     )
-    if ativos:
+    if ids_ativos:
         _, cliente = _cliente_instancia(db)
         try:
             pastas = cliente.listar_campanhas()
@@ -1645,6 +1716,18 @@ def sincronizar_disparos_ativos(
             str(pasta.get("id") or pasta.get("folder_id")): pasta
             for pasta in pastas
         }
+        # O acesso externo ocorre antes do lock. Ao voltar, recarregamos e
+        # bloqueamos as linhas na mesma ordem para evitar lost updates entre o
+        # polling do navegador, webhooks e a consolidação detalhada.
+        ativos = list(
+            db.scalars(
+                select(WhatsappDisparo)
+                .where(WhatsappDisparo.id.in_(ids_ativos))
+                .order_by(WhatsappDisparo.id)
+                .with_for_update()
+                .execution_options(populate_existing=True)
+            )
+        )
         notificacoes = []
         for disparo in ativos:
             pasta = por_id.get(str(disparo.pasta_uazapi_id))
@@ -1671,7 +1754,7 @@ def sincronizar_disparos_ativos(
             WhatsappDisparo.tipo_publico != "leads"
         )
     return {
-        "atualizados": len(ativos),
+        "atualizados": len(ids_ativos),
         "itens": [
             _disparo_dict(item)
             for item in db.scalars(consulta_retorno)
@@ -1769,6 +1852,14 @@ def sincronizar_disparo(
     except UazApiError as exc:
         raise HTTPException(exc.status_code, exc.mensagem) from exc
 
+    disparo = db.scalar(
+        select(WhatsappDisparo)
+        .where(WhatsappDisparo.id == disparo_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if not disparo:
+        raise HTTPException(404, "Disparo não encontrado.")
     destinatarios = list(
         db.scalars(
             select(WhatsappDestinatario).where(
@@ -1789,6 +1880,8 @@ def sincronizar_disparo(
     passos = max(1, (disparo.total_mensagens or disparo.total_validos) // max(1, disparo.total_validos))
     sucesso_status = {"sent", "delivered", "read", "played"}
     for numero, item in por_numero.items():
+        if item.status in {"ENVIADO", "FALHA", "CANCELADO", "INVALIDO"}:
+            continue
         estados = estados_por_numero.get(numero, [])
         falha = next((msg for status, msg in estados if status in {"failed", "error"}), None)
         if falha:
@@ -1808,28 +1901,18 @@ def sincronizar_disparo(
         str(msg.get("status") or msg.get("messageStatus") or "").lower()
         for msg in mensagens
     ]
-    disparo.total_enviados = sum(status in sucesso_status for status in status_mensagens)
-    disparo.total_falhos = sum(status in {"failed", "error"} for status in status_mensagens)
-    disparo.total_entregues = sum(status in {"delivered", "read", "played"} for status in status_mensagens)
-    disparo.total_lidos = sum(status in {"read", "played"} for status in status_mensagens)
-    disparo.total_reproduzidos = sum(status == "played" for status in status_mensagens)
-    total_esperado = disparo.total_mensagens or disparo.total_validos
-    disparo.total_agendados = max(
-        0, total_esperado - disparo.total_enviados - disparo.total_falhos
-    )
-    processados = disparo.total_enviados + disparo.total_falhos
     status_anterior = disparo.status
-    if processados >= total_esperado:
-        disparo.status = (
-            "CONCLUIDO_COM_FALHAS" if disparo.total_falhos else "CONCLUIDO"
-        )
-    elif processados:
-        disparo.status = "EM_ANDAMENTO"
-    elif disparo.agendado_para and disparo.agendado_para > _agora():
-        disparo.status = "AGENDADO"
-    else:
-        disparo.status = "NA_FILA"
-    disparo.atualizado_em = _agora()
+    _mesclar_progresso(
+        disparo,
+        enviados=sum(status in sucesso_status for status in status_mensagens),
+        falhos=sum(status in {"failed", "error"} for status in status_mensagens),
+        entregues=sum(
+            status in {"delivered", "read", "played"}
+            for status in status_mensagens
+        ),
+        lidos=sum(status in {"read", "played"} for status in status_mensagens),
+        reproduzidos=sum(status == "played" for status in status_mensagens),
+    )
     notificacao = _notificar_finalizacao_disparo(db, disparo, status_anterior)
     db.commit()
     if notificacao:

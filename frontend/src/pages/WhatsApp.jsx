@@ -21,6 +21,32 @@ import {
 
 const STATUS_FINAL = new Set(['CONCLUIDO', 'CONCLUIDO_COM_FALHAS', 'FALHA', 'CANCELADO'])
 const DESTINATARIOS_POR_PAGINA = 50
+const CAMPOS_PROGRESSO_MONOTONICOS = [
+  'total_enviados',
+  'total_entregues',
+  'total_lidos',
+  'total_reproduzidos',
+  'total_respostas',
+  'total_optouts',
+]
+
+function mesclarDisparo(atual, proximo) {
+  if (!atual) return proximo
+  if (!proximo) return atual
+  const resultado = { ...atual, ...proximo }
+  CAMPOS_PROGRESSO_MONOTONICOS.forEach((campo) => {
+    resultado[campo] = Math.max(Number(atual[campo]) || 0, Number(proximo[campo]) || 0)
+  })
+  if (STATUS_FINAL.has(atual.status) && !STATUS_FINAL.has(proximo.status)) {
+    resultado.status = atual.status
+  }
+  return resultado
+}
+
+function mesclarListaDisparos(atuais, proximos) {
+  const atuaisPorId = new Map((atuais || []).map((item) => [item.id, item]))
+  return proximos.map((item) => mesclarDisparo(atuaisPorId.get(item.id), item))
+}
 
 const STATUS_LABEL = {
   CRIANDO: 'Criando',
@@ -208,15 +234,18 @@ function PreviewMensagem({ conteudo, texto }) {
   )
 }
 
-function PreviewSequencia({ conteudo, nome = 'Maria da Silva' }) {
+function PreviewSequencia({ conteudo, nome = null }) {
   if (!conteudo) return null
   const itens = [conteudo, ...(conteudo.sequencia || [])]
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1, width: '100%' }}>
       {itens.map((item, indice) => {
-        const texto = (item.mensagem || '')
-          .replace(/\{\{\s*primeiro_nome\s*\}\}/g, nome.split(/\s+/)[0])
-          .replace(/\{\{\s*nome\s*\}\}/g, nome)
+        const textoModelo = item.mensagem || ''
+        const texto = nome
+          ? textoModelo
+            .replace(/\{\{\s*primeiro_nome\s*\}\}/g, nome.split(/\s+/)[0])
+            .replace(/\{\{\s*nome\s*\}\}/g, nome)
+          : textoModelo
         return <PreviewMensagem key={indice} conteudo={item} texto={texto} />
       })}
       {itens.length > 1 && (
@@ -633,8 +662,7 @@ function Compositor({
     : tipo === 'turma'
       ? (turmas.find((turma) => turma.cod_tur === Number(codTur))?.nome || 'Selecione uma turma')
       : `${alunos.length} ${alunos.length === 1 ? 'aluno selecionado' : 'alunos selecionados'}`
-  const nomePrevia = (tipo === 'leads' ? leads[0]?.nome : alunos[0]?.nome) || 'Maria da Silva'
-  const primeiroNomePrevia = nomePrevia.split(/\s+/)[0]
+  const nomePrevia = (tipo === 'leads' ? leads[0]?.nome : alunos[0]?.nome) || null
   const conteudoPrevia = composicaoAtual(true)
   const conteudoValido = tipoMensagem === 'text'
     ? !!mensagem.trim()
@@ -1028,7 +1056,9 @@ function Compositor({
                 </Box>
               </Box>
               <Typography sx={{ color: TOV.caption, fontSize: 11, mt: 1 }}>
-                Exemplo com {nomePrevia}; cada contato receberá seu próprio nome.
+                {nomePrevia
+                  ? `Exemplo com ${nomePrevia}; cada contato receberá seu próprio nome.`
+                  : 'As variáveis serão substituídas pelo nome de cada destinatário na revisão.'}
               </Typography>
             </Box>
           </Box>
@@ -1208,7 +1238,7 @@ export default function WhatsApp() {
 
   function carregarHistorico() {
     api.get('/whatsapp/disparos?por_pagina=30')
-      .then((resposta) => setHistorico(resposta.itens))
+      .then((resposta) => setHistorico((atuais) => mesclarListaDisparos(atuais, resposta.itens)))
       .catch((e) => notificar(e.message))
   }
 
@@ -1265,13 +1295,14 @@ export default function WhatsApp() {
           if (resumo && STATUS_FINAL.has(resumo.status) && !STATUS_FINAL.has(detalhe.status)) {
             // Faz a consulta paginada de mensagens uma única vez ao finalizar,
             // preenchendo o resultado individual de cada destinatário.
-            proximoDetalhe = await api.post(`/whatsapp/disparos/${detalhe.id}/sincronizar`, {})
+            const detalhado = await api.post(`/whatsapp/disparos/${detalhe.id}/sincronizar`, {})
+            proximoDetalhe = mesclarDisparo(mesclarDisparo(detalhe, resumo), detalhado)
           } else if (resumo) {
-            proximoDetalhe = { ...detalhe, ...resumo }
+            proximoDetalhe = mesclarDisparo(detalhe, resumo)
           }
         }
         if (cancelado) return
-        setHistorico(resposta.itens)
+        setHistorico((atuais) => mesclarListaDisparos(atuais, resposta.itens))
         if (proximoDetalhe) setDetalhe(proximoDetalhe)
       } catch { /* mantém o último estado sem interromper o trabalho */ }
       finally { executando = false }
@@ -1400,9 +1431,9 @@ export default function WhatsApp() {
     if (!silencioso) setSincronizando(true)
     try {
       const resposta = await api.post(`/whatsapp/disparos/${id}/sincronizar`, {})
-      setDetalhe(resposta)
+      setDetalhe((atual) => mesclarDisparo(atual, resposta))
       const { destinatarios: _destinatarios, ...resumo } = resposta
-      setHistorico((atuais) => atuais.map((item) => item.id === id ? { ...item, ...resumo } : item))
+      setHistorico((atuais) => atuais.map((item) => item.id === id ? mesclarDisparo(item, resumo) : item))
     } catch (e) {
       if (!silencioso) notificar(e.message)
     } finally {
@@ -1530,7 +1561,10 @@ export default function WhatsApp() {
                 <b>{previa.publico_descricao}</b>: {previa.validos} aptos para envio e {previa.invalidos} ignorados.
               </Alert>
               <Box sx={{ bgcolor: '#E8DDD4', borderRadius: 2, p: 2, mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                <PreviewSequencia conteudo={previa.conteudo} />
+                <PreviewSequencia
+                  conteudo={previa.conteudo}
+                  nome={previa.itens.find((item) => item.valido)?.nome}
+                />
               </Box>
               {dadosDisparo?.agendado_para && (
                 <Alert severity="info" sx={{ mb: 2 }}>
@@ -1590,7 +1624,10 @@ export default function WhatsApp() {
                 </Typography>
               )}
               <Box sx={{ bgcolor: '#E8DDD4', borderRadius: 2, p: 2, mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                <PreviewSequencia conteudo={detalhe.conteudo} />
+                <PreviewSequencia
+                  conteudo={detalhe.conteudo}
+                  nome={detalhe.destinatarios?.find((item) => item.valido)?.nome}
+                />
               </Box>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,1fr)', sm: 'repeat(3,1fr)' }, gap: 1.5, my: 2.5 }}>
                 {[

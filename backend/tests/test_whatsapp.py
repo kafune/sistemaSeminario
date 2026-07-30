@@ -8,6 +8,7 @@ from app.routers.whatsapp import (
     _eh_optout,
     _mensagem_uazapi,
     _mensagens_uazapi,
+    _mesclar_progresso,
     _template_permitido,
     normalizar_celular,
     personalizar_mensagem,
@@ -164,19 +165,28 @@ class SegregacaoTemplateTest(unittest.TestCase):
 
 
 class SincronizacaoCampanhaTest(unittest.TestCase):
+    @staticmethod
+    def disparo(**valores):
+        padrao = {
+            "total_mensagens": 2,
+            "total_validos": 2,
+            "total_enviados": 0,
+            "total_falhos": 0,
+            "total_entregues": 0,
+            "total_lidos": 0,
+            "total_reproduzidos": 0,
+            "total_agendados": 2,
+            "agendado_para": None,
+            "status": "NA_FILA",
+            "atualizado_em": None,
+        }
+        return SimpleNamespace(**(padrao | valores))
+
     def test_aplica_metricas_de_entrega_leitura_e_reproducao(self):
-        disparo = SimpleNamespace(
+        disparo = self.disparo(
             total_mensagens=10,
             total_validos=10,
-            total_enviados=0,
-            total_falhos=0,
-            total_entregues=0,
-            total_lidos=0,
-            total_reproduzidos=0,
             total_agendados=10,
-            agendado_para=None,
-            status="NA_FILA",
-            atualizado_em=None,
         )
         _aplicar_contadores_pasta(disparo, {
             "log_total": 10,
@@ -192,6 +202,58 @@ class SincronizacaoCampanhaTest(unittest.TestCase):
             (disparo.total_entregues, disparo.total_lidos, disparo.total_reproduzidos),
             (7, 6, 3),
         )
+
+    def test_resposta_parcial_nao_regride_contadores_confirmados(self):
+        disparo = self.disparo(
+            total_enviados=1,
+            total_entregues=1,
+            total_agendados=1,
+            status="EM_ANDAMENTO",
+        )
+
+        _aplicar_contadores_pasta(disparo, {
+            "log_total": 2,
+            "log_sucess": 0,
+            "log_failed": 0,
+            "log_delivered": 0,
+            "status": "running",
+        })
+
+        self.assertEqual(disparo.total_enviados, 1)
+        self.assertEqual(disparo.total_entregues, 1)
+        self.assertEqual(disparo.total_agendados, 1)
+        self.assertEqual(disparo.status, "EM_ANDAMENTO")
+
+    def test_resposta_vazia_nao_reabre_campanha_finalizada(self):
+        disparo = self.disparo(
+            total_mensagens=1,
+            total_validos=1,
+            total_enviados=1,
+            total_entregues=1,
+            total_agendados=0,
+            status="CONCLUIDO",
+        )
+
+        _mesclar_progresso(disparo)
+
+        self.assertEqual(disparo.total_enviados, 1)
+        self.assertEqual(disparo.total_entregues, 1)
+        self.assertEqual(disparo.total_agendados, 0)
+        self.assertEqual(disparo.status, "CONCLUIDO")
+
+    def test_entrega_confirma_envio_mesmo_com_sucesso_temporariamente_zero(self):
+        disparo = self.disparo(total_mensagens=1, total_validos=1)
+
+        _aplicar_contadores_pasta(disparo, {
+            "log_total": 1,
+            "log_sucess": 0,
+            "log_delivered": 1,
+            "status": "done",
+        })
+
+        self.assertEqual(disparo.total_enviados, 1)
+        self.assertEqual(disparo.total_entregues, 1)
+        self.assertEqual(disparo.status, "CONCLUIDO")
 
 
 if __name__ == "__main__":

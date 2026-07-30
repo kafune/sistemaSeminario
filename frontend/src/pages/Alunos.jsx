@@ -11,7 +11,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import CloseIcon from '@mui/icons-material/Close'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, LinhaCartao, PilulaStatus, resetBotao } from '../ui'
+import { CabecalhoPagina, CartaoLista, LinhaCartao, PilulaStatus, resetBotao, useTelaDesktop } from '../ui'
 import AlunoForm from './AlunoForm'
 import ImportarAlunosDialog from './ImportarAlunosDialog'
 
@@ -65,15 +65,22 @@ export default function Alunos() {
   const [versaoLista, setVersaoLista] = useState(0)
   const [erro, setErro] = useState('')
   const navigate = useNavigate()
+  const telaDesktop = useTelaDesktop()
 
   useEffect(() => {
+    const controller = new AbortController()
+    let ativo = true
     setCarregando(true)
     const filtroStatus = status ? `&status=${status}` : ''
     api
-      .get(`/alunos?busca=${encodeURIComponent(buscaAtiva)}${filtroStatus}&ordenacao=${ordenacao}&pagina=${pagina}&por_pagina=${POR_PAGINA}`)
-      .then(setDados)
-      .catch((e) => setErro(e.message))
-      .finally(() => setCarregando(false))
+      .get(`/alunos?busca=${encodeURIComponent(buscaAtiva)}${filtroStatus}&ordenacao=${ordenacao}&pagina=${pagina}&por_pagina=${POR_PAGINA}`, { signal: controller.signal })
+      .then((resposta) => { if (ativo) setDados(resposta) })
+      .catch((e) => { if (ativo && e.name !== 'AbortError') setErro(e.message) })
+      .finally(() => { if (ativo) setCarregando(false) })
+    return () => {
+      ativo = false
+      controller.abort()
+    }
   }, [buscaAtiva, status, ordenacao, pagina, versaoLista])
 
   useEffect(() => {
@@ -176,7 +183,7 @@ export default function Alunos() {
       </Box>
 
       {/* Lista em cards — celular/tablet */}
-      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
         {carregando && dados.itens.length === 0 && (
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
@@ -195,10 +202,10 @@ export default function Alunos() {
             <LinhaCartao rotulo="Celular" valor={a.celular || a.fone1} />
           </CartaoLista>
         ))}
-      </Box>
+      </Box>}
 
       {/* Tabela — desktop */}
-      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard, display: { xs: 'none', md: 'block' } }}>
+      {telaDesktop && <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
         <Table sx={{ minWidth: 760 }}>
           <TableHead>
             <TableRow>
@@ -235,7 +242,7 @@ export default function Alunos() {
             ))}
           </TableBody>
         </Table>
-      </TableContainer>
+      </TableContainer>}
 
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 2.25, flexWrap: 'wrap', gap: 1 }}>
         <Typography sx={{ fontSize: 14, color: TOV.caption }}>

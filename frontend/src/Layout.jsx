@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   AppBar, BottomNavigation, BottomNavigationAction, Box, Drawer, IconButton,
-  Paper, Toolbar, Typography,
+  ListItemIcon, ListItemText, Menu, MenuItem, Paper, Toolbar, Typography,
 } from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
@@ -18,11 +18,16 @@ import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import CampaignIcon from '@mui/icons-material/Campaign'
 import LogoutIcon from '@mui/icons-material/Logout'
+import CheckIcon from '@mui/icons-material/Check'
+import HistoryEduIcon from '@mui/icons-material/HistoryEdu'
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import { api, clearSession, getPerfil, getUser } from './api'
 import { TOV } from './theme'
 import { DialogoConfirmacao, iniciais, resetBotao } from './ui'
 import NotificationCenter, { BotaoInstalarPwa, BotaoNotificacoes, useNotificacoes } from './NotificationCenter'
 import { UnsavedChangesContext } from './UnsavedChanges'
+
+const STG_URL = (import.meta.env.VITE_STG_URL?.trim() || 'https://stg.kafune.xyz').replace(/\/+$/, '')
 
 const MENU = [
   { rotulo: 'Dashboard', rota: '/', icone: SpaceDashboardIcon, exato: true, perfis: ['ADMIN', 'SECRETARIA'] },
@@ -61,6 +66,80 @@ function ItemNav({ item, ativo, onClick }) {
       <Icone sx={{ fontSize: 20 }} />
       {item.rotulo}
     </Box>
+  )
+}
+
+function SeletorSistema({ onTrocar }) {
+  const [ancora, setAncora] = useState(null)
+  const aberto = Boolean(ancora)
+
+  function fechar() {
+    setAncora(null)
+  }
+
+  function selecionarSTG() {
+    fechar()
+    onTrocar(STG_URL)
+  }
+
+  return (
+    <>
+      <Box
+        component="button"
+        type="button"
+        aria-label="Trocar sistema. Sistema atual: TOV Acadêmico"
+        aria-haspopup="menu"
+        aria-expanded={aberto ? 'true' : undefined}
+        onClick={(event) => setAncora(event.currentTarget)}
+        sx={{
+          ...resetBotao,
+          display: 'flex', alignItems: 'center', gap: 1.25, width: '100%', mb: 2.5,
+          p: 1.25, border: '1px solid rgba(255,255,255,.28)', borderRadius: '12px',
+          bgcolor: 'rgba(255,255,255,.12)', color: '#fff', textAlign: 'left',
+          transition: 'background-color .15s, border-color .15s',
+          '&:hover': { bgcolor: 'rgba(255,255,255,.18)', borderColor: 'rgba(255,255,255,.5)' },
+          '&:focus-visible': { outline: '2px solid #fff', outlineOffset: 2 },
+        }}
+      >
+        <Box sx={{ width: 34, height: 34, borderRadius: '9px', bgcolor: '#fff', color: TOV.coral, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <SchoolIcon sx={{ fontSize: 19 }} />
+        </Box>
+        <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+          <Box sx={{ fontSize: 10, lineHeight: 1.2, opacity: 0.72, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+            Sistema atual
+          </Box>
+          <Box sx={{ mt: 0.25, fontSize: 14, lineHeight: 1.25, fontWeight: 700 }}>
+            TOV Acadêmico
+          </Box>
+        </Box>
+        <KeyboardArrowDownIcon
+          sx={{ fontSize: 20, flexShrink: 0, transform: aberto ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}
+        />
+      </Box>
+
+      <Menu
+        anchorEl={ancora}
+        open={aberto}
+        onClose={fechar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        PaperProps={{
+          elevation: 8,
+          sx: { mt: 0.75, width: 300, maxWidth: 'calc(100vw - 32px)', borderRadius: '12px' },
+        }}
+        MenuListProps={{ 'aria-label': 'Selecionar sistema', sx: { p: 0.75 } }}
+      >
+        <MenuItem selected onClick={fechar} sx={{ borderRadius: '9px', py: 1 }}>
+          <ListItemIcon><SchoolIcon fontSize="small" /></ListItemIcon>
+          <ListItemText primary="TOV Acadêmico" secondary="Sistema atual" />
+          <CheckIcon color="primary" fontSize="small" />
+        </MenuItem>
+        <MenuItem onClick={selecionarSTG} sx={{ borderRadius: '9px', py: 1 }}>
+          <ListItemIcon><HistoryEduIcon fontSize="small" /></ListItemIcon>
+          <ListItemText primary="STG Legado" secondary="Seminário Teológico de Guarulhos" />
+        </MenuItem>
+      </Menu>
+    </>
   )
 }
 
@@ -110,11 +189,21 @@ export default function Layout({ children }) {
     navigate(rota)
   }
 
+  function trocarSistema(url) {
+    setMenuAberto(false)
+    if (alteracoesPendentes) {
+      setDestinoPendente({ tipo: 'sistema', url })
+      return
+    }
+    window.location.assign(url)
+  }
+
   function confirmarNavegacao() {
     const destino = destinoPendente
     setDestinoPendente(null)
     setAlteracoesPendentes(null)
     if (destino?.tipo === 'sair') executarSaida()
+    else if (destino?.tipo === 'sistema' && destino.url) window.location.assign(destino.url)
     else if (destino?.rota) navigate(destino.rota)
   }
 
@@ -140,12 +229,14 @@ export default function Layout({ children }) {
 
   const conteudoMenu = (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, px: 1, mb: 2.5 }}>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, px: 1, mb: 1.5 }}>
         <Typography component="span" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 27, letterSpacing: '-.02em' }}>
           TOV
         </Typography>
         <Typography component="span" sx={{ fontSize: 11, opacity: 0.75 }}>acadêmico</Typography>
       </Box>
+
+      <SeletorSistema onTrocar={trocarSistema} />
 
       <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 600, fontSize: 11, letterSpacing: '.2em', textTransform: 'uppercase', color: 'rgba(255,255,255,.6)', px: 1.25, mb: 0.75 }}>
         {perfil === 'MARKETING' ? 'Marketing' : 'Secretaria'}
@@ -190,7 +281,7 @@ export default function Layout({ children }) {
 
   const estiloPainel = {
     bgcolor: TOV.coral, color: '#fff', p: '30px 20px',
-    display: 'flex', flexDirection: 'column', gap: 0.75,
+    display: 'flex', flexDirection: 'column', gap: 0.75, overflowY: 'auto',
   }
 
   return (

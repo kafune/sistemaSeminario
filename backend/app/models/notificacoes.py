@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -10,6 +10,13 @@ class Notificacao(Base):
     __tablename__ = "notificacoes"
     __table_args__ = (
         UniqueConstraint("usuario", "chave_evento", name="uq_notificacoes_usuario_evento"),
+        Index("ix_notificacoes_usuario_lido_em", "usuario", "lido_em"),
+        Index(
+            "ix_notificacoes_usuario_criado_em_id",
+            "usuario",
+            "criado_em",
+            "id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

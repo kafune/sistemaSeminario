@@ -8,7 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, LinhaCartao, resetBotao, useDialogoTelaCheia } from '../ui'
+import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, LinhaCartao, resetBotao, useDialogoTelaCheia, useTelaDesktop } from '../ui'
 
 const VAZIA = { NOME: '', APELIDO: '', area: '', observa: '' }
 
@@ -30,6 +30,7 @@ export default function Materias() {
   const [excluindo, setExcluindo] = useState(false)
   const [msg, setMsg] = useState('')
   const telaCheia = useDialogoTelaCheia()
+  const telaDesktop = useTelaDesktop()
 
   function carregar() {
     setCarregando(true)
@@ -103,7 +104,7 @@ export default function Materias() {
       />
 
       {/* Lista em cards — celular/tablet */}
-      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
         {carregando && materias.length === 0 && (
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
@@ -126,10 +127,10 @@ export default function Materias() {
             </Box>
           </CartaoLista>
         ))}
-      </Box>
+      </Box>}
 
       {/* Tabela — desktop */}
-      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard, display: { xs: 'none', md: 'block' } }}>
+      {telaDesktop && <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
         <Table sx={{ minWidth: 680 }}>
           <TableHead>
             <TableRow>
@@ -170,7 +171,7 @@ export default function Materias() {
             ))}
           </TableBody>
         </Table>
-      </TableContainer>
+      </TableContainer>}
 
       <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.cod_mat ? 'Editar matéria' : 'Nova matéria'}</DialogTitle>

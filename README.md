@@ -12,6 +12,8 @@ do Centro TOV. Banco de dados novo e vazio — sem migração de dados legados.
   lista de alunos da turma, ficha do aluno, boletins da turma inteira em ZIP
   e geração em lote a partir de planilha (CSV/XLSX/XLS)
 - **Login** com senhas bcrypt e token JWT
+- **Seletor de sistemas**: alternância do TOV Acadêmico para o sistema legado
+  do STG, mantendo aplicações, sessões e bancos de dados isolados
 - **PWA instalável**: shell offline, atualização explícita, atalhos e fontes
   locais; as respostas autenticadas da API nunca são armazenadas no cache
 - **Central de notificações e Web Push**: histórico de 90 dias, preferências
@@ -82,6 +84,19 @@ No Windows com as ferramentas portáteis em `tools/`, use
    `http://127.0.0.1:8000/` (com `rewrite ^/api/(.*) /$1 break;`).
 
 Alternativa com Docker: `docker compose up -d` (veja `docker-compose.yml`).
+O endereço do sistema legado usado pelo seletor pode ser alterado no build com
+`VITE_STG_URL` (o padrão é `https://stg.kafune.xyz`).
+
+### Sistema legado STG
+
+O seletor abre a aplicação mantida na branch `sistema-STG`. Ela deve ser
+publicada separadamente e usar o schema MySQL `stg`; as sessões e credenciais
+não são compartilhadas com o TOV Acadêmico.
+
+O arquivo `stg.mdb` é a fonte da migração e não é lido diretamente pelo
+frontend. Na branch do STG, use `migration/export-mdb.ps1` para exportá-lo e
+`migration/import_mysql.py` para recriar e carregar o schema `stg`. Arquivos
+`.mdb` ficam ignorados pelo Git para evitar versionar dados pessoais do legado.
 
 ### Redeploy automatizado na VPS
 

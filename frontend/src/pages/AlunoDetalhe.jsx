@@ -10,7 +10,7 @@ import EditIcon from '@mui/icons-material/Edit'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { AvatarIniciais, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus, Regua, cardSx, resetBotao } from '../ui'
+import { AvatarIniciais, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus, Regua, cardSx, resetBotao, useTelaDesktop } from '../ui'
 import AlunoForm from './AlunoForm'
 
 function Campo({ rotulo, valor }) {
@@ -55,6 +55,7 @@ export default function AlunoDetalhe() {
   const [documentosAnchor, setDocumentosAnchor] = useState(null)
   const [msg, setMsg] = useState('')
   const navigate = useNavigate()
+  const telaDesktop = useTelaDesktop()
 
   const carregar = useCallback(() => {
     api.get(`/alunos/${codAlu}`).then(setAluno).catch((e) => setMsg(e.message))
@@ -195,7 +196,7 @@ export default function AlunoDetalhe() {
       </Box>
 
       {/* Notas em cards — celular/tablet */}
-      <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+      {!telaDesktop && <Box>
         <Typography variant="h3" sx={{ fontSize: 20, mb: 1.5 }}>
           Notas <Box component="span" sx={{ color: TOV.caption, fontSize: 15, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
         </Typography>
@@ -225,10 +226,10 @@ export default function AlunoDetalhe() {
             </CartaoLista>
           ))}
         </Box>
-      </Box>
+      </Box>}
 
       {/* Tabela — desktop */}
-      <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto', display: { xs: 'none', md: 'block' } }}>
+      {telaDesktop && <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto' }}>
         <Box sx={{ p: '22px 28px 4px' }}>
           <Typography variant="h3" sx={{ fontSize: 20 }}>
             Notas <Box component="span" sx={{ color: TOV.caption, fontSize: 15, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
@@ -261,7 +262,7 @@ export default function AlunoDetalhe() {
             ))}
           </TableBody>
         </Table>
-      </TableContainer>
+      </TableContainer>}
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
         <Button startIcon={<DeleteIcon />} color="error" onClick={() => setConfirmarExclusao(true)} sx={{ color: TOV.caption, '&:hover': { color: '#d32f2f', bgcolor: 'transparent' } }}>

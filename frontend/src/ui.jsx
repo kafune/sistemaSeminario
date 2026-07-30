@@ -19,6 +19,12 @@ export function useDialogoTelaCheia() {
   return useMediaQuery(theme.breakpoints.down('sm'))
 }
 
+/** Renderiza somente a variante de lista adequada, evitando DOM duplicado. */
+export function useTelaDesktop() {
+  const theme = useTheme()
+  return useMediaQuery(theme.breakpoints.up('md'), { noSsr: true })
+}
+
 /** Régua coral 64×5 — marcador de seção que precede os títulos. */
 export function Regua({ sx }) {
   return <Box sx={{ width: 64, height: 5, bgcolor: TOV.coral, borderRadius: '3px', ...sx }} />

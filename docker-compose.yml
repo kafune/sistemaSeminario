@@ -54,7 +54,10 @@ services:
       start_period: 20s
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        VITE_STG_URL: ${VITE_STG_URL:-https://stg.kafune.xyz}
     restart: unless-stopped
     depends_on:
       backend:

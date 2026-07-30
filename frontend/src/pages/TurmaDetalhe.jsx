@@ -10,7 +10,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { CartaoLista, DialogoConfirmacao, LinhaCartao, Regua, cardSx, resetBotao, useDialogoTelaCheia } from '../ui'
+import { CartaoLista, DialogoConfirmacao, LinhaCartao, Regua, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop } from '../ui'
 
 function mesAno(iso) {
   if (!iso) return null
@@ -28,6 +28,7 @@ export default function TurmaDetalhe() {
   const [erro, setErro] = useState(true)
   const navigate = useNavigate()
   const telaCheia = useDialogoTelaCheia()
+  const telaDesktop = useTelaDesktop()
 
   // diálogo de matrícula
   const [buscaAluno, setBuscaAluno] = useState('')
@@ -53,12 +54,16 @@ export default function TurmaDetalhe() {
 
   useEffect(() => {
     if (buscaAluno.length < 2) return
+    const controller = new AbortController()
     const t = setTimeout(() => {
-      api.get(`/alunos?busca=${encodeURIComponent(buscaAluno)}&por_pagina=20`)
+      api.get(`/alunos?busca=${encodeURIComponent(buscaAluno)}&por_pagina=20`, { signal: controller.signal })
         .then((r) => setOpcoesAluno(r.itens))
-        .catch(() => {})
+        .catch((e) => { if (e.name !== 'AbortError') setOpcoesAluno([]) })
     }, 300)
-    return () => clearTimeout(t)
+    return () => {
+      clearTimeout(t)
+      controller.abort()
+    }
   }, [buscaAluno])
 
   const [salvandoDlg, setSalvandoDlg] = useState(false)
@@ -102,8 +107,8 @@ export default function TurmaDetalhe() {
     setFormMateria({ Ano: String(new Date().getFullYear()), semestre: '1' })
     setDlgMateria(true)
     if (!todasMaterias.length) {
-      api.get('/materias').then(setTodasMaterias).catch(() => {})
-      api.get('/professores').then(setProfessores).catch(() => {})
+      api.getCached('/materias').then(setTodasMaterias).catch(() => {})
+      api.getCached('/professores').then(setProfessores).catch(() => {})
     }
   }
 
@@ -168,7 +173,7 @@ export default function TurmaDetalhe() {
           </Button>
 
           {/* Lista em cards — celular/tablet */}
-          <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+          {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             {alunos.length === 0 && (
               <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhum aluno matriculado.</CartaoLista>
             )}
@@ -188,10 +193,10 @@ export default function TurmaDetalhe() {
                 <LinhaCartao rotulo="E-mail" valor={a.e_mail} />
               </CartaoLista>
             ))}
-          </Box>
+          </Box>}
 
           {/* Tabela — desktop */}
-          <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden', display: { xs: 'none', md: 'block' } }}>
+          {telaDesktop && <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
             <Table sx={{ minWidth: 720 }}>
               <TableHead>
                 <TableRow>
@@ -221,7 +226,7 @@ export default function TurmaDetalhe() {
                 ))}
               </TableBody>
             </Table>
-          </TableContainer>
+          </TableContainer>}
         </Box>
       )}
 
@@ -232,7 +237,7 @@ export default function TurmaDetalhe() {
           </Button>
 
           {/* Lista em cards — celular/tablet */}
-          <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+          {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             {materias.length === 0 && (
               <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhuma matéria vinculada.</CartaoLista>
             )}
@@ -258,10 +263,10 @@ export default function TurmaDetalhe() {
                 <LinhaCartao rotulo="Professor" valor={m.professor_nome} />
               </CartaoLista>
             ))}
-          </Box>
+          </Box>}
 
           {/* Tabela — desktop */}
-          <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden', display: { xs: 'none', md: 'block' } }}>
+          {telaDesktop && <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
             <Table sx={{ minWidth: 720 }}>
               <TableHead>
                 <TableRow>
@@ -295,7 +300,7 @@ export default function TurmaDetalhe() {
                 ))}
               </TableBody>
             </Table>
-          </TableContainer>
+          </TableContainer>}
         </Box>
       )}
 

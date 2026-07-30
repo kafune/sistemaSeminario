@@ -1,16 +1,27 @@
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const GET_CACHE = new Map()
+const GET_EM_ANDAMENTO = new Map()
+let GERACAO_CACHE = 0
+
+function limparCacheGet() {
+  GERACAO_CACHE += 1
+  GET_CACHE.clear()
+  GET_EM_ANDAMENTO.clear()
+}
 
 export function getToken() {
   return localStorage.getItem('tov_token')
 }
 
 export function setSession(token, user, perfil = 'ADMIN') {
+  limparCacheGet()
   localStorage.setItem('tov_token', token)
   localStorage.setItem('tov_user', user)
   localStorage.setItem('tov_perfil', perfil)
 }
 
 export function clearSession() {
+  limparCacheGet()
   localStorage.removeItem('tov_token')
   localStorage.removeItem('tov_user')
   localStorage.removeItem('tov_perfil')
@@ -24,7 +35,7 @@ export function getPerfil() {
   return localStorage.getItem('tov_perfil') || 'ADMIN'
 }
 
-async function request(method, path, body) {
+async function request(method, path, body, options = {}) {
   const headers = { 'Content-Type': 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
@@ -32,6 +43,7 @@ async function request(method, path, body) {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal: options.signal,
   })
   if (res.status === 401 && !path.startsWith('/auth/login')) {
     clearSession()
@@ -47,11 +59,35 @@ async function request(method, path, body) {
     } catch { /* resposta sem corpo JSON */ }
     throw new Error(msg)
   }
-  return res.json()
+  const resposta = await res.json()
+  if (method !== 'GET') limparCacheGet()
+  return resposta
+}
+
+async function getCached(path, { ttlMs = 5 * 60_000 } = {}) {
+  const agora = Date.now()
+  const geracao = GERACAO_CACHE
+  const existente = GET_CACHE.get(path)
+  if (existente && existente.expiraEm > agora) return existente.valor
+  if (GET_EM_ANDAMENTO.has(path)) return GET_EM_ANDAMENTO.get(path)
+
+  const requisicao = request('GET', path)
+    .then((valor) => {
+      if (geracao === GERACAO_CACHE) {
+        GET_CACHE.set(path, { valor, expiraEm: Date.now() + ttlMs })
+      }
+      return valor
+    })
+    .finally(() => {
+      if (GET_EM_ANDAMENTO.get(path) === requisicao) GET_EM_ANDAMENTO.delete(path)
+    })
+  GET_EM_ANDAMENTO.set(path, requisicao)
+  return requisicao
 }
 
 export const api = {
-  get: (path) => request('GET', path),
+  get: (path, options) => request('GET', path, undefined, options),
+  getCached,
   post: (path, body) => request('POST', path, body),
   put: (path, body) => request('PUT', path, body),
   del: (path) => request('DELETE', path),

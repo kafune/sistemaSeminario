@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import DECIMAL, Date, Integer, String
+from sqlalchemy import DECIMAL, Date, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -9,6 +9,7 @@ from ..database import Base
 
 class Materia(Base):
     __tablename__ = "materias"
+    __table_args__ = (Index("ix_materias_nome", "NOME"),)
     cod_mat: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     NOME: Mapped[str | None] = mapped_column(String(100))
     area: Mapped[str | None] = mapped_column(String(100))
@@ -18,6 +19,7 @@ class Materia(Base):
 
 class Turma(Base):
     __tablename__ = "turma"
+    __table_args__ = (Index("ix_turma_nome", "nome"),)
     cod_tur: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nome: Mapped[str | None] = mapped_column(String(100))
     curso: Mapped[str | None] = mapped_column(String(100))
@@ -28,6 +30,10 @@ class Turma(Base):
 
 class AluTurma(Base):
     __tablename__ = "aluturma"
+    __table_args__ = (
+        Index("ix_aluturma_cod_tur_cod_alu", "cod_tur", "cod_alu"),
+        Index("ix_aluturma_cod_alu", "cod_alu"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cod_tur: Mapped[int] = mapped_column(Integer)
     item: Mapped[int | None] = mapped_column(Integer)
@@ -37,6 +43,10 @@ class AluTurma(Base):
 
 class DocTurma(Base):
     __tablename__ = "docturma"
+    __table_args__ = (
+        Index("ix_docturma_cod_tur_cod_mat", "cod_tur", "cod_mat"),
+        Index("ix_docturma_cod_pro", "cod_pro"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cod_tur: Mapped[int] = mapped_column(Integer)
     cod_mat: Mapped[int] = mapped_column(Integer)
@@ -49,6 +59,15 @@ class DocTurma(Base):
 
 class AluNota(Base):
     __tablename__ = "alunota"
+    __table_args__ = (
+        Index(
+            "ix_alunota_turma_materia_aluno",
+            "cod_tur",
+            "cod_mat",
+            "cod_alu",
+        ),
+        Index("ix_alunota_cod_alu", "cod_alu"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cod_alu: Mapped[int] = mapped_column(Integer)
     cod_mat: Mapped[int] = mapped_column(Integer)

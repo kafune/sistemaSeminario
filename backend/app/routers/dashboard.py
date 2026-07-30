@@ -16,20 +16,35 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("")
 def resumo(db: Session = Depends(get_db)):
-    alunos_total = db.scalar(select(func.count()).select_from(Aluno))
-    alunos_ativos = db.scalar(
-        select(func.count()).select_from(Aluno).where(Aluno.status == "A")
-    )
-    turmas_total = db.scalar(select(func.count()).select_from(Turma))
-    cursos_total = db.scalar(
-        select(func.count(func.distinct(Turma.curso))).where(Turma.curso.is_not(None))
-    )
-    professores_total = db.scalar(select(func.count()).select_from(Professor))
-    professores_ativos = db.scalar(
-        select(func.count()).select_from(Professor).where(Professor.status == "A")
-    )
-    materias_total = db.scalar(select(func.count()).select_from(Materia))
-    lancamentos_total = db.scalar(select(func.count()).select_from(AluNota))
+    (
+        alunos_total,
+        alunos_ativos,
+        turmas_total,
+        cursos_total,
+        professores_total,
+        professores_ativos,
+        materias_total,
+        lancamentos_total,
+    ) = db.execute(
+        select(
+            select(func.count()).select_from(Aluno).scalar_subquery(),
+            select(func.count())
+            .select_from(Aluno)
+            .where(Aluno.status == "A")
+            .scalar_subquery(),
+            select(func.count()).select_from(Turma).scalar_subquery(),
+            select(func.count(func.distinct(Turma.curso)))
+            .where(Turma.curso.is_not(None))
+            .scalar_subquery(),
+            select(func.count()).select_from(Professor).scalar_subquery(),
+            select(func.count())
+            .select_from(Professor)
+            .where(Professor.status == "A")
+            .scalar_subquery(),
+            select(func.count()).select_from(Materia).scalar_subquery(),
+            select(func.count()).select_from(AluNota).scalar_subquery(),
+        )
+    ).one()
 
     # Matrículas por curso: soma as matrículas (aluturma) das turmas de cada curso.
     por_curso_q = (

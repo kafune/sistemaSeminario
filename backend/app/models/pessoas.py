@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Integer, String, Text
+from sqlalchemy import Date, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -8,6 +8,11 @@ from ..database import Base
 
 class Aluno(Base):
     __tablename__ = "alunos"
+    __table_args__ = (
+        Index("ix_alunos_status_nome", "status", "nome"),
+        Index("ix_alunos_cod_tur_nome", "cod_tur", "nome"),
+        Index("ix_alunos_dat_cad_cod_alu", "dat_cad", "cod_alu"),
+    )
     cod_alu: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nome: Mapped[str | None] = mapped_column(String(100))
     endereco: Mapped[str | None] = mapped_column(String(100))
@@ -49,6 +54,10 @@ class Aluno(Base):
 
 class Professor(Base):
     __tablename__ = "professor"
+    __table_args__ = (
+        Index("ix_professor_nome", "nome"),
+        Index("ix_professor_status_nome", "status", "nome"),
+    )
     cod_pro: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nome: Mapped[str | None] = mapped_column(String(100))
     endereco: Mapped[str | None] = mapped_column(String(100))

@@ -8,7 +8,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import FilterListIcon from '@mui/icons-material/FilterList'
 import { getPublico } from '../api'
 import { TOV } from '../theme'
-import { cardSx, useDialogoTelaCheia } from '../ui'
+import { cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
 import CalendarioGrade, { CalendarioAgenda, intervaloGrade } from './CalendarioGrade'
 
 const MESES = [
@@ -44,6 +44,7 @@ export default function CalendarioPublico() {
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const telaCheia = useDialogoTelaCheia()
+  const telaDesktop = useTelaDesktop()
 
   const carregar = useCallback(async () => {
     setCarregando(true)
@@ -129,22 +130,22 @@ export default function CalendarioPublico() {
               </Box>
             </Box>
 
-            <Box sx={{ display: { xs: 'block', md: 'none' }, position: 'relative', minHeight: 220 }}>
+            {!telaDesktop && <Box sx={{ position: 'relative', minHeight: 220 }}>
               {carregando && (
                 <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,.72)', borderRadius: '16px' }}>
                   <CircularProgress size={34} />
                 </Box>
               )}
               <CalendarioAgenda mes={mes} aulas={filtradas} onSelecionar={setSelecionada} />
-            </Box>
-            <Box sx={{ ...cardSx, overflowX: 'auto', position: 'relative', minHeight: 300, display: { xs: 'none', md: 'block' } }}>
+            </Box>}
+            {telaDesktop && <Box sx={{ ...cardSx, overflowX: 'auto', position: 'relative', minHeight: 300 }}>
               {carregando && (
                 <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,.72)' }}>
                   <CircularProgress size={34} />
                 </Box>
               )}
               <CalendarioGrade mes={mes} aulas={filtradas} onSelecionar={setSelecionada} />
-            </Box>
+            </Box>}
             <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 1.5 }}>
               Toque ou clique em uma aula para ver professor, horário, local e conteúdo.
             </Typography>

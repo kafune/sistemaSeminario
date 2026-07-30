@@ -1,7 +1,8 @@
 /* Service worker customizado: o plugin injeta somente os arquivos do shell. */
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
+import { ExpirationPlugin } from 'workbox-expiration'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
-import { NetworkOnly } from 'workbox-strategies'
+import { CacheFirst, NetworkOnly } from 'workbox-strategies'
 
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
@@ -26,6 +27,22 @@ registerRoute(new NavigationRoute(createHandlerBoundToURL('/index.html'), {
 registerRoute(
   ({ url }) => url.pathname.startsWith('/api/'),
   new NetworkOnly(),
+)
+
+// Chunks com hash são imutáveis. Guardá-los depois da primeira visita mantém
+// as rotas já usadas disponíveis offline sem baixar todas as telas no install.
+registerRoute(
+  ({ request, url }) => (
+    url.origin === self.location.origin
+    && url.pathname.startsWith('/assets/')
+    && ['script', 'style', 'font'].includes(request.destination)
+  ),
+  new CacheFirst({
+    cacheName: 'tov-assets-v1',
+    plugins: [
+      new ExpirationPlugin({ maxEntries: 80, maxAgeSeconds: 30 * 24 * 60 * 60 }),
+    ],
+  }),
 )
 self.addEventListener('push', (event) => {
   let dados = {}

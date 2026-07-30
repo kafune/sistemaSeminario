@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, LargeBinary, String, Text
+from sqlalchemy import DateTime, Index, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -19,6 +19,13 @@ class WhatsappConfiguracao(Base):
 
 class WhatsappDisparo(Base):
     __tablename__ = "whatsapp_disparos"
+    __table_args__ = (
+        Index(
+            "ix_whatsapp_disparos_status_pasta",
+            "status",
+            "pasta_uazapi_id",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     usuario: Mapped[str] = mapped_column(String(50), index=True)
@@ -54,6 +61,13 @@ class WhatsappDisparo(Base):
 
 class WhatsappDestinatario(Base):
     __tablename__ = "whatsapp_destinatarios"
+    __table_args__ = (
+        Index(
+            "ix_whatsapp_destinatarios_disparo_valido",
+            "disparo_id",
+            "valido",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     disparo_id: Mapped[int] = mapped_column(Integer, index=True)

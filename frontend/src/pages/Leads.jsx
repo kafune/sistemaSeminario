@@ -11,7 +11,7 @@ import { api } from '../api'
 import { TOV } from '../theme'
 import {
   AvatarIniciais, CabecalhoPagina, CartaoLista, LinhaCartao, cardSx, resetBotao,
-  useDialogoTelaCheia,
+  useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import ImportarLeadsDialog from './ImportarLeadsDialog'
 
@@ -115,9 +115,10 @@ export default function Leads() {
   const [erro, setErro] = useState('')
   const [ok, setOk] = useState('')
   const telaCheia = useDialogoTelaCheia()
+  const telaDesktop = useTelaDesktop()
   const porPagina = 50
 
-  const carregar = useCallback(() => {
+  const carregar = useCallback((signal) => {
     setCarregando(true)
     const params = new URLSearchParams({
       pagina,
@@ -125,19 +126,23 @@ export default function Leads() {
       busca,
       ...Object.fromEntries(Object.entries(filtros).filter(([, valor]) => valor)),
     })
-    api.get(`/leads?${params}`)
+    api.get(`/leads?${params}`, { signal })
       .then(setDados)
-      .catch((e) => setErro(e.message))
-      .finally(() => setCarregando(false))
+      .catch((e) => { if (e.name !== 'AbortError') setErro(e.message) })
+      .finally(() => { if (!signal?.aborted) setCarregando(false) })
   }, [pagina, busca, filtros])
 
   const carregarOpcoes = useCallback(() => {
-    api.get('/leads/opcoes').then(setOpcoes).catch(() => {})
+    api.getCached('/leads/opcoes').then(setOpcoes).catch(() => {})
   }, [])
 
   useEffect(() => {
-    const timer = setTimeout(carregar, 250)
-    return () => clearTimeout(timer)
+    const controller = new AbortController()
+    const timer = setTimeout(() => carregar(controller.signal), 250)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [carregar])
   useEffect(carregarOpcoes, [carregarOpcoes])
 
@@ -232,7 +237,7 @@ export default function Leads() {
         </TextField>
       </Box>
 
-      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
         {dados.itens.map((lead) => (
           <CartaoLista key={lead.id} onClick={() => editar(lead)}>
             <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'center' }}>
@@ -247,9 +252,9 @@ export default function Leads() {
             <LinhaCartao rotulo="Funil" valor={FUNIL[lead.status_funil] || lead.status_funil} />
           </CartaoLista>
         ))}
-      </Box>
+      </Box>}
 
-      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard, display: { xs: 'none', md: 'block' } }}>
+      {telaDesktop && <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -285,7 +290,7 @@ export default function Leads() {
             ))}
           </TableBody>
         </Table>
-      </TableContainer>
+      </TableContainer>}
 
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2.25, gap: 1, flexWrap: 'wrap' }}>
         <Typography sx={{ color: TOV.caption, fontSize: 14 }}>

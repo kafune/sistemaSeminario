@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import {
   Alert, Autocomplete, Box, Button, Checkbox, Chip, CircularProgress, Dialog,
   DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel,
-  IconButton, LinearProgress, MenuItem, Snackbar, TextField, Typography,
+  IconButton, LinearProgress, MenuItem, Pagination, Snackbar, TextField, Typography,
 } from '@mui/material'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import QrCode2Icon from '@mui/icons-material/QrCode2'
@@ -20,6 +20,7 @@ import {
 } from '../ui'
 
 const STATUS_FINAL = new Set(['CONCLUIDO', 'CONCLUIDO_COM_FALHAS', 'FALHA', 'CANCELADO'])
+const DESTINATARIOS_POR_PAGINA = 50
 
 const STATUS_LABEL = {
   CRIANDO: 'Criando',
@@ -350,27 +351,35 @@ function Compositor({
 
   useEffect(() => {
     if (tipo === 'leads' || busca.trim().length < 2) return undefined
+    const controller = new AbortController()
     const timer = setTimeout(() => {
-      api.get(`/alunos?busca=${encodeURIComponent(busca)}&status=A&por_pagina=30`)
+      api.get(`/alunos?busca=${encodeURIComponent(busca)}&status=A&por_pagina=30`, { signal: controller.signal })
         .then((resposta) => setOpcoes(resposta.itens))
-        .catch(() => {})
+        .catch((e) => { if (e.name !== 'AbortError') setOpcoes([]) })
     }, 300)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [busca, tipo])
 
   useEffect(() => {
     if (tipo !== 'leads' || buscaLead.trim().length < 2) return undefined
+    const controller = new AbortController()
     const timer = setTimeout(() => {
-      api.get(`/leads?busca=${encodeURIComponent(buscaLead)}&por_pagina=30`)
+      api.get(`/leads?busca=${encodeURIComponent(buscaLead)}&por_pagina=30`, { signal: controller.signal })
         .then((resposta) => setOpcoesLead(resposta.itens))
-        .catch(() => {})
+        .catch((e) => { if (e.name !== 'AbortError') setOpcoesLead([]) })
     }, 300)
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
   }, [buscaLead, tipo])
 
   useEffect(() => {
     if (perfil === 'SECRETARIA') return
-    api.get('/leads/opcoes').then(setFiltrosLead).catch(() => {})
+    api.getCached('/leads/opcoes').then(setFiltrosLead).catch(() => {})
   }, [perfil])
 
   useEffect(() => {
@@ -381,7 +390,7 @@ function Compositor({
   }, [tipo])
 
   function carregarTemplates() {
-    api.get('/whatsapp/templates').then(setTemplates).catch(() => {})
+    api.getCached('/whatsapp/templates').then(setTemplates).catch(() => {})
   }
   useEffect(() => { carregarTemplates() }, [])
 
@@ -1175,6 +1184,7 @@ export default function WhatsApp() {
   const [novaData, setNovaData] = useState('')
   const [acaoConfirmar, setAcaoConfirmar] = useState(null)
   const [disparoEdicao, setDisparoEdicao] = useState(null)
+  const [paginaDestinatarios, setPaginaDestinatarios] = useState(1)
   const telaCheia = useDialogoTelaCheia()
 
   function notificar(texto, ehErro = true) {
@@ -1206,7 +1216,7 @@ export default function WhatsApp() {
     carregarInstancia()
     carregarHistorico()
     if (getPerfil() !== 'MARKETING') {
-      api.get('/turmas').then(setTurmas).catch(() => {})
+      api.getCached('/turmas').then(setTurmas).catch(() => {})
     }
   }, [])
 
@@ -1239,31 +1249,42 @@ export default function WhatsApp() {
   }, [qrAberto, instancia?.conectada])
 
   useEffect(() => {
-    if (!detalhe || STATUS_FINAL.has(detalhe.status)) return undefined
-    const timer = setInterval(() => sincronizar(detalhe.id, true), 1500)
-    return () => clearInterval(timer)
-  }, [detalhe?.id, detalhe?.status])
-
-  useEffect(() => {
-    if (!historico?.some((item) => !STATUS_FINAL.has(item.status))) return undefined
+    const possuiAtivos = historico?.some((item) => !STATUS_FINAL.has(item.status))
+      || (detalhe && !STATUS_FINAL.has(detalhe.status))
+    if (!possuiAtivos) return undefined
     let executando = false
+    let cancelado = false
     const atualizar = async () => {
-      if (executando) return
+      if (executando || document.visibilityState === 'hidden') return
       executando = true
       try {
         const resposta = await api.post('/whatsapp/disparos/sincronizar-ativos', {})
-        setHistorico(resposta.itens)
+        let proximoDetalhe = null
         if (detalhe) {
           const resumo = resposta.itens.find((item) => item.id === detalhe.id)
-          if (resumo) setDetalhe((atual) => ({ ...atual, ...resumo }))
+          if (resumo && STATUS_FINAL.has(resumo.status) && !STATUS_FINAL.has(detalhe.status)) {
+            // Faz a consulta paginada de mensagens uma única vez ao finalizar,
+            // preenchendo o resultado individual de cada destinatário.
+            proximoDetalhe = await api.post(`/whatsapp/disparos/${detalhe.id}/sincronizar`, {})
+          } else if (resumo) {
+            proximoDetalhe = { ...detalhe, ...resumo }
+          }
         }
+        if (cancelado) return
+        setHistorico(resposta.itens)
+        if (proximoDetalhe) setDetalhe(proximoDetalhe)
       } catch { /* mantém o último estado sem interromper o trabalho */ }
       finally { executando = false }
     }
     atualizar()
-    const timer = setInterval(atualizar, 1500)
-    return () => clearInterval(timer)
-  }, [historico?.some((item) => !STATUS_FINAL.has(item.status)), detalhe?.id])
+    const timer = setInterval(atualizar, 10_000)
+    document.addEventListener('visibilitychange', atualizar)
+    return () => {
+      cancelado = true
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', atualizar)
+    }
+  }, [historico?.some((item) => !STATUS_FINAL.has(item.status)), detalhe?.id, detalhe?.status])
 
   async function criarInstancia() {
     setSalvando(true)
@@ -1362,7 +1383,14 @@ export default function WhatsApp() {
 
   async function abrirDetalhe(id) {
     try {
-      setDetalhe(await api.post(`/whatsapp/disparos/${id}/sincronizar`, {}))
+      const atual = await api.get(`/whatsapp/disparos/${id}`)
+      const precisaConsolidar = STATUS_FINAL.has(atual.status)
+        && atual.destinatarios?.some((item) => item.valido && item.status === 'AGENDADO')
+      setDetalhe(
+        precisaConsolidar
+          ? await api.post(`/whatsapp/disparos/${id}/sincronizar`, {})
+          : atual,
+      )
     } catch (e) {
       notificar(e.message)
     }
@@ -1373,7 +1401,8 @@ export default function WhatsApp() {
     try {
       const resposta = await api.post(`/whatsapp/disparos/${id}/sincronizar`, {})
       setDetalhe(resposta)
-      carregarHistorico()
+      const { destinatarios: _destinatarios, ...resumo } = resposta
+      setHistorico((atuais) => atuais.map((item) => item.id === id ? { ...item, ...resumo } : item))
     } catch (e) {
       if (!silencioso) notificar(e.message)
     } finally {
@@ -1411,6 +1440,14 @@ export default function WhatsApp() {
     if (!total) return 0
     return Math.round(((detalhe.total_enviados + detalhe.total_falhos) / total) * 100)
   }, [detalhe])
+  const destinatariosDetalhe = useMemo(() => {
+    const inicio = (paginaDestinatarios - 1) * DESTINATARIOS_POR_PAGINA
+    return detalhe?.destinatarios?.slice(inicio, inicio + DESTINATARIOS_POR_PAGINA) || []
+  }, [detalhe?.destinatarios, paginaDestinatarios])
+
+  useEffect(() => {
+    setPaginaDestinatarios(1)
+  }, [detalhe?.id])
 
   return (
     <Box>
@@ -1578,7 +1615,7 @@ export default function WhatsApp() {
               {detalhe.erro && <Alert severity="error" sx={{ mb: 2 }}>{detalhe.erro}</Alert>}
               <Divider />
               <Box sx={{ maxHeight: 330, overflowY: 'auto' }}>
-                {detalhe.destinatarios.map((item, indice) => (
+                {destinatariosDetalhe.map((item, indice) => (
                   <Box key={item.id} sx={{ py: 1.5, borderTop: indice ? `1px solid ${TOV.offwhite}` : 0, display: 'flex', gap: 1.5, alignItems: 'center' }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{item.nome}</Typography>
@@ -1588,6 +1625,15 @@ export default function WhatsApp() {
                   </Box>
                 ))}
               </Box>
+              {detalhe.destinatarios.length > DESTINATARIOS_POR_PAGINA && (
+                <Pagination
+                  sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}
+                  count={Math.ceil(detalhe.destinatarios.length / DESTINATARIOS_POR_PAGINA)}
+                  page={paginaDestinatarios}
+                  onChange={(_, pagina) => setPaginaDestinatarios(pagina)}
+                  siblingCount={0}
+                />
+              )}
             </>
           )}
         </DialogContent>

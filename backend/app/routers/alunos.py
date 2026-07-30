@@ -56,6 +56,8 @@ def listar(
     por_pagina: int = 50,
     db: Session = Depends(get_db),
 ):
+    pagina = max(1, pagina)
+    por_pagina = min(100, max(1, por_pagina))
     q = select(Aluno)
     if busca:
         if busca.isdigit():

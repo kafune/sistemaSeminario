@@ -56,17 +56,21 @@ export default function Relatorios() {
   const inputArquivo = useRef(null)
 
   useEffect(() => {
-    api.get('/turmas').then(setTurmas).catch(() => {})
+    api.getCached('/turmas').then(setTurmas).catch(() => {})
   }, [])
 
   useEffect(() => {
     if (buscaAluno.length < 2) return
+    const controller = new AbortController()
     const t = setTimeout(() => {
-      api.get(`/alunos?busca=${encodeURIComponent(buscaAluno)}&por_pagina=20`)
+      api.get(`/alunos?busca=${encodeURIComponent(buscaAluno)}&por_pagina=20`, { signal: controller.signal })
         .then((r) => setOpcoes(r.itens))
-        .catch(() => {})
+        .catch((e) => { if (e.name !== 'AbortError') setOpcoes([]) })
     }, 300)
-    return () => clearTimeout(t)
+    return () => {
+      clearTimeout(t)
+      controller.abort()
+    }
   }, [buscaAluno])
 
   const abrir = (path) => abrirArquivo(path).catch((e) => { setEhErro(true); setMsg(e.message) })

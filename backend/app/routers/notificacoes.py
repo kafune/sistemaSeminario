@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, update
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -35,7 +35,14 @@ def listar(
     pagina = max(1, pagina)
     por_pagina = min(max(1, por_pagina), 100)
     consulta = select(Notificacao).where(Notificacao.usuario == usuario)
-    total = db.scalar(select(func.count()).select_from(consulta.subquery())) or 0
+    total, quantidade_nao_lida = db.execute(
+        select(
+            func.count(Notificacao.id),
+            func.sum(case((Notificacao.lido_em.is_(None), 1), else_=0)),
+        ).where(Notificacao.usuario == usuario)
+    ).one()
+    total = total or 0
+    quantidade_nao_lida = int(quantidade_nao_lida or 0)
     itens = list(
         db.scalars(
             consulta.order_by(Notificacao.criado_em.desc(), Notificacao.id.desc())
@@ -43,7 +50,12 @@ def listar(
             .limit(por_pagina)
         )
     )
-    return {"total": total, "pagina": pagina, "itens": [_dict(item) for item in itens]}
+    return {
+        "total": total,
+        "nao_lidas": quantidade_nao_lida,
+        "pagina": pagina,
+        "itens": [_dict(item) for item in itens],
+    }
 
 
 @router.get("/nao-lidas")
@@ -77,17 +89,16 @@ def marcar_lida(
 def marcar_todas_lidas(
     db: Session = Depends(get_db), usuario: str = Depends(usuario_atual)
 ):
-    itens = list(
-        db.scalars(
-            select(Notificacao).where(
-                Notificacao.usuario == usuario, Notificacao.lido_em.is_(None)
-            )
+    resultado = db.execute(
+        update(Notificacao)
+        .where(
+            Notificacao.usuario == usuario,
+            Notificacao.lido_em.is_(None),
         )
+        .values(lido_em=agora_utc())
     )
-    for item in itens:
-        item.lido_em = agora_utc()
     db.commit()
-    return {"ok": True, "quantidade": len(itens)}
+    return {"ok": True, "quantidade": int(resultado.rowcount or 0)}
 
 
 class PreferenciasInput(BaseModel):

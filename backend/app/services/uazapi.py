@@ -7,6 +7,15 @@ from cryptography.fernet import Fernet, InvalidToken
 
 from ..config import settings
 
+_HTTP_CLIENT = httpx.Client(
+    timeout=httpx.Timeout(20.0, connect=10.0),
+    limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
+)
+
+
+def fechar_cliente_http() -> None:
+    _HTTP_CLIENT.close()
+
 
 class UazApiError(Exception):
     def __init__(self, mensagem: str, status_code: int = 502):
@@ -77,12 +86,11 @@ class UazApiClient:
             headers = {"token": self.token_instancia}
 
         try:
-            resposta = httpx.request(
+            resposta = _HTTP_CLIENT.request(
                 metodo,
                 f"{self.base_url}{caminho}",
                 headers=headers,
                 json=json,
-                timeout=httpx.Timeout(20.0, connect=10.0),
             )
         except httpx.TimeoutException as exc:
             raise UazApiError("A UazAPI demorou demais para responder. Tente novamente.") from exc

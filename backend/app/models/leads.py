@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Integer, String, Text
+from sqlalchemy import Date, DateTime, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -8,6 +8,14 @@ from ..database import Base
 
 class Lead(Base):
     __tablename__ = "leads"
+    __table_args__ = (
+        Index(
+            "ix_leads_status_consentimento_nome",
+            "status",
+            "consentimento_status",
+            "nome",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nome: Mapped[str] = mapped_column(String(100), index=True)

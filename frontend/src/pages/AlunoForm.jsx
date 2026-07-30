@@ -57,7 +57,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
     setForm(dados)
     setInicial(dados)
     setConfirmarFechar(false)
-    api.get('/turmas').then(setTurmas).catch((e) => setErro(e.message))
+    api.getCached('/turmas').then(setTurmas).catch((e) => setErro(e.message))
   }, [aberto, aluno])
 
   function alterar(nome, valor) {

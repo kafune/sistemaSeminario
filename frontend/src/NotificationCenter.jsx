@@ -100,18 +100,21 @@ export function useNotificacoes() {
   const [configuracao, setConfiguracao] = useState(null)
   const [erro, setErro] = useState('')
 
+  const atualizarContador = useCallback(async () => {
+    try {
+      const contador = await api.get('/notificacoes/nao-lidas')
+      setNaoLidas(contador.quantidade || 0)
+      setErro('')
+    } catch (e) {
+      setErro(e.message || 'Não foi possível atualizar as notificações.')
+    }
+  }, [])
+
   const atualizar = useCallback(async () => {
     try {
-      const [lista, contador, prefs, config] = await Promise.all([
-        api.get('/notificacoes?por_pagina=90'),
-        api.get('/notificacoes/nao-lidas'),
-        api.get('/notificacoes/preferencias'),
-        api.get('/notificacoes/push/configuracao'),
-      ])
+      const lista = await api.get('/notificacoes?por_pagina=90')
       setItens(lista.itens || [])
-      setNaoLidas(contador.quantidade || 0)
-      setPreferencias(prefs)
-      setConfiguracao(config)
+      setNaoLidas(lista.nao_lidas || 0)
       setErro('')
     } catch (e) {
       // Falhas transitórias não escondem o histórico já carregado.
@@ -120,11 +123,18 @@ export function useNotificacoes() {
   }, [])
 
   useEffect(() => {
-    atualizar()
-    const temporizador = window.setInterval(atualizar, 60_000)
-    const aoFocar = () => atualizar()
+    Promise.all([
+      api.get('/notificacoes/preferencias'),
+      api.get('/notificacoes/push/configuracao'),
+    ]).then(([prefs, config]) => {
+      setPreferencias(prefs)
+      setConfiguracao(config)
+    }).catch((e) => setErro(e.message || 'Não foi possível carregar as preferências.'))
+    atualizarContador()
+    const temporizador = window.setInterval(atualizarContador, 60_000)
+    const aoFocar = () => atualizarContador()
     const aoPush = (evento) => {
-      if (evento.data?.type === 'TOV_PUSH') atualizar()
+      if (evento.data?.type === 'TOV_PUSH') atualizarContador()
     }
     window.addEventListener('focus', aoFocar)
     navigator.serviceWorker?.addEventListener('message', aoPush)
@@ -133,7 +143,7 @@ export function useNotificacoes() {
       window.removeEventListener('focus', aoFocar)
       navigator.serviceWorker?.removeEventListener('message', aoPush)
     }
-  }, [atualizar])
+  }, [atualizarContador])
 
   return { itens, naoLidas, preferencias, configuracao, erro, setErro, atualizar, setItens, setNaoLidas, setPreferencias }
 }
@@ -167,8 +177,11 @@ export default function NotificationCenter({ aberto, onFechar, onNavigate, estad
   }, [])
 
   useEffect(() => {
-    if (aberto) sincronizarInscricao().catch(() => {})
-  }, [aberto, sincronizarInscricao])
+    if (aberto) {
+      atualizar()
+      sincronizarInscricao().catch(() => {})
+    }
+  }, [aberto, atualizar, sincronizarInscricao])
 
   const exibidas = useMemo(
     () => filtro === 'nao-lidas' ? itens.filter((item) => !item.lida) : itens,

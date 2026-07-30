@@ -25,22 +25,55 @@ from .routers import (
     whatsapp,
     notificacoes,
 )
-from .services.notificacoes import entregar_lista, gerar_lembretes_aulas, limpar_notificacoes_antigas
+from .services.notificacoes import (
+    agora_local,
+    entregar_lista,
+    gerar_lembretes_aulas,
+    limpar_notificacoes_antigas,
+)
+from .services.uazapi import fechar_cliente_http
 
 
-async def _rotina_notificacoes() -> None:
-    """Rotina simples para a única instância Uvicorn prevista no deploy."""
-    while True:
-        db = SessionLocal()
-        try:
+def _processar_notificacoes(*, limpar: bool, lembrar: bool) -> None:
+    """Executa banco e Web Push fora do event loop do FastAPI."""
+    db = SessionLocal()
+    try:
+        if limpar:
             limpar_notificacoes_antigas(db)
+        if lembrar:
             lembretes = gerar_lembretes_aulas(db)
             if lembretes:
                 entregar_lista(db, lembretes)
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+
+async def _rotina_notificacoes() -> None:
+    """Limpa uma vez ao dia e gera o lembrete uma única vez após as 18h."""
+    ultima_limpeza = None
+    ultimo_lembrete = None
+    while True:
+        local = agora_local()
+        hoje = local.date()
+        deve_limpar = ultima_limpeza != hoje
+        deve_lembrar = local.hour >= 18 and ultimo_lembrete != hoje
+        try:
+            if deve_limpar or deve_lembrar:
+                await asyncio.to_thread(
+                    _processar_notificacoes,
+                    limpar=deve_limpar,
+                    lembrar=deve_lembrar,
+                )
+                if deve_limpar:
+                    ultima_limpeza = hoje
+                if deve_lembrar:
+                    ultimo_lembrete = hoje
         except Exception:
-            db.rollback()
-        finally:
-            db.close()
+            # Uma falha transitória será tentada novamente no próximo ciclo.
+            pass
         await asyncio.sleep(60)
 
 
@@ -58,6 +91,7 @@ async def lifespan(app: FastAPI):
             await tarefa
         except asyncio.CancelledError:
             pass
+        fechar_cliente_http()
 
 
 app = FastAPI(

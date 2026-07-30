@@ -10,7 +10,7 @@ import LinkIcon from '@mui/icons-material/Link'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus, resetBotao, useDialogoTelaCheia } from '../ui'
+import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus, resetBotao, useDialogoTelaCheia, useTelaDesktop } from '../ui'
 
 const VAZIO = {
   nome: '', e_mail: '', fone1: '', celular: '', sigla: '',
@@ -30,6 +30,7 @@ export default function Professores() {
   const [convite, setConvite] = useState(null)
   const [criandoConvite, setCriandoConvite] = useState(false)
   const telaCheia = useDialogoTelaCheia()
+  const telaDesktop = useTelaDesktop()
 
   function carregar() {
     setCarregando(true)
@@ -140,7 +141,7 @@ export default function Professores() {
       />
 
       {/* Lista em cards — celular/tablet */}
-      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
         {carregando && professores.length === 0 && (
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
@@ -167,10 +168,10 @@ export default function Professores() {
             </Box>
           </CartaoLista>
         ))}
-      </Box>
+      </Box>}
 
       {/* Tabela — desktop */}
-      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard, display: { xs: 'none', md: 'block' } }}>
+      {telaDesktop && <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
         <Table sx={{ minWidth: 820 }}>
           <TableHead>
             <TableRow>
@@ -221,7 +222,7 @@ export default function Professores() {
             ))}
           </TableBody>
         </Table>
-      </TableContainer>
+      </TableContainer>}
 
       <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="md" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.cod_pro ? 'Editar professor' : 'Novo professor'}</DialogTitle>

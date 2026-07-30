@@ -10,7 +10,15 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.js',
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+        // O shell fica disponível imediatamente; chunks de páginas são
+        // armazenados sob demanda pelo service worker depois da primeira visita.
+        globPatterns: [
+          'index.html',
+          'manifest.webmanifest',
+          'assets/index-*.{js,css}',
+          'assets/*.woff2',
+          '**/*.{svg,png,ico}',
+        ],
       },
       manifest: {
         name: 'TOV Acadêmico',

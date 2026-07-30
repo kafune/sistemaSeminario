@@ -7,7 +7,7 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import SaveIcon from '@mui/icons-material/Save'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { CartaoLista, Regua, cardSx } from '../ui'
+import { CartaoLista, Regua, cardSx, useTelaDesktop } from '../ui'
 import { useUnsavedChanges } from '../UnsavedChanges'
 
 const ANO_ATUAL = String(new Date().getFullYear())
@@ -34,10 +34,11 @@ export default function Notas() {
 
   const [msg, setMsg] = useState('')
   const [ehErro, setEhErro] = useState(true)
+  const telaDesktop = useTelaDesktop()
   const avisar = (texto, erro = true) => { setEhErro(erro); setMsg(texto) }
 
   useEffect(() => {
-    api.get('/turmas').then(setTurmas).catch((e) => avisar(e.message))
+    api.getCached('/turmas').then(setTurmas).catch((e) => avisar(e.message))
   }, [])
 
   // Ao trocar a turma, carrega as matérias vinculadas.
@@ -208,7 +209,7 @@ export default function Notas() {
       ) : (
         <>
           {/* Grade em cards — celular/tablet */}
-          <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+          {!telaDesktop && <Box>
             <Box sx={{ ...cardSx, p: '16px 18px', mb: 1.25 }}>
               <Typography variant="h3" sx={{ fontSize: 18 }}>{linhas.length} {linhas.length === 1 ? 'aluno' : 'alunos'}</Typography>
               <Typography sx={{ fontSize: 13, color: TOV.caption, mt: 0.5 }}>
@@ -251,10 +252,10 @@ export default function Notas() {
                 </CartaoLista>
               ))}
             </Box>
-          </Box>
+          </Box>}
 
           {/* Grade em tabela — desktop */}
-          <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto', display: { xs: 'none', md: 'block' } }}>
+          {telaDesktop && <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', p: '18px 28px', borderBottom: `2px solid ${TOV.offwhite}` }}>
               <Typography variant="h3" sx={{ fontSize: 20 }}>{linhas.length} {linhas.length === 1 ? 'aluno' : 'alunos'}</Typography>
               <Typography sx={{ fontSize: 13, color: TOV.caption }}>
@@ -291,10 +292,10 @@ export default function Notas() {
                 ))}
               </TableBody>
             </Table>
-          </TableContainer>
-          <Typography sx={{ mt: 1.75, fontSize: 13, color: TOV.caption, display: { xs: 'none', md: 'block' } }}>
+          </TableContainer>}
+          {telaDesktop && <Typography sx={{ mt: 1.75, fontSize: 13, color: TOV.caption }}>
             Dica: use Tab para navegar célula a célula. Alterações não salvas ficam destacadas em coral.
-          </Typography>
+          </Typography>}
         </>
       )}
 

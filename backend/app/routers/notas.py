@@ -90,15 +90,20 @@ def lancar(dados: LancamentoInput, db: Session = Depends(get_db)):
     materia = db.get(Materia, dados.cod_mat)
     if not materia:
         raise HTTPException(404, "Matéria não encontrada")
-    atualizados = criados = 0
-    for lanc in dados.alunos:
-        registro = db.scalar(
+    codigos_alunos = [item.cod_alu for item in dados.alunos]
+    existentes = {
+        registro.cod_alu: registro
+        for registro in db.scalars(
             select(AluNota).where(
                 AluNota.cod_tur == dados.cod_tur,
                 AluNota.cod_mat == dados.cod_mat,
-                AluNota.cod_alu == lanc.cod_alu,
+                AluNota.cod_alu.in_(codigos_alunos),
             )
         )
+    } if codigos_alunos else {}
+    atualizados = criados = 0
+    for lanc in dados.alunos:
+        registro = existentes.get(lanc.cod_alu)
         if registro:
             atualizados += 1
         else:

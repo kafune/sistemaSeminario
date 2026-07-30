@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 
-from sqlalchemy import Date, DateTime, Integer, String, Text, Time
+from sqlalchemy import Date, DateTime, Index, Integer, String, Text, Time
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -8,6 +8,7 @@ from ..database import Base
 
 class Aula(Base):
     __tablename__ = "aulas"
+    __table_args__ = (Index("ix_aulas_data_status", "data", "status"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     docturma_id: Mapped[int] = mapped_column(Integer, index=True)

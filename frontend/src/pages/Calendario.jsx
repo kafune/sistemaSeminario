@@ -11,7 +11,7 @@ import FilterListIcon from '@mui/icons-material/FilterList'
 import LinkIcon from '@mui/icons-material/Link'
 import { api, baixarArquivo } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, DialogoConfirmacao, cardSx, useDialogoTelaCheia } from '../ui'
+import { CabecalhoPagina, DialogoConfirmacao, cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
 import CalendarioGrade, { CalendarioAgenda, intervaloGrade, isoLocal } from './CalendarioGrade'
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
@@ -45,6 +45,7 @@ export default function Calendario() {
   const [vinculoDiario, setVinculoDiario] = useState('')
   const [filtrosAbertos, setFiltrosAbertos] = useState(false)
   const telaCheia = useDialogoTelaCheia()
+  const telaDesktop = useTelaDesktop()
 
   const carregar = useCallback(() => {
     const periodo = intervaloGrade(mes)
@@ -54,7 +55,7 @@ export default function Calendario() {
   }, [mes, filtros])
 
   useEffect(() => {
-    api.get('/calendario/opcoes').then((r) => setVinculos(r.vinculos)).catch(() => {})
+    api.getCached('/calendario/opcoes').then((r) => setVinculos(r.vinculos)).catch(() => {})
     api.get('/calendario/compartilhamento').then((r) => setTokenPublico(r.token)).catch(() => {})
   }, [])
   useEffect(() => { carregar() }, [carregar])
@@ -193,15 +194,15 @@ export default function Calendario() {
         </Box>
       </Box>
 
-      <Box sx={{ display: { xs: 'block', md: 'none' }, mb: 2.5 }}>
+      {!telaDesktop && <Box sx={{ mb: 2.5 }}>
         <CalendarioAgenda mes={mes} aulas={aulas} onSelecionar={abrirEdicao} onNovo={abrirNovo} />
-      </Box>
-      <Box sx={{ ...cardSx, overflowX: 'auto', mb: 2.5, display: { xs: 'none', md: 'block' } }}>
+      </Box>}
+      {telaDesktop && <Box sx={{ ...cardSx, overflowX: 'auto', mb: 2.5 }}>
         <CalendarioGrade mes={mes} aulas={aulas} onSelecionar={abrirEdicao} onNovo={abrirNovo} />
-      </Box>
-      <Typography sx={{ color: TOV.caption, fontSize: 13, mb: 3, display: { xs: 'none', md: 'block' } }}>
+      </Box>}
+      {telaDesktop && <Typography sx={{ color: TOV.caption, fontSize: 13, mb: 3 }}>
         Dica: dê dois cliques em um dia vazio para cadastrar uma aula naquela data.
-      </Typography>
+      </Typography>}
 
       <Box sx={{ ...cardSx, p: { xs: 2.25, md: 3 }, display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' }, gap: 3 }}>
         <Box>

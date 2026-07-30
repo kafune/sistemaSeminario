@@ -44,7 +44,25 @@ def _turma_dict(db: Session, turma: Turma) -> dict:
 
 @router.get("")
 def listar(db: Session = Depends(get_db)):
-    return [_turma_dict(db, t) for t in db.scalars(select(Turma).order_by(Turma.nome))]
+    contagens = (
+        select(
+            AluTurma.cod_tur.label("cod_tur"),
+            func.count(AluTurma.id).label("qtd_alunos"),
+        )
+        .group_by(AluTurma.cod_tur)
+        .subquery()
+    )
+    consulta = (
+        select(Turma, func.coalesce(contagens.c.qtd_alunos, 0))
+        .join(contagens, contagens.c.cod_tur == Turma.cod_tur, isouter=True)
+        .order_by(Turma.nome)
+    )
+    itens = []
+    for turma, quantidade in db.execute(consulta):
+        dados = row_to_dict(turma)
+        dados["qtd_alunos"] = int(quantidade or 0)
+        itens.append(dados)
+    return itens
 
 
 @router.get("/{cod_tur}")

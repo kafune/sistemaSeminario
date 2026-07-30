@@ -191,6 +191,76 @@ def atualizar_schema(engine: Engine) -> None:
                 "NOT NULL DEFAULT 'ADMIN'"
             )
 
+    # Índices usados pelos filtros, ordenações e relacionamentos mais frequentes.
+    # ``create_all`` os cria em bancos novos; esta lista mantém bancos existentes
+    # alinhados sem depender de uma recriação destrutiva das tabelas.
+    indices_desempenho = {
+        "alunos": [
+            ("ix_alunos_status_nome", ("status", "nome")),
+            ("ix_alunos_cod_tur_nome", ("cod_tur", "nome")),
+            ("ix_alunos_dat_cad_cod_alu", ("dat_cad", "cod_alu")),
+        ],
+        "professor": [
+            ("ix_professor_nome", ("nome",)),
+            ("ix_professor_status_nome", ("status", "nome")),
+        ],
+        "materias": [("ix_materias_nome", ("NOME",))],
+        "turma": [("ix_turma_nome", ("nome",))],
+        "aluturma": [
+            ("ix_aluturma_cod_tur_cod_alu", ("cod_tur", "cod_alu")),
+            ("ix_aluturma_cod_alu", ("cod_alu",)),
+        ],
+        "docturma": [
+            ("ix_docturma_cod_tur_cod_mat", ("cod_tur", "cod_mat")),
+            ("ix_docturma_cod_pro", ("cod_pro",)),
+        ],
+        "alunota": [
+            (
+                "ix_alunota_turma_materia_aluno",
+                ("cod_tur", "cod_mat", "cod_alu"),
+            ),
+            ("ix_alunota_cod_alu", ("cod_alu",)),
+        ],
+        "aulas": [("ix_aulas_data_status", ("data", "status"))],
+        "notificacoes": [
+            ("ix_notificacoes_usuario_lido_em", ("usuario", "lido_em")),
+            (
+                "ix_notificacoes_usuario_criado_em_id",
+                ("usuario", "criado_em", "id"),
+            ),
+        ],
+        "whatsapp_disparos": [
+            (
+                "ix_whatsapp_disparos_status_pasta",
+                ("status", "pasta_uazapi_id"),
+            ),
+        ],
+        "whatsapp_destinatarios": [
+            (
+                "ix_whatsapp_destinatarios_disparo_valido",
+                ("disparo_id", "valido"),
+            ),
+        ],
+        "leads": [
+            (
+                "ix_leads_status_consentimento_nome",
+                ("status", "consentimento_status", "nome"),
+            ),
+        ],
+    }
+    for tabela, definicoes in indices_desempenho.items():
+        if tabela not in tabelas:
+            continue
+        existentes = {
+            indice["name"] for indice in inspector.get_indexes(tabela)
+        }
+        for nome, colunas_indice in definicoes:
+            if nome not in existentes:
+                colunas_sql = ", ".join(f"`{coluna}`" for coluna in colunas_indice)
+                comandos.append(
+                    f"CREATE INDEX `{nome}` ON `{tabela}` ({colunas_sql})"
+                )
+
     if comandos:
         with engine.begin() as conexao:
             for comando in comandos:

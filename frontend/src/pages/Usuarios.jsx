@@ -7,7 +7,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, iniciais, resetBotao, useDialogoTelaCheia } from '../ui'
+import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, iniciais, resetBotao, useDialogoTelaCheia, useTelaDesktop } from '../ui'
 
 const SENHA_MINIMA = 6
 
@@ -22,6 +22,7 @@ export default function Usuarios() {
   const [ok, setOk] = useState('')
   const atual = getUser()
   const telaCheia = useDialogoTelaCheia()
+  const telaDesktop = useTelaDesktop()
 
   function carregar() {
     setCarregando(true)
@@ -101,7 +102,7 @@ export default function Usuarios() {
       />
 
       {/* Lista em cards — celular/tablet */}
-      <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 1.25 }}>
+      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
         {carregando && usuarios.length === 0 && (
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
@@ -138,10 +139,10 @@ export default function Usuarios() {
             </CartaoLista>
           )
         })}
-      </Box>
+      </Box>}
 
       {/* Tabela — desktop */}
-      <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard, display: { xs: 'none', md: 'block' } }}>
+      {telaDesktop && <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -206,7 +207,7 @@ export default function Usuarios() {
             })}
           </TableBody>
         </Table>
-      </TableContainer>
+      </TableContainer>}
 
       <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="xs" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.novo ? 'Novo usuário' : `Gerenciar acesso — ${form?.user}`}</DialogTitle>

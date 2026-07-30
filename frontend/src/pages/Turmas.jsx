@@ -55,7 +55,7 @@ export default function Turmas() {
   const telaCheia = useDialogoTelaCheia()
 
   function carregar() {
-    api.get('/turmas').then(setTurmas).catch((e) => setMsg(e.message))
+    api.getCached('/turmas').then(setTurmas).catch((e) => setMsg(e.message))
   }
   useEffect(() => { carregar() }, [])
 

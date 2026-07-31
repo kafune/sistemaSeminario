@@ -1,7 +1,9 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { Box, Skeleton } from '@mui/material'
 import { getPerfil, getToken } from './api'
 import OfflineScreen from './OfflineScreen'
+import { TOV } from './theme'
 
 const Layout = lazy(() => import('./Layout'))
 const Login = lazy(() => import('./pages/Login'))
@@ -23,15 +25,20 @@ const Leads = lazy(() => import('./pages/Leads'))
 
 function CarregandoRota() {
   return (
-    <div
+    <Box
       role="status"
-      style={{
-        minHeight: '35vh', display: 'grid', placeItems: 'center',
-        color: '#6B7680', fontFamily: "'Open Sans', sans-serif",
+      aria-label="Carregando página"
+      sx={{
+        minHeight: '45vh', width: '100%', maxWidth: 1180, mx: 'auto',
+        px: { xs: 2, md: 5 }, py: { xs: 4, md: 6 },
       }}
     >
-      Carregando…
-    </div>
+      <Skeleton width={44} height={8} sx={{ mb: 1.5 }} />
+      <Skeleton width="min(420px, 74vw)" height={58} sx={{ mb: 3 }} />
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', lg: 'repeat(3,1fr)' }, gap: 2 }}>
+        {[0, 1, 2].map((i) => <Skeleton key={i} variant="rounded" height={150} sx={{ borderRadius: `${TOV.radiusMd}px` }} />)}
+      </Box>
+    </Box>
   )
 }
 

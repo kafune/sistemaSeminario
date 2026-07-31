@@ -7,7 +7,10 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, iniciais, resetBotao, useDialogoTelaCheia, useTelaDesktop } from '../ui'
+import {
+  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, iniciais,
+  resetBotao, useDialogoTelaCheia, useTelaDesktop,
+} from '../ui'
 
 const SENHA_MINIMA = 6
 
@@ -107,7 +110,7 @@ export default function Usuarios() {
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
         {!carregando && usuarios.length === 0 && (
-          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 5 }}>Nenhum usuário cadastrado.</CartaoLista>
+          <CartaoLista><EstadoVazio compacto titulo="Nenhum usuário cadastrado" descricao="Crie um acesso para começar." /></CartaoLista>
         )}
         {usuarios.map((u) => {
           const euMesmo = u.user === atual
@@ -116,7 +119,7 @@ export default function Usuarios() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                 <Box sx={{
                   width: 38, height: 38, flex: '0 0 38px', borderRadius: '11px',
-                  bgcolor: TOV.coral, color: '#fff', fontFamily: TOV.fontHead, fontWeight: 700,
+                  bgcolor: TOV.graphite, color: '#fff', fontFamily: TOV.fontHead, fontWeight: 700,
                   fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {iniciais(u.user)}
@@ -155,7 +158,7 @@ export default function Usuarios() {
               <TableRow><TableCell colSpan={2} sx={{ py: 5, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
             )}
             {!carregando && usuarios.length === 0 && (
-              <TableRow><TableCell colSpan={2} sx={{ py: 6, textAlign: 'center', color: TOV.caption }}>Nenhum usuário cadastrado.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={2} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum usuário cadastrado" descricao="Crie um acesso para começar." /></TableCell></TableRow>
             )}
             {usuarios.map((u) => {
               const euMesmo = u.user === atual
@@ -165,7 +168,7 @@ export default function Usuarios() {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Box sx={{
                         width: 38, height: 38, flex: '0 0 38px', borderRadius: '11px',
-                        bgcolor: TOV.coral, color: '#fff', fontFamily: TOV.fontHead, fontWeight: 700,
+                        bgcolor: TOV.graphite, color: '#fff', fontFamily: TOV.fontHead, fontWeight: 700,
                         fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
                         {iniciais(u.user)}

@@ -54,7 +54,7 @@ export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
 
   if (!doMes.length) {
     return (
-      <Box sx={{ bgcolor: '#fff', borderRadius: '16px', p: 3, textAlign: 'center' }}>
+      <Box sx={{ bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, p: 3, textAlign: 'center' }}>
         <Typography variant="h3" sx={{ fontSize: 19 }}>Nenhuma aula neste mês</Typography>
         <Typography sx={{ color: TOV.caption, fontSize: 14, mt: 1 }}>
           {onNovo ? 'Adicione a primeira aula ou avance para outro mês.' : 'Avance para outro mês para consultar a agenda.'}
@@ -67,7 +67,7 @@ export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       {[...grupos.entries()].map(([data, eventos]) => (
-        <Box key={data} sx={{ bgcolor: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: TOV.shadowCard }}>
+        <Box key={data} sx={{ bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, overflow: 'hidden' }}>
           <Box sx={{ px: 2, py: 1.5, bgcolor: TOV.offwhite, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography
               variant="h3"

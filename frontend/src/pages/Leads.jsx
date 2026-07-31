@@ -10,8 +10,8 @@ import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  AvatarIniciais, CabecalhoPagina, CartaoLista, LinhaCartao, cardSx, resetBotao,
-  useDialogoTelaCheia, useTelaDesktop,
+  AvatarIniciais, BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio,
+  LinhaCartao, StatusBadge, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import ImportarLeadsDialog from './ImportarLeadsDialog'
 
@@ -25,7 +25,7 @@ const FUNIL = {
 }
 
 const CONSENTIMENTO = {
-  PENDENTE: ['Opt-in pendente', 'default'],
+  PENDENTE: ['Opt-in pendente', 'muted'],
   CONFIRMADO: ['Opt-in confirmado', 'success'],
   RECUSADO: ['Sem consentimento', 'warning'],
   REVOGADO: ['Opt-out', 'error'],
@@ -46,8 +46,8 @@ const FORM_INICIAL = {
 }
 
 function PilulaConsentimento({ status }) {
-  const [rotulo, cor] = CONSENTIMENTO[status] || [status, 'default']
-  return <Chip size="small" label={rotulo} color={cor} />
+  const [rotulo, tom] = CONSENTIMENTO[status] || [status, 'muted']
+  return <StatusBadge tom={tom} dot>{rotulo}</StatusBadge>
 }
 
 function FormLead({ form, setForm }) {
@@ -208,7 +208,7 @@ export default function Leads() {
         acoes={acoes}
       />
 
-      <Box sx={{ ...cardSx, p: 2, mb: 2, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr 1fr', lg: '2fr repeat(4,1fr)' }, gap: 1.25 }}>
+      <BarraFiltros sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr 1fr', lg: '2fr repeat(4,1fr)' } }}>
         <TextField
           size="small" label="Buscar" value={busca}
           onChange={(e) => { setBusca(e.target.value); setPagina(1) }}
@@ -235,9 +235,12 @@ export default function Leads() {
           <MenuItem value="">Todos</MenuItem>
           {Object.entries(CONSENTIMENTO).map(([valor, [rotulo]]) => <MenuItem key={valor} value={valor}>{rotulo}</MenuItem>)}
         </TextField>
-      </Box>
+      </BarraFiltros>
 
       {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+        {!carregando && dados.itens.length === 0 && (
+          <CartaoLista><EstadoVazio compacto titulo="Nenhum lead encontrado" descricao="Revise os filtros ou adicione um novo contato." /></CartaoLista>
+        )}
         {dados.itens.map((lead) => (
           <CartaoLista key={lead.id} onClick={() => editar(lead)}>
             <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'center' }}>
@@ -268,7 +271,7 @@ export default function Leads() {
           </TableHead>
           <TableBody>
             {!carregando && dados.itens.length === 0 && (
-              <TableRow><TableCell colSpan={6} sx={{ py: 6, textAlign: 'center', color: TOV.caption }}>Nenhum lead encontrado.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum lead encontrado" descricao="Revise os filtros ou adicione um novo contato." /></TableCell></TableRow>
             )}
             {dados.itens.map((lead) => (
               <TableRow key={lead.id} hover>

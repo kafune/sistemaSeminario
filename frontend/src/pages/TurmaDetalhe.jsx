@@ -10,7 +10,10 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { CartaoLista, DialogoConfirmacao, LinhaCartao, Regua, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop } from '../ui'
+import {
+  CartaoLista, DialogoConfirmacao, EstadoVazio, LinhaCartao, Regua,
+  SkeletonCards, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+} from '../ui'
 
 function mesAno(iso) {
   if (!iso) return null
@@ -126,7 +129,7 @@ export default function TurmaDetalhe() {
   }
 
 
-  if (!turma) return <Typography sx={{ color: TOV.caption }}>Carregando…</Typography>
+  if (!turma) return <SkeletonCards quantidade={3} altura={150} />
 
   const subtitulo = [
     turma.curso,
@@ -175,7 +178,7 @@ export default function TurmaDetalhe() {
           {/* Lista em cards — celular/tablet */}
           {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             {alunos.length === 0 && (
-              <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhum aluno matriculado.</CartaoLista>
+              <CartaoLista><EstadoVazio compacto titulo="Nenhum aluno matriculado" descricao="Use a ação acima para adicionar o primeiro aluno." /></CartaoLista>
             )}
             {alunos.map((a) => (
               <CartaoLista key={a.cod_alu} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>
@@ -209,7 +212,7 @@ export default function TurmaDetalhe() {
               </TableHead>
               <TableBody>
                 {alunos.length === 0 && (
-                  <TableRow><TableCell colSpan={5} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhum aluno matriculado.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum aluno matriculado" descricao="Use a ação acima para adicionar o primeiro aluno." /></TableCell></TableRow>
                 )}
                 {alunos.map((a) => (
                   <TableRow key={a.cod_alu} hover>
@@ -239,7 +242,7 @@ export default function TurmaDetalhe() {
           {/* Lista em cards — celular/tablet */}
           {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
             {materias.length === 0 && (
-              <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhuma matéria vinculada.</CartaoLista>
+              <CartaoLista><EstadoVazio compacto titulo="Nenhuma matéria vinculada" descricao="Adicione a primeira matéria e defina o professor responsável." /></CartaoLista>
             )}
             {materias.map((m) => (
               <CartaoLista key={m.id}>
@@ -279,7 +282,7 @@ export default function TurmaDetalhe() {
               </TableHead>
               <TableBody>
                 {materias.length === 0 && (
-                  <TableRow><TableCell colSpan={5} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhuma matéria vinculada.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} sx={{ p: 0 }}><EstadoVazio titulo="Nenhuma matéria vinculada" descricao="Adicione a primeira matéria e defina o professor responsável." /></TableCell></TableRow>
                 )}
                 {materias.map((m) => (
                   <TableRow key={m.id} hover>

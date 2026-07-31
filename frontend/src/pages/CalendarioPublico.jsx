@@ -82,14 +82,14 @@ export default function CalendarioPublico() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: TOV.offwhite }}>
-      <Box component="header" sx={{ bgcolor: TOV.coral, color: '#fff', px: { xs: 2, md: 5 }, py: 2.25 }}>
+      <Box component="header" sx={{ bgcolor: TOV.graphite, color: '#fff', px: { xs: 2, md: 5 }, py: 2.25, borderTop: `3px solid ${TOV.coral}` }}>
         <Box sx={{ maxWidth: 1240, mx: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <CalendarMonthIcon />
           <Box>
-            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 23, lineHeight: 1.1 }}>
+            <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 23, lineHeight: 1.1 }}>
               Calendário de aulas
             </Typography>
-            <Typography sx={{ fontSize: 13, opacity: 0.85 }}>Centro TOV de Formação Teológica</Typography>
+            <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,.64)' }}>Centro TOV de Formação Teológica</Typography>
           </Box>
         </Box>
       </Box>

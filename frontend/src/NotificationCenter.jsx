@@ -11,6 +11,7 @@ import InstallMobileIcon from '@mui/icons-material/InstallMobile'
 import CloseIcon from '@mui/icons-material/Close'
 import { api } from './api'
 import { TOV } from './theme'
+import { EstadoVazio } from './ui'
 
 const CATEGORIAS = [
   ['push_whatsapp', 'WhatsApp'],
@@ -248,7 +249,12 @@ export default function NotificationCenter({ aberto, onFechar, onNavigate, estad
   }
 
   return (
-    <Drawer anchor="right" open={aberto} onClose={onFechar} PaperProps={{ sx: { width: { xs: '100%', sm: 430 }, maxWidth: '100%' } }}>
+    <Drawer
+      anchor="right"
+      open={aberto}
+      onClose={onFechar}
+      PaperProps={{ sx: { width: { xs: '100%', sm: 430 }, maxWidth: '100%', borderLeft: `1px solid ${TOV.border}`, borderTop: { xs: `3px solid ${TOV.coral}`, sm: 0 } } }}
+    >
       <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <NotificationsIcon sx={{ color: TOV.coral }} />
@@ -267,14 +273,23 @@ export default function NotificationCenter({ aberto, onFechar, onNavigate, estad
         <Divider sx={{ my: 2 }} />
         <List disablePadding sx={{ flex: 1, overflow: 'auto' }}>
           {exibidas.map((item) => (
-            <ListItemButton key={item.id} onClick={() => abrir(item)} alignItems="flex-start" sx={{ px: 1.25, py: 1.4, borderRadius: 2, mb: .5, bgcolor: item.lida ? 'transparent' : TOV.coralTint }}>
+            <ListItemButton
+              key={item.id}
+              onClick={() => abrir(item)}
+              alignItems="flex-start"
+              sx={{
+                px: 1.5, py: 1.4, borderRadius: 2, mb: .5,
+                bgcolor: item.lida ? 'transparent' : TOV.coralTint,
+                borderLeft: `3px solid ${item.lida ? 'transparent' : TOV.coral}`,
+              }}
+            >
               <ListItemText
                 primary={<Typography sx={{ fontWeight: item.lida ? 600 : 800, fontSize: 14 }}>{item.titulo}</Typography>}
                 secondary={<><Typography component="span" sx={{ display: 'block', color: TOV.ink, fontSize: 13, mt: .4 }}>{item.corpo}</Typography><Typography component="span" sx={{ display: 'block', color: TOV.caption, fontSize: 11, mt: .6 }}>{item.categoria} · {dataHora(item.criado_em)}</Typography></>}
               />
             </ListItemButton>
           ))}
-          {!exibidas.length && <Typography sx={{ color: TOV.caption, textAlign: 'center', py: 5 }}>Nenhuma notificação por aqui.</Typography>}
+          {!exibidas.length && <EstadoVazio compacto titulo="Tudo em dia" descricao="Nenhuma notificação neste filtro." />}
         </List>
         <Divider sx={{ my: 2 }} />
         <Typography variant="h6" sx={{ fontSize: 16 }}>Preferências</Typography>

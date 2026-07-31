@@ -11,7 +11,10 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import CloseIcon from '@mui/icons-material/Close'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, LinhaCartao, PilulaStatus, resetBotao, useTelaDesktop } from '../ui'
+import {
+  BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio, LinhaCartao,
+  PilulaStatus, resetBotao, useTelaDesktop,
+} from '../ui'
 import AlunoForm from './AlunoForm'
 import ImportarAlunosDialog from './ImportarAlunosDialog'
 
@@ -39,11 +42,12 @@ function ChipFiltro({ ativo, children, onClick }) {
       aria-pressed={ativo}
       sx={{
         ...resetBotao,
-        px: 2.25, py: 1, borderRadius: 999, fontSize: 14, fontWeight: 600, userSelect: 'none',
+        px: 2, py: 1, borderRadius: 999, fontSize: 13.5, fontWeight: 600, userSelect: 'none',
         minHeight: 44, flexShrink: 0,
-        bgcolor: ativo ? TOV.ink : TOV.white, color: ativo ? '#fff' : TOV.slate,
-        boxShadow: ativo ? 'none' : TOV.shadowCard,
-        '&:hover': ativo ? {} : { color: TOV.ink },
+        bgcolor: ativo ? TOV.graphite : TOV.surface, color: ativo ? '#fff' : TOV.graphite,
+        border: `1px solid ${ativo ? TOV.graphite : TOV.border}`,
+        boxShadow: 'none',
+        '&:hover': ativo ? {} : { color: TOV.ink, borderColor: TOV.caption },
         '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2, borderRadius: 999 },
       }}
     >
@@ -143,18 +147,18 @@ export default function Alunos() {
         acoes={acoes}
       />
 
-      <Box
+      <BarraFiltros
         sx={{
           display: 'flex', flexDirection: { xs: 'column', sm: 'row' },
           alignItems: { sm: 'center' }, justifyContent: 'space-between',
-          gap: 1.5, mb: 2.25,
+          gap: 1.5, mb: 2,
         }}
       >
         <Box
           aria-label="Filtrar alunos por status"
           sx={{
             display: 'flex', gap: 1.25, overflowX: 'auto', pb: 0.5,
-            mx: { xs: -2, sm: 0 }, px: { xs: 2, sm: 0 },
+            mx: { xs: -1.5, sm: 0 }, px: { xs: 1.5, sm: 0 },
             scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
           }}
         >
@@ -180,7 +184,7 @@ export default function Alunos() {
             <MenuItem key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</MenuItem>
           ))}
         </TextField>
-      </Box>
+      </BarraFiltros>
 
       {/* Lista em cards — celular/tablet */}
       {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
@@ -188,7 +192,7 @@ export default function Alunos() {
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
         {!carregando && dados.itens.length === 0 && (
-          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 5 }}>Nenhum aluno encontrado.</CartaoLista>
+          <CartaoLista><EstadoVazio compacto titulo="Nenhum aluno encontrado" descricao="Ajuste a busca ou os filtros para ver outros registros." /></CartaoLista>
         )}
         {dados.itens.map((a) => (
           <CartaoLista key={a.cod_alu} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>
@@ -222,7 +226,7 @@ export default function Alunos() {
               <TableRow><TableCell colSpan={6} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
             )}
             {!carregando && dados.itens.length === 0 && (
-              <TableRow><TableCell colSpan={6} sx={{ py: 6, textAlign: 'center', color: TOV.caption }}>Nenhum aluno encontrado.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum aluno encontrado" descricao="Ajuste a busca ou os filtros para ver outros registros." /></TableCell></TableRow>
             )}
             {dados.itens.map((a) => (
               <TableRow key={a.cod_alu} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>
@@ -250,10 +254,6 @@ export default function Alunos() {
         </Typography>
         <Pagination
           count={totalPaginas} page={pagina} onChange={(_, p) => setPagina(p)} shape="rounded" siblingCount={0}
-          sx={{
-            '& .MuiPaginationItem-root': { borderRadius: '10px', bgcolor: TOV.white, fontWeight: 600, color: TOV.slate, minWidth: 44, height: 44, boxShadow: TOV.shadowCard },
-            '& .Mui-selected': { bgcolor: `${TOV.coral} !important`, color: '#fff' },
-          }}
         />
       </Box>
 

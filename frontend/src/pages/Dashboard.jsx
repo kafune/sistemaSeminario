@@ -4,7 +4,9 @@ import { Alert, Box, Button, Skeleton, Snackbar, Typography } from '@mui/materia
 import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, Eyebrow, resetBotao } from '../ui'
+import {
+  CabecalhoPagina, CardMetrica, EstadoVazio, SkeletonCards, Superficie, resetBotao,
+} from '../ui'
 import AlunoForm from './AlunoForm'
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
 const DIAS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado']
@@ -21,17 +23,6 @@ function dataPorExtenso(d) {
 
 function semestreAtual(d) {
   return `${d.getFullYear()}.${d.getMonth() < 6 ? 1 : 2}`
-}
-
-/** Cartão de métrica. `escuro` inverte para o card preto de destaque. */
-function CardMetrica({ rotulo, valor, nota, escuro }) {
-  return (
-    <Box sx={{ bgcolor: escuro ? TOV.ink : TOV.white, color: escuro ? '#fff' : TOV.ink, borderRadius: '16px', p: { xs: '16px', sm: '20px', md: '24px 26px' }, boxShadow: TOV.shadowCard, minWidth: 0 }}>
-      <Eyebrow sx={{ color: escuro ? 'rgba(255,255,255,.55)' : TOV.caption }}>{rotulo}</Eyebrow>
-      <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 34, md: 46 }, mt: 1.25, lineHeight: 1 }}>{valor}</Typography>
-      {nota && <Typography sx={{ mt: 0.75, fontSize: 13, fontWeight: nota.destaque ? 600 : 400, color: nota.destaque ? TOV.coral : (escuro ? 'rgba(255,255,255,.7)' : TOV.slate) }}>{nota.texto}</Typography>}
-    </Box>
-  )
 }
 
 function tempoRelativo(iso) {
@@ -69,22 +60,22 @@ export default function Dashboard() {
       />
 
       {/* Métricas */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,1fr)' }, gap: { xs: '12px', sm: '18px' }, mb: '22px' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,1fr)' }, gap: { xs: 1.5, sm: 2 }, mb: 2.5 }}>
         {!dados ? (
-          [0, 1, 2, 3].map((i) => <Skeleton key={i} variant="rounded" height={132} sx={{ borderRadius: '16px' }} />)
+          <SkeletonCards quantidade={4} altura={142} colunas="subgrid" sx={{ display: 'contents' }} />
         ) : (
           <>
             <CardMetrica rotulo="Alunos ativos" valor={dados.alunos_ativos} nota={{ texto: `${dados.alunos_total} no total`, destaque: true }} />
             <CardMetrica rotulo="Turmas ativas" valor={dados.turmas_total} nota={{ texto: `${dados.cursos_total} ${dados.cursos_total === 1 ? 'curso' : 'cursos'}` }} />
             <CardMetrica rotulo="Lançamentos" valor={dados.lancamentos_total.toLocaleString('pt-BR')} nota={{ texto: 'notas registradas' }} />
-            <CardMetrica rotulo="Professores" valor={dados.professores_total} nota={{ texto: `${dados.professores_ativos} ativos`, destaque: true }} escuro />
+            <CardMetrica rotulo="Professores" valor={dados.professores_total} nota={{ texto: `${dados.professores_ativos} ativos`, destaque: true }} destaque />
           </>
         )}
       </Box>
 
       {/* Matrículas por curso + Atividade recente */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.55fr 1fr' }, gap: '18px' }}>
-        <Box sx={{ bgcolor: TOV.white, borderRadius: '16px', p: { xs: '20px', md: '28px 30px' }, boxShadow: TOV.shadowCard }}>
+        <Superficie sx={{ p: { xs: 2.5, md: 3.5 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.75 }}>
             <Typography variant="h3" sx={{ fontSize: 22 }}>Matrículas por curso</Typography>
             <Typography sx={{ fontSize: 13, color: TOV.caption }}>{semestreAtual(agora)}</Typography>
@@ -92,7 +83,7 @@ export default function Dashboard() {
           {!dados ? (
             [0, 1, 2, 3].map((i) => <Skeleton key={i} height={40} sx={{ mb: 1 }} />)
           ) : dados.matriculas_por_curso.length === 0 ? (
-            <Typography sx={{ color: TOV.caption, fontSize: 14 }}>Nenhuma matrícula registrada ainda.</Typography>
+            <EstadoVazio compacto titulo="Sem matrículas" descricao="As matrículas por curso aparecerão aqui." />
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {dados.matriculas_por_curso.map((c, i) => (
@@ -101,21 +92,21 @@ export default function Dashboard() {
                     <Box component="span" sx={{ fontWeight: 600, color: TOV.slate }}>{c.curso}</Box>
                     <Box component="span" sx={{ fontWeight: 700 }}>{c.total}</Box>
                   </Box>
-                  <Box sx={{ height: 12, bgcolor: TOV.offwhite, borderRadius: '6px', overflow: 'hidden' }}>
-                    <Box sx={{ width: `${Math.round((c.total / maxCurso) * 100)}%`, height: '100%', bgcolor: i < 2 ? TOV.coral : TOV.slate, borderRadius: '6px' }} />
+                  <Box sx={{ height: 8, bgcolor: TOV.surfaceMuted, borderRadius: 99, overflow: 'hidden' }}>
+                    <Box sx={{ width: `${Math.round((c.total / maxCurso) * 100)}%`, height: '100%', bgcolor: i < 2 ? TOV.coral : TOV.graphite, borderRadius: 99, transition: `width ${TOV.durationBase} ${TOV.ease}` }} />
                   </Box>
                 </Box>
               ))}
             </Box>
           )}
-        </Box>
+        </Superficie>
 
-        <Box sx={{ bgcolor: TOV.white, borderRadius: '16px', p: { xs: '20px', md: '28px 30px' }, boxShadow: TOV.shadowCard }}>
+        <Superficie sx={{ p: { xs: 2.5, md: 3.5 } }}>
           <Typography variant="h3" sx={{ fontSize: 22, mb: 2.5 }}>Atividade recente</Typography>
           {!dados ? (
             [0, 1, 2, 3].map((i) => <Skeleton key={i} height={38} sx={{ mb: 1 }} />)
           ) : dados.recentes.length === 0 ? (
-            <Typography sx={{ color: TOV.caption, fontSize: 14 }}>Sem atividade recente.</Typography>
+            <EstadoVazio compacto titulo="Sem atividade recente" descricao="Novos cadastros aparecerão nesta linha do tempo." />
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
               {dados.recentes.map((r, i) => (
@@ -126,7 +117,7 @@ export default function Dashboard() {
                   onClick={() => navigate(`/alunos/${r.cod_alu}`)}
                   sx={{ ...resetBotao, display: 'flex', gap: 1.75, width: '100%', '&:hover .nome': { color: TOV.coral } }}
                 >
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: i === 0 ? TOV.coral : TOV.slate, mt: '7px', flex: '0 0 8px' }} />
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: i === 0 ? TOV.coral : TOV.graphite, mt: '7px', flex: '0 0 8px' }} />
                   <Box>
                     <Box className="nome" sx={{ fontSize: 14, fontWeight: 600, transition: 'color .15s' }}>Aluno cadastrado — {r.nome}</Box>
                     <Box sx={{ fontSize: 13, color: TOV.caption }}>Matrícula {r.cod_alu} · {tempoRelativo(r.dat_cad)}</Box>
@@ -135,7 +126,7 @@ export default function Dashboard() {
               ))}
             </Box>
           )}
-        </Box>
+        </Superficie>
       </Box>
 
       <AlunoForm

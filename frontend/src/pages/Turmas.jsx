@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
-  Skeleton, Snackbar, TextField, Typography,
+  Snackbar, TextField, Typography,
 } from '@mui/material'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, resetBotao, useDialogoTelaCheia } from '../ui'
+import { CabecalhoPagina, SkeletonCards, resetBotao, useDialogoTelaCheia } from '../ui'
 
 function mesAno(iso) {
   if (!iso) return null
@@ -22,10 +22,11 @@ function CardTurma({ turma, onClick }) {
       onClick={onClick}
       sx={{
         ...resetBotao, display: 'block', width: '100%',
-        bgcolor: TOV.white, borderRadius: '16px', p: '26px 28px',
-        boxShadow: TOV.shadowCard, transition: 'transform .15s, box-shadow .15s',
-        '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 12px 28px -14px rgba(22,24,26,.35)' },
-        '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2, borderRadius: '16px' },
+        bgcolor: TOV.surface, borderRadius: `${TOV.radiusMd}px`, p: '24px 26px',
+        border: `1px solid ${TOV.border}`, boxShadow: 'none',
+        transition: `transform ${TOV.durationFast} ${TOV.ease}, border-color ${TOV.durationFast} ${TOV.ease}`,
+        '&:hover': { transform: 'translateY(-1px)', borderColor: '#BFB5AD' },
+        '&:focus-visible': { outline: `3px solid ${TOV.coralTintStrong}`, outlineOffset: 2, borderRadius: `${TOV.radiusMd}px` },
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -85,7 +86,7 @@ export default function Turmas() {
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', lg: 'repeat(3,1fr)' }, gap: '18px' }}>
-        {!turmas && [0, 1, 2].map((i) => <Skeleton key={i} variant="rounded" height={200} sx={{ borderRadius: '16px' }} />)}
+        {!turmas && <SkeletonCards quantidade={3} altura={200} sx={{ display: 'contents' }} />}
         {turmas && turmas.map((t) => (
           <CardTurma key={t.cod_tur} turma={t} onClick={() => navigate(`/turmas/${t.cod_tur}`)} />
         ))}
@@ -96,11 +97,11 @@ export default function Turmas() {
             onClick={() => setForm({ nome: '' })}
             sx={{
               ...resetBotao,
-              bgcolor: TOV.offwhite, border: `2px dashed #D9CEC5`, borderRadius: '16px', p: '26px 28px',
+              bgcolor: 'transparent', border: `1px dashed #C8BDB4`, borderRadius: `${TOV.radiusMd}px`, p: '26px 28px',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               color: TOV.caption, minHeight: 200,
               '&:hover': { borderColor: TOV.coral },
-              '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2, borderRadius: '16px' },
+              '&:focus-visible': { outline: `3px solid ${TOV.coralTintStrong}`, outlineOffset: 2, borderRadius: `${TOV.radiusMd}px` },
             }}
           >
             <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 34, color: TOV.coral }}>+</Box>

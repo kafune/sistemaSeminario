@@ -2,8 +2,11 @@ import json
 import re
 import unicodedata
 from datetime import date, datetime, timedelta, timezone
+from io import BytesIO
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -246,6 +249,42 @@ def opcoes(db: Session = Depends(get_db)):
         "tags": sorted(tags, key=str.casefold),
         "status_funil": sorted(STATUS_FUNIL_VALIDOS),
     }
+
+
+@router.get("/importacoes/modelo")
+def modelo_importacao_leads():
+    workbook = Workbook()
+    planilha = workbook.active
+    planilha.title = "Leads"
+    cabecalhos = [
+        "Nome", "Telefone", "E-mail", "Origem", "Campanha",
+        "Data de captação", "Tags", "Status do funil", "Opt-in",
+    ]
+    planilha.append(cabecalhos)
+    planilha.append([
+        "Maria Exemplo", "(11) 99999-8888", "maria.exemplo@example.com",
+        "Landing page", "Curso 2026", "28/07/2026", "interessado, curso",
+        "NUTRICAO", "Sim",
+    ])
+    planilha.freeze_panes = "A2"
+    planilha.auto_filter.ref = planilha.dimensions
+    planilha.column_dimensions["A"].width = 24
+    planilha.column_dimensions["B"].width = 20
+    planilha.column_dimensions["C"].width = 32
+    planilha.column_dimensions["F"].width = 20
+    planilha.column_dimensions["H"].width = 18
+
+    conteudo = BytesIO()
+    workbook.save(conteudo)
+    conteudo.seek(0)
+    return StreamingResponse(
+        conteudo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition":
+                'attachment; filename="modelo-importacao-leads.xlsx"',
+        },
+    )
 
 
 @router.get("/importacoes")

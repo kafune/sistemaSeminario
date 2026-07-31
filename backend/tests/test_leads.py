@@ -1,8 +1,10 @@
+import asyncio
 import unittest
 from datetime import date, datetime
 from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
+from zipfile import ZipFile
 
 from fastapi import HTTPException
 from starlette.datastructures import UploadFile
@@ -21,8 +23,10 @@ from app.routers.leads import (
     _consentimento,
     _payloads,
     confirmar_importacao,
+    modelo_importacao_leads,
     previsualizar_importacao,
 )
+from openpyxl import load_workbook
 from app.routers.whatsapp import (
     _cancelar_campanhas_por_optout,
     _processar_interacoes_webhook,
@@ -30,6 +34,43 @@ from app.routers.whatsapp import (
 
 
 class ImportacaoLeadsTest(unittest.TestCase):
+    def test_modelo_planilha_de_leads_tem_cabecalhos_e_nome_de_download(self):
+        resposta = modelo_importacao_leads()
+
+        self.assertEqual(
+            resposta.media_type,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        self.assertIn(
+            'filename="modelo-importacao-leads.xlsx"',
+            resposta.headers["content-disposition"],
+        )
+
+        async def ler_corpo():
+            partes = []
+            async for parte in resposta.body_iterator:
+                partes.append(parte)
+            return b"".join(partes)
+
+        conteudo = asyncio.run(ler_corpo())
+        with ZipFile(BytesIO(conteudo)) as arquivo:
+            self.assertIn("xl/worksheets/sheet1.xml", arquivo.namelist())
+        planilha = load_workbook(BytesIO(conteudo), read_only=True)["Leads"]
+        self.assertEqual(
+            list(next(planilha.iter_rows(values_only=True))),
+            [
+                "Nome",
+                "Telefone",
+                "E-mail",
+                "Origem",
+                "Campanha",
+                "Data de captação",
+                "Tags",
+                "Status do funil",
+                "Opt-in",
+            ],
+        )
+
     def test_consentimento_ausente_fica_pendente(self):
         self.assertEqual(
             _consentimento(""),

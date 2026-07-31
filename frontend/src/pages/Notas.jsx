@@ -7,7 +7,10 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import SaveIcon from '@mui/icons-material/Save'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { CartaoLista, Regua, cardSx, useTelaDesktop } from '../ui'
+import {
+  BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio, StatusBadge,
+  cardSx, useTelaDesktop,
+} from '../ui'
 import { useUnsavedChanges } from '../UnsavedChanges'
 
 const ANO_ATUAL = String(new Date().getFullYear())
@@ -155,11 +158,13 @@ export default function Notas() {
 
   return (
     <Box>
-      <Regua sx={{ mb: 2 }} />
-      <Typography variant="h1" sx={{ fontSize: { xs: 30, sm: 36, md: 44 }, mb: 2.75 }}>Notas e faltas</Typography>
+      <CabecalhoPagina
+        titulo="Notas e faltas"
+        descricao="Selecione o contexto acadêmico, edite a grade e salve as alterações em conjunto."
+      />
 
       {/* Seletores */}
-      <Box sx={{ ...cardSx, p: { xs: '18px', sm: '22px 26px' }, mb: 2.5, display: 'flex', gap: { xs: 1.75, sm: 2.25 }, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+      <BarraFiltros sx={{ p: { xs: 2, sm: 2.5 }, mb: 2.5, gap: { xs: 1.75, sm: 2.25 }, alignItems: 'flex-end' }}>
         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 230px' }, minWidth: 0, maxWidth: { sm: 320 } }}>
           <RotuloCampo>Turma</RotuloCampo>
           <TextField select size="small" fullWidth value={codTur} onChange={(e) => setCodTur(e.target.value)}
@@ -199,12 +204,15 @@ export default function Notas() {
             {salvando ? 'Salvando…' : temInvalida ? 'Corrija os valores' : `Salvar grade${sujas.length ? ` (${sujas.length})` : ''}`}
           </Button>
         </Box>
-      </Box>
+      </BarraFiltros>
 
       {/* Grade */}
       {!docSel ? (
-        <Box sx={{ ...cardSx, p: 6, textAlign: 'center', color: TOV.caption }}>
-          Selecione uma turma e uma matéria para lançar as notas em grade.
+        <Box sx={cardSx}>
+          <EstadoVazio
+            titulo="Selecione uma turma e uma matéria"
+            descricao="A grade de notas e faltas será carregada depois que o contexto acadêmico for definido."
+          />
         </Box>
       ) : (
         <>
@@ -227,7 +235,10 @@ export default function Notas() {
                 <CartaoLista key={l.cod_alu} sx={{ borderLeft: `4px solid ${l._dirty ? TOV.coral : 'transparent'}` }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
                     <Box component="span" sx={{ color: TOV.caption, fontWeight: 600, fontSize: 13, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</Box>
-                    <Box sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3, minWidth: 0, flexGrow: 1 }}>{l.nome}</Box>
+                    <Box sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3, minWidth: 0, flexGrow: 1 }}>
+                      {l.nome}
+                      {l._dirty && <StatusBadge tom="warning" sx={{ ml: 1, verticalAlign: 'middle' }}>Não salvo</StatusBadge>}
+                    </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                       <Box component="span" sx={{ fontSize: 12, color: TOV.caption, fontWeight: 600 }}>Cursou</Box>
                       <Switch checked={l.cursou} onChange={(e) => editarLinha(l.cod_alu, 'cursou', e.target.checked)} />
@@ -282,7 +293,10 @@ export default function Notas() {
                 {!carregandoGrade && linhas.map((l, i) => (
                   <TableRow key={l.cod_alu} sx={{ bgcolor: l._dirty ? 'rgba(241,73,73,.05)' : 'transparent', '& td': { borderLeft: l._dirty ? `3px solid ${TOV.coral}` : '3px solid transparent' }, '& td:not(:first-of-type)': { borderLeft: 'none' } }}>
                     <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{String(i + 1).padStart(2, '0')}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{l.nome}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>
+                      {l.nome}
+                      {l._dirty && <StatusBadge tom="warning" sx={{ ml: 1 }}>Não salvo</StatusBadge>}
+                    </TableCell>
                     <TableCell>{celulaInput(l, 'nota', { min: 0, max: 10, step: 0.1 })}</TableCell>
                     <TableCell>{celulaInput(l, 'falta', { min: 0, step: 1 })}</TableCell>
                     <TableCell>

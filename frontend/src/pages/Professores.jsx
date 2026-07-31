@@ -10,7 +10,10 @@ import LinkIcon from '@mui/icons-material/Link'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus, resetBotao, useDialogoTelaCheia, useTelaDesktop } from '../ui'
+import {
+  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, LinhaCartao,
+  PilulaStatus, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+} from '../ui'
 
 const VAZIO = {
   nome: '', e_mail: '', fone1: '', celular: '', sigla: '',
@@ -146,7 +149,7 @@ export default function Professores() {
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
         {!carregando && professores.length === 0 && (
-          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 5 }}>Nenhum professor encontrado.</CartaoLista>
+          <CartaoLista><EstadoVazio compacto titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></CartaoLista>
         )}
         {professores.map((p) => (
           <CartaoLista key={p.cod_pro}>
@@ -190,7 +193,7 @@ export default function Professores() {
               <TableRow><TableCell colSpan={8} sx={{ py: 5, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
             )}
             {!carregando && professores.length === 0 && (
-              <TableRow><TableCell colSpan={8} sx={{ py: 6, textAlign: 'center', color: TOV.caption }}>Nenhum professor encontrado.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></TableCell></TableRow>
             )}
             {professores.map((p) => (
               <TableRow key={p.cod_pro} hover>

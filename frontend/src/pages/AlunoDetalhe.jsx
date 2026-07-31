@@ -10,7 +10,10 @@ import EditIcon from '@mui/icons-material/Edit'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
-import { AvatarIniciais, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus, Regua, cardSx, resetBotao, useTelaDesktop } from '../ui'
+import {
+  AvatarIniciais, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus,
+  Regua, SkeletonCards, Superficie, cardSx, resetBotao, useTelaDesktop,
+} from '../ui'
 import AlunoForm from './AlunoForm'
 
 function Campo({ rotulo, valor }) {
@@ -23,12 +26,11 @@ function Campo({ rotulo, valor }) {
 }
 
 function CardResumo({ rotulo, valor, escuro, offwhite, corValor }) {
-  const bg = escuro ? TOV.ink : offwhite ? TOV.offwhite : TOV.white
   return (
-    <Box sx={{ bgcolor: bg, color: escuro ? '#fff' : TOV.ink, borderRadius: '16px', p: '22px 24px', boxShadow: offwhite ? 'none' : TOV.shadowCard }}>
+    <Superficie variante={escuro ? 'inverse' : 'base'} sx={{ bgcolor: offwhite ? TOV.canvas : undefined, p: '22px 24px' }}>
       <Box sx={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.2em', color: escuro ? 'rgba(255,255,255,.55)' : TOV.caption, fontFamily: TOV.fontHead, fontWeight: 600 }}>{rotulo}</Box>
       <Box sx={{ fontFamily: escuro ? TOV.fontHead : TOV.fontBody, fontWeight: 700, fontSize: escuro ? 44 : 17, mt: 1, color: corValor }}>{valor}</Box>
-    </Box>
+    </Superficie>
   )
 }
 
@@ -87,7 +89,7 @@ export default function AlunoDetalhe() {
     }
   }
 
-  if (!aluno) return <Typography sx={{ color: TOV.caption }}>Carregando…</Typography>
+  if (!aluno) return <SkeletonCards quantidade={3} altura={150} />
 
   const situacao = { P: 'Pré-cadastro', A: 'Em curso', I: 'Inativo', F: 'Formado', T: 'Trancado' }[aluno.status] || '—'
   const whatsapp = numeroWhatsApp(aluno.celular)

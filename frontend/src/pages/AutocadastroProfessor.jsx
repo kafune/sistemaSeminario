@@ -59,14 +59,14 @@ export default function AutocadastroProfessor() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: TOV.offwhite }}>
-      <Box component="header" sx={{ bgcolor: TOV.coral, color: '#fff', px: 2, py: 2.25 }}>
+      <Box component="header" sx={{ bgcolor: TOV.graphite, color: '#fff', px: 2, py: 2.25, borderTop: `3px solid ${TOV.coral}` }}>
         <Box sx={{ maxWidth: 900, mx: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <SchoolIcon />
           <Box>
-            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 23, lineHeight: 1.1 }}>
+            <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 23, lineHeight: 1.1 }}>
               Cadastro de professor
             </Typography>
-            <Typography sx={{ fontSize: 13, opacity: 0.85 }}>Centro TOV de Formação Teológica</Typography>
+            <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,.64)' }}>Centro TOV de Formação Teológica</Typography>
           </Box>
         </Box>
       </Box>
@@ -85,7 +85,7 @@ export default function AutocadastroProfessor() {
         {!validando && concluido && (
           <Box sx={{ ...cardSx, p: { xs: 3, md: 5 }, textAlign: 'center' }}>
             <CheckCircleIcon sx={{ color: TOV.coral, fontSize: 58, mb: 1.5 }} />
-            <Typography variant="h1" sx={{ fontSize: { xs: 28, md: 36 }, mb: 1.5 }}>
+            <Typography component="h2" variant="h1" sx={{ fontSize: { xs: 28, md: 36 }, mb: 1.5 }}>
               Cadastro enviado
             </Typography>
             <Typography sx={{ color: TOV.caption, maxWidth: 560, mx: 'auto' }}>
@@ -96,7 +96,7 @@ export default function AutocadastroProfessor() {
 
         {!validando && conviteValido && !concluido && (
           <Box component="form" onSubmit={enviar} sx={{ ...cardSx, p: { xs: 2, sm: 3, md: 4 } }}>
-            <Typography variant="h1" sx={{ fontSize: { xs: 27, md: 34 }, mb: 1 }}>
+            <Typography component="h2" variant="h1" sx={{ fontSize: { xs: 27, md: 34 }, mb: 1 }}>
               Complete seus dados
             </Typography>
             <Typography sx={{ color: TOV.caption, mb: 3 }}>

@@ -5,7 +5,7 @@ import {
 } from '@mui/material'
 import { api, abrirArquivo, enviarArquivoEBaixar } from '../api'
 import { TOV } from '../theme'
-import { Eyebrow, Regua, cardSx, resetBotao } from '../ui'
+import { CabecalhoPagina, Eyebrow, Superficie, cardSx, resetBotao } from '../ui'
 
 /** Botão-pílula usado nas ações dos cards (fundo off-white ou escuro). */
 function PillAcao({ children, escuro, disabled, onClick }) {
@@ -99,11 +99,10 @@ export default function Relatorios() {
 
   return (
     <Box>
-      <Regua sx={{ mb: 2 }} />
-      <Typography variant="h1" sx={{ fontSize: { xs: 30, sm: 36, md: 44 }, mb: 1 }}>Relatórios e documentos</Typography>
-      <Typography sx={{ fontSize: 16, color: TOV.caption, mb: 3.25 }}>
-        Gere boletins, históricos, diários e listas em PDF — individual, por turma ou em lote.
-      </Typography>
+      <CabecalhoPagina
+        titulo="Relatórios e documentos"
+        descricao="Gere boletins, históricos, diários e listas em PDF — individualmente, por turma ou em lote."
+      />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: '18px', mb: '18px' }}>
         {/* Por aluno */}
@@ -150,7 +149,7 @@ export default function Relatorios() {
       </Box>
 
       {/* Geração em lote */}
-      <Box sx={{ bgcolor: TOV.ink, borderRadius: '16px', p: { xs: '20px', md: '30px 34px' }, color: '#fff' }}>
+      <Superficie variante="inverse" sx={{ p: { xs: 2.5, md: 4 } }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 3.75, flexWrap: 'wrap' }}>
           <Box sx={{ maxWidth: 520 }}>
             <Eyebrow sx={{ color: TOV.coral, mb: 1.25 }}>Geração em lote</Eyebrow>
@@ -201,7 +200,7 @@ export default function Relatorios() {
             </Button>
           </Box>
         </Box>
-      </Box>
+      </Superficie>
 
       <Snackbar open={!!msg} autoHideDuration={8000} onClose={() => setMsg('')}>
         <Alert severity={ehErro ? 'error' : 'success'} onClose={() => setMsg('')}>{msg}</Alert>

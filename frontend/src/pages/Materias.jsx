@@ -8,7 +8,10 @@ import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, CartaoLista, DialogoConfirmacao, LinhaCartao, resetBotao, useDialogoTelaCheia, useTelaDesktop } from '../ui'
+import {
+  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, LinhaCartao,
+  resetBotao, useDialogoTelaCheia, useTelaDesktop,
+} from '../ui'
 
 const VAZIA = { NOME: '', APELIDO: '', area: '', observa: '' }
 
@@ -109,7 +112,7 @@ export default function Materias() {
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
         {!carregando && materias.length === 0 && (
-          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 5 }}>Nenhuma matéria encontrada.</CartaoLista>
+          <CartaoLista><EstadoVazio compacto titulo="Nenhuma matéria encontrada" descricao="Revise a busca ou cadastre uma nova matéria." /></CartaoLista>
         )}
         {materias.map((m) => (
           <CartaoLista key={m.cod_mat}>
@@ -146,7 +149,7 @@ export default function Materias() {
               <TableRow><TableCell colSpan={5} sx={{ py: 5, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
             )}
             {!carregando && materias.length === 0 && (
-              <TableRow><TableCell colSpan={5} sx={{ py: 6, textAlign: 'center', color: TOV.caption }}>Nenhuma matéria encontrada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} sx={{ p: 0 }}><EstadoVazio titulo="Nenhuma matéria encontrada" descricao="Revise a busca ou cadastre uma nova matéria." /></TableCell></TableRow>
             )}
             {materias.map((m) => (
               <TableRow key={m.cod_mat} hover>

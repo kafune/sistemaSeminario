@@ -16,7 +16,8 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, enviarArquivoJson, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
-  CabecalhoPagina, DialogoConfirmacao, Eyebrow, cardSx, useDialogoTelaCheia,
+  CabecalhoPagina, DialogoConfirmacao, EstadoVazio, Eyebrow, StatusBadge,
+  cardSx, useDialogoTelaCheia,
 } from '../ui'
 
 const STATUS_FINAL = new Set(['CONCLUIDO', 'CONCLUIDO_COM_FALHAS', 'FALHA', 'CANCELADO'])
@@ -90,17 +91,8 @@ function qrSrc(qrcode) {
 function PilulaDisparo({ status }) {
   const falha = status === 'FALHA' || status === 'CONCLUIDO_COM_FALHAS'
   const concluido = status === 'CONCLUIDO'
-  return (
-    <Chip
-      size="small"
-      label={STATUS_LABEL[status] || status}
-      sx={{
-        fontWeight: 700,
-        bgcolor: falha ? '#FFF0E8' : concluido ? TOV.coralTint : TOV.slateTint,
-        color: falha ? '#A34716' : concluido ? TOV.coral : TOV.slate,
-      }}
-    />
-  )
+  const tom = falha ? 'warning' : concluido ? 'success' : status === 'CANCELADO' ? 'error' : status === 'AGENDADO' ? 'info' : 'neutral'
+  return <StatusBadge tom={tom} dot>{STATUS_LABEL[status] || status}</StatusBadge>
 }
 
 function CardInstancia({
@@ -166,11 +158,9 @@ function CardInstancia({
       </Box>
       {configurada && (
         <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
-          <Chip
-            size="small"
-            label={conectada ? 'Conectada' : instancia.estado === 'connecting' ? 'Conectando' : 'Desconectada'}
-            sx={{ fontWeight: 700, bgcolor: conectada ? '#E8F7EE' : TOV.captionTint, color: conectada ? '#247A49' : TOV.caption }}
-          />
+          <StatusBadge tom={conectada ? 'success' : instancia.estado === 'connecting' ? 'warning' : 'muted'} dot>
+            {conectada ? 'Conectada' : instancia.estado === 'connecting' ? 'Conectando' : 'Desconectada'}
+          </StatusBadge>
           {instancia.business != null && (
             <Chip size="small" variant="outlined" label={instancia.business ? 'WhatsApp Business' : 'WhatsApp pessoal'} />
           )}
@@ -687,7 +677,7 @@ function Compositor({
       </Box>
       <Box sx={{
         display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1,
-        bgcolor: TOV.offwhite, borderRadius: '12px', p: 0.75, mb: 2.5,
+        bgcolor: TOV.canvas, border: `1px solid ${TOV.divider}`, borderRadius: '12px', p: 0.75, mb: 2.5,
       }}>
         {[
           [1, 'Público'],
@@ -704,7 +694,8 @@ function Compositor({
                 bgcolor: ativo ? '#fff' : 'transparent',
                 color: ativo || concluido ? TOV.coral : TOV.caption,
                 fontWeight: ativo ? 700 : 600, fontSize: 13,
-                boxShadow: ativo ? '0 3px 12px rgba(22,24,26,.07)' : 'none',
+                border: `1px solid ${ativo ? TOV.border : 'transparent'}`,
+                boxShadow: 'none',
               }}
             >
               <Box component="span" sx={{
@@ -1039,7 +1030,7 @@ function Compositor({
                 helperText="Deixe vazio para enviar assim que confirmar."
               />
             </Box>
-            <Box>
+            <Box sx={{ position: { lg: 'sticky' }, top: { lg: 24 }, alignSelf: 'start' }}>
               <Eyebrow sx={{ mb: 1 }}>Prévia</Eyebrow>
               <Box sx={{
                 minHeight: 300, borderRadius: '16px', overflow: 'hidden',
@@ -1062,7 +1053,12 @@ function Compositor({
               </Typography>
             </Box>
           </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1.5, mt: 2.5, flexWrap: 'wrap' }}>
+          <Box sx={{
+            display: 'flex', justifyContent: 'space-between', gap: 1.5, mt: 2.5, flexWrap: 'wrap',
+            position: { lg: 'sticky' }, bottom: { lg: 16 }, zIndex: 2,
+            bgcolor: TOV.surface, borderTop: `1px solid ${TOV.divider}`,
+            mx: { lg: -1 }, px: { lg: 1 }, py: { lg: 1.25 },
+          }}>
             <Button variant="outlined" disabled={!!disparoEdicao} onClick={() => setEtapa(1)}>
               {disparoEdicao ? 'Público não pode ser alterado' : 'Voltar ao público'}
             </Button>
@@ -1127,7 +1123,7 @@ function Historico({ itens, onAbrir }) {
       <Typography variant="h2" sx={{ fontSize: 26, mb: 2.5 }}>Histórico de disparos</Typography>
       {!itens && <LinearProgress />}
       {itens?.length === 0 && (
-        <Typography sx={{ color: TOV.caption, fontSize: 14 }}>Nenhum disparo realizado ainda.</Typography>
+        <EstadoVazio compacto titulo="Nenhum disparo realizado" descricao="As campanhas enviadas ou agendadas aparecerão neste histórico." />
       )}
       <Box sx={{ display: 'flex', flexDirection: 'column' }}>
         {itens?.map((item, indice) => {

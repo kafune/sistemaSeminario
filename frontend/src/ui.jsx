@@ -1,44 +1,50 @@
-// Peças reutilizáveis do design system TOV: régua de seção, eyebrow, cabeçalho
-// de página, pílula de status, avatar de iniciais e helpers responsivos.
-import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Typography, useMediaQuery, useTheme } from '@mui/material'
+import {
+  Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Skeleton,
+  Typography, useMediaQuery, useTheme,
+} from '@mui/material'
+import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import { TOV } from './theme'
 
-/**
- * Reset de estilos para tornar Box clicável um <button> de verdade
- * (acessível por teclado) sem perder o visual do design.
- */
 export const resetBotao = {
-  appearance: 'none', border: 0, m: 0, p: 0, bgcolor: 'transparent',
-  font: 'inherit', color: 'inherit', textAlign: 'inherit', cursor: 'pointer',
-  '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2, borderRadius: '6px' },
+  appearance: 'none',
+  border: 0,
+  m: 0,
+  p: 0,
+  bgcolor: 'transparent',
+  font: 'inherit',
+  color: 'inherit',
+  textAlign: 'inherit',
+  minHeight: 44,
+  cursor: 'pointer',
+  '&:focus-visible': {
+    outline: `3px solid ${TOV.coralTintStrong}`,
+    outlineOffset: 2,
+    borderRadius: `${TOV.radiusSm}px`,
+  },
 }
 
-/** true abaixo de 600px — usado para abrir diálogos em tela cheia no celular. */
 export function useDialogoTelaCheia() {
   const theme = useTheme()
   return useMediaQuery(theme.breakpoints.down('sm'))
 }
 
-/** Renderiza somente a variante de lista adequada, evitando DOM duplicado. */
 export function useTelaDesktop() {
   const theme = useTheme()
   return useMediaQuery(theme.breakpoints.up('md'), { noSsr: true })
 }
 
-/** Régua coral 64×5 — marcador de seção que precede os títulos. */
+/** Filete coral — assinatura visual breve, nunca uma grande massa de cor. */
 export function Regua({ sx }) {
-  return <Box sx={{ width: 64, height: 5, bgcolor: TOV.coral, borderRadius: '3px', ...sx }} />
+  return <Box aria-hidden="true" sx={{ width: 44, height: 3, bgcolor: TOV.coral, borderRadius: 99, ...sx }} />
 }
 
-/** Rótulo pequeno em caixa alta (Bricolage 600, tracking largo). */
-export function Eyebrow({ children, sx }) {
+export function Eyebrow({ children, sx, ...props }) {
   return (
     <Typography
       component="div"
-      sx={{
-        fontFamily: TOV.fontHead, fontWeight: 600, fontSize: 11, letterSpacing: '.2em',
-        textTransform: 'uppercase', color: TOV.caption, ...sx,
-      }}
+      variant="overline"
+      sx={{ color: TOV.caption, ...sx }}
+      {...props}
     >
       {children}
     </Typography>
@@ -46,30 +52,56 @@ export function Eyebrow({ children, sx }) {
 }
 
 /**
- * Cabeçalho padrão de página: régua + título grande + subtítulo à esquerda,
- * ações (busca, botões) à direita.
+ * Cabeçalho editorial de página.
+ * `subtitulo` continua aceito como alias de `descricao`.
  */
-export function CabecalhoPagina({ titulo, subtitulo, acoes, sx }) {
+export function CabecalhoPagina({
+  titulo, descricao, subtitulo, metadados, acoes, eyebrow, sx,
+}) {
+  const texto = descricao ?? subtitulo
   return (
     <Box
+      component="header"
       sx={{
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',
-        gap: 2, flexWrap: 'wrap', mb: 3, ...sx,
+        display: 'grid',
+        gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: acoes ? 'minmax(0, 1fr) auto' : 'minmax(0, 1fr)' },
+        alignItems: 'end',
+        gap: { xs: 2, md: 3 },
+        mb: { xs: 3, md: 3.5 },
+        ...sx,
       }}
     >
-      <Box sx={{ minWidth: 0 }}>
-        <Regua sx={{ mb: 2 }} />
-        <Typography variant="h1" sx={{ fontSize: { xs: 30, sm: 36, md: 44 } }}>{titulo}</Typography>
-        {subtitulo != null && (
-          <Typography sx={{ mt: 1.25, fontSize: { xs: 14, md: 16 }, color: TOV.caption }}>{subtitulo}</Typography>
+      <Box sx={{ minWidth: 0, maxWidth: 760 }}>
+        {eyebrow && <Eyebrow sx={{ mb: 1 }}>{eyebrow}</Eyebrow>}
+        <Regua sx={{ mb: 1.5 }} />
+        <Typography component="h1" variant="h1" sx={{ overflowWrap: 'anywhere' }}>{titulo}</Typography>
+        {(texto != null || metadados != null) && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 1.25 }}>
+            {texto != null && (
+              <Typography sx={{ fontSize: { xs: 14, md: 15 }, color: TOV.caption, maxWidth: '72ch' }}>
+                {texto}
+              </Typography>
+            )}
+            {metadados != null && (
+              <>
+                {texto != null && <Box aria-hidden="true" sx={{ width: 3, height: 3, borderRadius: '50%', bgcolor: TOV.border }} />}
+                <Box sx={{ fontSize: 13, color: TOV.caption }}>{metadados}</Box>
+              </>
+            )}
+          </Box>
         )}
       </Box>
       {acoes && (
         <Box
           sx={{
-            display: 'flex', gap: 1.5, flexWrap: 'wrap',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: { xs: 'stretch', sm: 'flex-start', md: 'flex-end' },
+            gap: 1,
+            flexWrap: 'wrap',
             width: { xs: '100%', md: 'auto' },
             '& > *': { flexGrow: { xs: 1, sm: 0 } },
+            '& form': { flexGrow: { xs: 1, sm: 0 } },
           }}
         >
           {acoes}
@@ -79,31 +111,228 @@ export function CabecalhoPagina({ titulo, subtitulo, acoes, sx }) {
   )
 }
 
-const MAPA_STATUS = {
-  P: ['Pré-cadastro', TOV.coral, TOV.coralTint],
-  A: ['Ativo', TOV.coral, TOV.coralTint],
-  I: ['Inativo', TOV.caption, TOV.captionTint],
-  F: ['Formado', TOV.slate, TOV.slateTint],
-  T: ['Trancado', TOV.caption, TOV.captionTint],
+const SUPERFICIES = {
+  base: {
+    bgcolor: TOV.surface,
+    color: TOV.ink,
+    border: `1px solid ${TOV.border}`,
+    boxShadow: 'none',
+  },
+  raised: {
+    bgcolor: TOV.surface,
+    color: TOV.ink,
+    border: `1px solid ${TOV.divider}`,
+    boxShadow: TOV.shadowRaised,
+  },
+  inverse: {
+    bgcolor: TOV.graphite,
+    color: '#fff',
+    border: '1px solid rgba(255,255,255,.08)',
+    boxShadow: 'none',
+  },
 }
 
-/** Pílula de status a partir do código (P/A/I/F/T). */
-export function PilulaStatus({ status, sx }) {
-  const [label, color, bg] = MAPA_STATUS[status] || [status || '—', TOV.caption, TOV.captionTint]
+export function Superficie({ variante = 'base', component = 'section', children, sx, ...props }) {
   return (
     <Box
-      component="span"
-      sx={{
-        display: 'inline-block', px: 1.5, py: '5px', borderRadius: 999,
-        bgcolor: bg, color, fontSize: 12, fontWeight: 700, lineHeight: 1.4, ...sx,
-      }}
+      component={component}
+      sx={{ borderRadius: `${TOV.radiusMd}px`, ...SUPERFICIES[variante], ...sx }}
+      {...props}
     >
-      {label}
+      {children}
     </Box>
   )
 }
 
-/** Iniciais (até 2 letras) de um nome, em caixa alta. */
+export function BarraFiltros({ children, sx, ...props }) {
+  return (
+    <Superficie
+      component="section"
+      aria-label="Filtros"
+      sx={{
+        p: { xs: 1.5, sm: 2 },
+        mb: 2,
+        display: 'flex',
+        alignItems: { xs: 'stretch', sm: 'center' },
+        gap: 1.25,
+        flexWrap: 'wrap',
+        '& .MuiTextField-root': { minWidth: { xs: '100%', sm: 180 } },
+        ...sx,
+      }}
+      {...props}
+    >
+      {children}
+    </Superficie>
+  )
+}
+
+const STATUS_TONES = {
+  coral: { color: TOV.coral, bg: TOV.coralTint, border: 'rgba(201,47,47,.18)' },
+  neutral: { color: TOV.graphite, bg: TOV.slateTint, border: 'rgba(52,59,63,.13)' },
+  muted: { color: TOV.caption, bg: TOV.captionTint, border: 'rgba(104,115,122,.15)' },
+  success: { color: TOV.success, bg: TOV.successTint, border: 'rgba(39,116,81,.17)' },
+  warning: { color: TOV.warning, bg: TOV.warningTint, border: 'rgba(154,91,18,.18)' },
+  error: { color: TOV.danger, bg: TOV.dangerTint, border: 'rgba(180,35,42,.17)' },
+  info: { color: TOV.info, bg: TOV.infoTint, border: 'rgba(53,106,130,.17)' },
+}
+
+const MAPA_STATUS = {
+  P: ['Pré-cadastro', 'warning'],
+  A: ['Ativo', 'success'],
+  I: ['Inativo', 'muted'],
+  F: ['Formado', 'info'],
+  T: ['Trancado', 'neutral'],
+}
+
+export function StatusBadge({ children, tom = 'neutral', dot = false, sx, ...props }) {
+  const tone = STATUS_TONES[tom] || STATUS_TONES.neutral
+  return (
+    <Box
+      component="span"
+      sx={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 0.75,
+        minHeight: 28,
+        px: 1.25,
+        py: '3px',
+        borderRadius: 999,
+        bgcolor: tone.bg,
+        color: tone.color,
+        border: `1px solid ${tone.border}`,
+        fontSize: 12,
+        fontWeight: 700,
+        lineHeight: 1.35,
+        whiteSpace: 'nowrap',
+        ...sx,
+      }}
+      {...props}
+    >
+      {dot && <Box aria-hidden="true" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'currentColor' }} />}
+      {children}
+    </Box>
+  )
+}
+
+export function PilulaStatus({ status, sx }) {
+  const [label, tom] = MAPA_STATUS[status] || [status || '—', 'muted']
+  return <StatusBadge tom={tom} dot sx={sx}>{label}</StatusBadge>
+}
+
+export function CardMetrica({ rotulo, valor, nota, destaque = false, icone, sx }) {
+  return (
+    <Superficie
+      variante={destaque ? 'inverse' : 'base'}
+      sx={{
+        minWidth: 0,
+        p: { xs: 2, sm: 2.5, md: 3 },
+        position: 'relative',
+        overflow: 'hidden',
+        '&::before': destaque ? {
+          content: '""',
+          position: 'absolute',
+          inset: '0 auto 0 0',
+          width: 3,
+          bgcolor: TOV.coralBright,
+        } : undefined,
+        ...sx,
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+        <Eyebrow sx={{ color: destaque ? 'rgba(255,255,255,.62)' : TOV.caption }}>{rotulo}</Eyebrow>
+        {icone && <Box sx={{ color: destaque ? 'rgba(255,255,255,.7)' : TOV.coral, lineHeight: 0 }}>{icone}</Box>}
+      </Box>
+      <Typography
+        component="div"
+        sx={{
+          fontFamily: TOV.fontHead,
+          fontWeight: 700,
+          fontSize: { xs: 32, md: 42 },
+          letterSpacing: '-.04em',
+          mt: 1.25,
+          lineHeight: 1,
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {valor}
+      </Typography>
+      {nota && (
+        <Typography sx={{ mt: 0.9, fontSize: 12.5, color: destaque ? 'rgba(255,255,255,.68)' : TOV.caption }}>
+          {typeof nota === 'object' ? nota.texto : nota}
+        </Typography>
+      )}
+    </Superficie>
+  )
+}
+
+export function EstadoVazio({
+  titulo = 'Nenhum resultado encontrado',
+  descricao,
+  acao,
+  icone: Icone = InboxOutlinedIcon,
+  compacto = false,
+  sx,
+}) {
+  return (
+    <Box
+      role="status"
+      sx={{
+        minHeight: compacto ? 140 : 220,
+        px: 2,
+        py: compacto ? 3 : 5,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+        color: TOV.caption,
+        ...sx,
+      }}
+    >
+      <Box sx={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: '50%', bgcolor: TOV.slateTint, color: TOV.graphite, mb: 1.5 }}>
+        <Icone sx={{ fontSize: 22 }} />
+      </Box>
+      <Typography variant="h4" sx={{ fontSize: 17, color: TOV.ink }}>{titulo}</Typography>
+      {descricao && <Typography sx={{ mt: 0.75, maxWidth: 480, fontSize: 13.5 }}>{descricao}</Typography>}
+      {acao && <Box sx={{ mt: 2 }}>{acao}</Box>}
+    </Box>
+  )
+}
+
+export function SkeletonCards({ quantidade = 3, altura = 150, colunas, sx }) {
+  return (
+    <Box
+      role="status"
+      aria-label="Carregando conteúdo"
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: colunas || { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))', lg: `repeat(${Math.min(quantidade, 4)},minmax(0,1fr))` },
+        gap: 2,
+        ...sx,
+      }}
+    >
+      {Array.from({ length: quantidade }, (_, i) => (
+        <Skeleton key={i} variant="rounded" height={altura} sx={{ borderRadius: `${TOV.radiusMd}px` }} />
+      ))}
+    </Box>
+  )
+}
+
+export function SkeletonTabela({ linhas = 5, sx }) {
+  return (
+    <Box role="status" aria-label="Carregando tabela" sx={{ p: 2, ...sx }}>
+      {Array.from({ length: linhas }, (_, i) => (
+        <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '100px 2fr 1fr 100px', gap: 2, py: 1.25, borderBottom: i < linhas - 1 ? `1px solid ${TOV.divider}` : 0 }}>
+          <Skeleton height={24} />
+          <Skeleton height={24} />
+          <Skeleton height={24} />
+          <Skeleton height={24} />
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
 export function iniciais(nome) {
   if (!nome) return '—'
   const partes = String(nome).trim().split(/\s+/)
@@ -111,14 +340,25 @@ export function iniciais(nome) {
   return letras.toUpperCase()
 }
 
-/** Avatar quadrado coral com iniciais. */
 export function AvatarIniciais({ nome, tamanho = 76, radius = 20, fontSize = 30, sx }) {
   return (
     <Box
+      aria-hidden="true"
       sx={{
-        width: tamanho, height: tamanho, flex: `0 0 ${tamanho}px`, borderRadius: `${radius}px`,
-        bgcolor: TOV.coral, color: '#fff', fontFamily: TOV.fontHead, fontWeight: 700, fontSize,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', ...sx,
+        width: tamanho,
+        height: tamanho,
+        flex: `0 0 ${tamanho}px`,
+        borderRadius: `${radius}px`,
+        bgcolor: TOV.graphite,
+        color: '#fff',
+        border: '1px solid rgba(255,255,255,.12)',
+        fontFamily: TOV.fontHead,
+        fontWeight: 700,
+        fontSize,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...sx,
       }}
     >
       {iniciais(nome)}
@@ -126,29 +366,32 @@ export function AvatarIniciais({ nome, tamanho = 76, radius = 20, fontSize = 30,
   )
 }
 
-/** Paper branco no padrão do design (raio 16, sombra sutil). Uso genérico. */
 export const cardSx = {
-  bgcolor: TOV.white, borderRadius: '16px', boxShadow: TOV.shadowCard,
+  bgcolor: TOV.surface,
+  borderRadius: `${TOV.radiusMd}px`,
+  border: `1px solid ${TOV.border}`,
+  boxShadow: 'none',
 }
 
-/** Card de item para listas no celular — substitui a linha de tabela. */
 export function CartaoLista({ children, onClick, sx }) {
   return (
     <Box
+      component={onClick ? 'button' : 'article'}
+      type={onClick ? 'button' : undefined}
       onClick={onClick}
-      role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => {
-        if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
-          e.preventDefault()
-          onClick(e)
-        }
-      } : undefined}
       sx={{
-        ...cardSx, p: '16px 18px', display: 'flex', flexDirection: 'column', gap: 1,
+        ...(onClick ? resetBotao : {}),
+        ...cardSx,
+        p: '16px 18px',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
         ...(onClick ? {
-          cursor: 'pointer', '&:active': { bgcolor: TOV.offwhite },
-          '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2 },
+          cursor: 'pointer',
+          transition: `border-color ${TOV.durationFast} ${TOV.ease}, background-color ${TOV.durationFast} ${TOV.ease}`,
+          '&:hover': { borderColor: '#C7BDB5', bgcolor: '#FBF9F6' },
+          '&:active': { bgcolor: TOV.canvas },
         } : {}),
         ...sx,
       }}
@@ -158,33 +401,32 @@ export function CartaoLista({ children, onClick, sx }) {
   )
 }
 
-/**
- * Diálogo de confirmação para ações destrutivas — substitui window.confirm
- * com o visual do design system e estado de processamento.
- */
-export function DialogoConfirmacao({ aberto, titulo, descricao, rotuloConfirmar = 'Excluir', processando, onConfirmar, onFechar }) {
+export function DialogoConfirmacao({
+  aberto, titulo, descricao, rotuloConfirmar = 'Excluir', processando, onConfirmar, onFechar,
+}) {
   return (
     <Dialog open={aberto} onClose={processando ? undefined : onFechar} maxWidth="xs" fullWidth>
       <DialogTitle>{titulo}</DialogTitle>
       <DialogContent>
-        <Typography sx={{ fontSize: 15, color: TOV.slate }}>{descricao}</Typography>
+        <Typography sx={{ fontSize: 14.5, color: TOV.caption }}>{descricao}</Typography>
       </DialogContent>
-      <DialogActions sx={{ p: 3, pt: 1 }}>
+      <DialogActions>
         <Button variant="outlined" onClick={onFechar} disabled={processando}>Cancelar</Button>
         <Button variant="contained" color="error" onClick={onConfirmar} disabled={processando} autoFocus>
-          {processando ? 'Excluindo…' : rotuloConfirmar}
+          {processando ? 'Processando…' : rotuloConfirmar}
         </Button>
       </DialogActions>
     </Dialog>
   )
 }
 
-/** Par rótulo/valor compacto usado dentro dos cards de lista. */
 export function LinhaCartao({ rotulo, valor }) {
   return (
-    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, fontSize: 14 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, fontSize: 13.5 }}>
       <Box component="span" sx={{ color: TOV.caption, flexShrink: 0 }}>{rotulo}</Box>
-      <Box component="span" sx={{ fontWeight: 600, color: TOV.slate, textAlign: 'right', minWidth: 0, overflowWrap: 'anywhere' }}>{valor || '—'}</Box>
+      <Box component="span" sx={{ fontWeight: 600, color: TOV.graphite, textAlign: 'right', minWidth: 0, overflowWrap: 'anywhere' }}>
+        {valor || '—'}
+      </Box>
     </Box>
   )
 }

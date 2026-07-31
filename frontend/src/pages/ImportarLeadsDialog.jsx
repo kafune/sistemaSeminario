@@ -6,7 +6,7 @@ import {
 import CloudSyncIcon from '@mui/icons-material/CloudSync'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
-import { api, enviarArquivoJson } from '../api'
+import { api, baixarArquivo, enviarArquivoJson } from '../api'
 import { TOV } from '../theme'
 import { cardSx, useDialogoTelaCheia } from '../ui'
 
@@ -81,6 +81,15 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
     }
   }
 
+  async function baixarModelo() {
+    setErro('')
+    try {
+      await baixarArquivo('/leads/importacoes/modelo', 'modelo-importacao-leads.xlsx')
+    } catch (e) {
+      setErro(e.message)
+    }
+  }
+
   async function confirmar() {
     setProcessando(true)
     setErro('')
@@ -129,6 +138,9 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
                 }}
               />
               <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'center', flexWrap: 'wrap', mt: 2 }}>
+                <Button variant="text" onClick={baixarModelo} disabled={processando}>
+                  Baixar planilha de exemplo
+                </Button>
                 <Button
                   variant="outlined"
                   startIcon={<UploadFileIcon />}

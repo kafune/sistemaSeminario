@@ -4,7 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db, row_to_dict
-from ..models import AluNota, Materia
+from ..models import AluNota, DocTurma, Materia, MatProf
 
 router = APIRouter(prefix="/materias", tags=["materias"])
 
@@ -49,11 +49,23 @@ def excluir(cod_mat: int, db: Session = Depends(get_db)):
     mat = db.get(Materia, cod_mat)
     if not mat:
         raise HTTPException(404, "Matéria não encontrada")
-    em_uso = db.scalar(
+    notas = db.scalar(
         select(func.count()).select_from(AluNota).where(AluNota.cod_mat == cod_mat)
-    )
-    if em_uso:
-        raise HTTPException(400, f"Matéria tem {em_uso} notas lançadas; não pode ser excluída.")
+    ) or 0
+    if notas:
+        raise HTTPException(
+            400,
+            f"Matéria tem {notas} notas lançadas; não pode ser excluída.",
+        )
+    turmas = db.scalar(
+        select(func.count()).select_from(DocTurma).where(DocTurma.cod_mat == cod_mat)
+    ) or 0
+    if turmas:
+        raise HTTPException(
+            400,
+            f"Matéria está vinculada a {turmas} turma(s); remova os vínculos antes.",
+        )
+    db.execute(MatProf.__table__.delete().where(MatProf.cod_mat == cod_mat))
     db.delete(mat)
     db.commit()
     return {"ok": True}

@@ -8,6 +8,184 @@ from sqlalchemy import inspect, text
 from sqlalchemy.engine import Engine
 
 
+def _tem_unicidade(inspector, tabela: str, colunas: list[str]) -> bool:
+    return any(
+        indice.get("unique") and indice.get("column_names") == colunas
+        for indice in inspector.get_indexes(tabela)
+    ) or any(
+        restricao.get("column_names") == colunas
+        for restricao in inspector.get_unique_constraints(tabela)
+    )
+
+
+def _remover_duplicatas_exatas(
+    conexao,
+    tabela: str,
+    colunas: tuple[str, ...],
+) -> None:
+    agrupamento = ", ".join(f"`{coluna}`" for coluna in colunas)
+    duplicatas = conexao.execute(
+        text(
+            f"SELECT {agrupamento}, MIN(id) AS id_preservado "
+            f"FROM `{tabela}` GROUP BY {agrupamento} HAVING COUNT(*) > 1"
+        )
+    ).mappings()
+    for duplicata in duplicatas:
+        filtros = " AND ".join(
+            f"`{coluna}` = :{coluna}" for coluna in colunas
+        )
+        parametros = {coluna: duplicata[coluna] for coluna in colunas}
+        parametros["id_preservado"] = duplicata["id_preservado"]
+        conexao.execute(
+            text(
+                f"DELETE FROM `{tabela}` "
+                f"WHERE {filtros} AND id <> :id_preservado"
+            ),
+            parametros,
+        )
+
+
+def _reparar_integridade_academica(engine: Engine) -> None:
+    """Reconcilia inconsistências legadas sem remover histórico acadêmico."""
+    tabelas = set(inspect(engine).get_table_names())
+    if not {"alunos", "aluturma", "turma"}.issubset(tabelas):
+        return
+
+    with engine.begin() as conexao:
+        # Vínculos sem uma das pontas não podem ser exibidos nem recuperados.
+        conexao.execute(
+            text(
+                "DELETE FROM aluturma "
+                "WHERE NOT EXISTS ("
+                "SELECT 1 FROM alunos WHERE alunos.cod_alu = aluturma.cod_alu"
+                ") OR NOT EXISTS ("
+                "SELECT 1 FROM turma WHERE turma.cod_tur = aluturma.cod_tur"
+                ")"
+            )
+        )
+        _remover_duplicatas_exatas(
+            conexao,
+            "aluturma",
+            ("cod_tur", "cod_alu"),
+        )
+
+        # Um código de turma inválido não deve continuar parecendo uma matrícula.
+        conexao.execute(
+            text(
+                "UPDATE alunos SET cod_tur = NULL "
+                "WHERE cod_tur IS NOT NULL AND NOT EXISTS ("
+                "SELECT 1 FROM turma WHERE turma.cod_tur = alunos.cod_tur"
+                ")"
+            )
+        )
+
+        # Preserva vínculos legados válidos quando o campo resumido ficou vazio.
+        unicos = conexao.execute(
+            text(
+                "SELECT at.cod_alu, MIN(at.cod_tur) AS cod_tur "
+                "FROM aluturma at JOIN alunos a ON a.cod_alu = at.cod_alu "
+                "WHERE a.cod_tur IS NULL "
+                "GROUP BY at.cod_alu HAVING COUNT(DISTINCT at.cod_tur) = 1"
+            )
+        ).mappings()
+        for vinculo in unicos:
+            conexao.execute(
+                text(
+                    "UPDATE alunos SET cod_tur = :cod_tur "
+                    "WHERE cod_alu = :cod_alu AND cod_tur IS NULL"
+                ),
+                dict(vinculo),
+            )
+
+        # Completa o caso que originou o bug: cod_tur salvo sem linha em aluturma.
+        faltantes = conexao.execute(
+            text(
+                "SELECT a.cod_alu, a.cod_tur "
+                "FROM alunos a JOIN turma t ON t.cod_tur = a.cod_tur "
+                "LEFT JOIN aluturma at "
+                "ON at.cod_alu = a.cod_alu AND at.cod_tur = a.cod_tur "
+                "WHERE a.cod_tur IS NOT NULL AND at.id IS NULL "
+                "ORDER BY a.cod_tur, a.cod_alu"
+            )
+        ).mappings()
+        proximos_itens: dict[int, int] = {}
+        for faltante in faltantes:
+            cod_tur = faltante["cod_tur"]
+            if cod_tur not in proximos_itens:
+                proximos_itens[cod_tur] = (
+                    conexao.execute(
+                        text(
+                            "SELECT COALESCE(MAX(item), 0) "
+                            "FROM aluturma WHERE cod_tur = :cod_tur"
+                        ),
+                        {"cod_tur": cod_tur},
+                    ).scalar_one()
+                    + 1
+                )
+            conexao.execute(
+                text(
+                    "INSERT INTO aluturma (cod_tur, item, cod_alu, status) "
+                    "VALUES (:cod_tur, :item, :cod_alu, 'A')"
+                ),
+                {
+                    "cod_tur": cod_tur,
+                    "item": proximos_itens[cod_tur],
+                    "cod_alu": faltante["cod_alu"],
+                },
+            )
+            proximos_itens[cod_tur] += 1
+
+        conexao.execute(
+            text(
+                "UPDATE turma SET qtalu = ("
+                "SELECT COUNT(*) FROM aluturma "
+                "WHERE aluturma.cod_tur = turma.cod_tur"
+                ")"
+            )
+        )
+
+        if "professor" in tabelas:
+            if "docturma" in tabelas:
+                conexao.execute(
+                    text(
+                        "UPDATE docturma SET cod_pro = NULL "
+                        "WHERE cod_pro IS NOT NULL AND NOT EXISTS ("
+                        "SELECT 1 FROM professor "
+                        "WHERE professor.cod_pro = docturma.cod_pro"
+                        ")"
+                    )
+                )
+            if "alunota" in tabelas:
+                conexao.execute(
+                    text(
+                        "UPDATE alunota SET cod_pro = NULL "
+                        "WHERE cod_pro IS NOT NULL AND NOT EXISTS ("
+                        "SELECT 1 FROM professor "
+                        "WHERE professor.cod_pro = alunota.cod_pro"
+                        ")"
+                    )
+                )
+
+        if "matprof" in tabelas:
+            conexao.execute(
+                text(
+                    "DELETE FROM matprof WHERE "
+                    "NOT EXISTS ("
+                    "SELECT 1 FROM professor "
+                    "WHERE professor.cod_pro = matprof.cod_pro"
+                    ") OR NOT EXISTS ("
+                    "SELECT 1 FROM materias "
+                    "WHERE materias.cod_mat = matprof.cod_mat"
+                    ")"
+                )
+            )
+            _remover_duplicatas_exatas(
+                conexao,
+                "matprof",
+                ("cod_mat", "cod_pro"),
+            )
+
+
 def atualizar_schema(engine: Engine) -> None:
     inspector = inspect(engine)
     tabelas = inspector.get_table_names()
@@ -265,3 +443,36 @@ def atualizar_schema(engine: Engine) -> None:
         with engine.begin() as conexao:
             for comando in comandos:
                 conexao.execute(text(comando))
+
+    _reparar_integridade_academica(engine)
+
+    # As restrições abaixo também são declaradas nos modelos para bancos novos.
+    # Bancos existentes recebem os índices após a reconciliação dos dados.
+    inspector = inspect(engine)
+    unicidades = {
+        "aluturma": (
+            "uq_aluturma_cod_tur_cod_alu",
+            ["cod_tur", "cod_alu"],
+        ),
+        "matprof": (
+            "uq_matprof_cod_mat_cod_pro",
+            ["cod_mat", "cod_pro"],
+        ),
+    }
+    with engine.begin() as conexao:
+        for tabela, (nome, colunas_unicas) in unicidades.items():
+            if tabela not in tabelas or _tem_unicidade(
+                inspector,
+                tabela,
+                colunas_unicas,
+            ):
+                continue
+            colunas_sql = ", ".join(
+                f"`{coluna}`" for coluna in colunas_unicas
+            )
+            conexao.execute(
+                text(
+                    f"CREATE UNIQUE INDEX `{nome}` "
+                    f"ON `{tabela}` ({colunas_sql})"
+                )
+            )

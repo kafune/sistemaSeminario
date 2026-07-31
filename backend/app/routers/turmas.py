@@ -8,12 +8,15 @@ from sqlalchemy.orm import Session
 from ..database import get_db, row_to_dict
 from ..models import (
     Aluno,
+    AluNota,
     AluTurma,
+    Aula,
     DocTurma,
     Materia,
     Professor,
     Turma,
 )
+from ..services.matriculas import atualizar_contagem_turma, sincronizar_matricula
 
 router = APIRouter(prefix="/turmas", tags=["turmas"])
 
@@ -100,9 +103,31 @@ def excluir(cod_tur: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Turma não encontrada")
     tem_alunos = db.scalar(
         select(func.count()).select_from(AluTurma).where(AluTurma.cod_tur == cod_tur)
-    )
-    if tem_alunos:
+    ) or 0
+    cadastros_na_turma = db.scalar(
+        select(func.count()).select_from(Aluno).where(Aluno.cod_tur == cod_tur)
+    ) or 0
+    if tem_alunos or cadastros_na_turma:
         raise HTTPException(400, "Turma possui alunos matriculados; remova-os antes.")
+    tem_notas = db.scalar(
+        select(func.count()).select_from(AluNota).where(AluNota.cod_tur == cod_tur)
+    ) or 0
+    if tem_notas:
+        raise HTTPException(
+            400,
+            f"Turma possui {tem_notas} nota(s) lançada(s); não pode ser excluída.",
+        )
+    tem_aulas = db.scalar(
+        select(func.count())
+        .select_from(Aula)
+        .join(DocTurma, DocTurma.id == Aula.docturma_id)
+        .where(DocTurma.cod_tur == cod_tur)
+    ) or 0
+    if tem_aulas:
+        raise HTTPException(
+            400,
+            f"Turma possui {tem_aulas} aula(s) no calendário; remova-as antes.",
+        )
     db.execute(DocTurma.__table__.delete().where(DocTurma.cod_tur == cod_tur))
     db.delete(turma)
     db.commit()
@@ -142,14 +167,16 @@ def matricular(cod_tur: int, cod_alu: int, db: Session = Depends(get_db)):
     ja = db.scalar(
         select(AluTurma).where(AluTurma.cod_tur == cod_tur, AluTurma.cod_alu == cod_alu)
     )
-    if ja:
-        raise HTTPException(400, "Aluno já está nesta turma")
-    prox = (db.scalar(
-        select(func.max(AluTurma.item)).where(AluTurma.cod_tur == cod_tur)
-    ) or 0) + 1
-    db.add(AluTurma(cod_tur=cod_tur, cod_alu=cod_alu, item=prox, status="A"))
-    aluno.cod_tur = cod_tur
-    _atualizar_qtalu(db, cod_tur)
+    if ja and aluno.cod_tur == cod_tur:
+        outros_vinculos = db.scalar(
+            select(func.count()).select_from(AluTurma).where(
+                AluTurma.cod_alu == cod_alu,
+                AluTurma.id != ja.id,
+            )
+        ) or 0
+        if not outros_vinculos:
+            raise HTTPException(400, "Aluno já está nesta turma")
+    sincronizar_matricula(db, aluno, cod_tur)
     db.commit()
     return {"ok": True}
 
@@ -161,24 +188,46 @@ def desmatricular(cod_tur: int, cod_alu: int, db: Session = Depends(get_db)):
     )
     if not vinculo:
         raise HTTPException(404, "Aluno não está nesta turma")
-    db.delete(vinculo)
     aluno = db.get(Aluno, cod_alu)
     if aluno and aluno.cod_tur == cod_tur:
-        aluno.cod_tur = None
-    _atualizar_qtalu(db, cod_tur)
+        sincronizar_matricula(db, aluno, None)
+    else:
+        db.delete(vinculo)
+        db.flush()
+        atualizar_contagem_turma(db, cod_tur)
     db.commit()
     return {"ok": True}
 
 
-def _atualizar_qtalu(db: Session, cod_tur: int):
-    turma = db.get(Turma, cod_tur)
-    if turma:
-        turma.qtalu = db.scalar(
-            select(func.count()).select_from(AluTurma).where(AluTurma.cod_tur == cod_tur)
-        )
-
-
 # ---- materias/professores da turma (docturma) ------------------------------
+
+def _validar_referencias_materia(
+    db: Session,
+    dados: DocTurmaInput,
+) -> None:
+    if not db.get(Materia, dados.cod_mat):
+        raise HTTPException(404, "Matéria não encontrada")
+    if dados.cod_pro is not None and not db.get(Professor, dados.cod_pro):
+        raise HTTPException(404, "Professor não encontrado")
+
+
+def _vinculo_duplicado(
+    db: Session,
+    cod_tur: int,
+    dados: DocTurmaInput,
+    *,
+    ignorar_id: int | None = None,
+) -> DocTurma | None:
+    consulta = select(DocTurma).where(
+        DocTurma.cod_tur == cod_tur,
+        DocTurma.cod_mat == dados.cod_mat,
+        DocTurma.Ano == dados.Ano,
+        DocTurma.semestre == dados.semestre,
+    )
+    if ignorar_id is not None:
+        consulta = consulta.where(DocTurma.id != ignorar_id)
+    return db.scalar(consulta)
+
 
 @router.get("/{cod_tur}/materias")
 def materias_da_turma(cod_tur: int, db: Session = Depends(get_db)):
@@ -202,14 +251,8 @@ def materias_da_turma(cod_tur: int, db: Session = Depends(get_db)):
 def adicionar_materia(cod_tur: int, dados: DocTurmaInput, db: Session = Depends(get_db)):
     if not db.get(Turma, cod_tur):
         raise HTTPException(404, "Turma não encontrada")
-    ja = db.scalar(
-        select(DocTurma).where(
-            DocTurma.cod_tur == cod_tur,
-            DocTurma.cod_mat == dados.cod_mat,
-            DocTurma.Ano == dados.Ano,
-            DocTurma.semestre == dados.semestre,
-        )
-    )
+    _validar_referencias_materia(db, dados)
+    ja = _vinculo_duplicado(db, cod_tur, dados)
     if ja:
         raise HTTPException(400, "Matéria já vinculada à turma neste ano/semestre")
     dt = DocTurma(cod_tur=cod_tur, **dados.model_dump())
@@ -226,6 +269,26 @@ def atualizar_materia(
     dt = db.get(DocTurma, docturma_id)
     if not dt or dt.cod_tur != cod_tur:
         raise HTTPException(404, "Vínculo não encontrado")
+    _validar_referencias_materia(db, dados)
+    if _vinculo_duplicado(db, cod_tur, dados, ignorar_id=docturma_id):
+        raise HTTPException(400, "Matéria já vinculada à turma neste ano/semestre")
+    alterou_identidade = (
+        dt.cod_mat != dados.cod_mat
+        or dt.Ano != dados.Ano
+        or dt.semestre != dados.semestre
+    )
+    if alterou_identidade:
+        tem_notas = db.scalar(
+            select(func.count()).select_from(AluNota).where(
+                AluNota.cod_tur == cod_tur,
+                AluNota.cod_mat == dt.cod_mat,
+            )
+        ) or 0
+        if tem_notas:
+            raise HTTPException(
+                400,
+                "O vínculo possui notas lançadas; matéria e período não podem ser alterados.",
+            )
     for k, v in dados.model_dump().items():
         setattr(dt, k, v)
     db.commit()
@@ -237,6 +300,27 @@ def remover_materia(cod_tur: int, docturma_id: int, db: Session = Depends(get_db
     dt = db.get(DocTurma, docturma_id)
     if not dt or dt.cod_tur != cod_tur:
         raise HTTPException(404, "Vínculo não encontrado")
+    tem_aulas = db.scalar(
+        select(func.count())
+        .select_from(Aula)
+        .where(Aula.docturma_id == docturma_id)
+    ) or 0
+    if tem_aulas:
+        raise HTTPException(
+            400,
+            f"Este vínculo possui {tem_aulas} aula(s) no calendário; remova-as antes.",
+        )
+    tem_notas = db.scalar(
+        select(func.count()).select_from(AluNota).where(
+            AluNota.cod_tur == cod_tur,
+            AluNota.cod_mat == dt.cod_mat,
+        )
+    ) or 0
+    if tem_notas:
+        raise HTTPException(
+            400,
+            f"Este vínculo possui {tem_notas} nota(s) lançada(s); não pode ser removido.",
+        )
     db.delete(dt)
     db.commit()
     return {"ok": True}

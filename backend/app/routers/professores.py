@@ -8,7 +8,15 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db, row_to_dict
-from ..models import ConviteProfessor, Materia, MatProf, Professor, TitProf
+from ..models import (
+    AluNota,
+    ConviteProfessor,
+    DocTurma,
+    Materia,
+    MatProf,
+    Professor,
+    TitProf,
+)
 from ..services.notificacoes import criar_para_todos, entregar_lista
 
 router = APIRouter(prefix="/professores", tags=["professores"])
@@ -165,6 +173,24 @@ def excluir(cod_pro: int, db: Session = Depends(get_db)):
     prof = db.get(Professor, cod_pro)
     if not prof:
         raise HTTPException(404, "Professor não encontrado")
+    turmas = db.scalar(
+        select(func.count()).select_from(DocTurma).where(DocTurma.cod_pro == cod_pro)
+    ) or 0
+    notas = db.scalar(
+        select(func.count()).select_from(AluNota).where(AluNota.cod_pro == cod_pro)
+    ) or 0
+    if turmas or notas:
+        detalhes = []
+        if turmas:
+            detalhes.append(f"{turmas} vínculo(s) com turma")
+        if notas:
+            detalhes.append(f"{notas} nota(s) lançada(s)")
+        raise HTTPException(
+            400,
+            "Professor possui "
+            + " e ".join(detalhes)
+            + "; altere o status para inativo em vez de excluir.",
+        )
     db.execute(MatProf.__table__.delete().where(MatProf.cod_pro == cod_pro))
     db.execute(TitProf.__table__.delete().where(TitProf.cod_pro == cod_pro))
     db.delete(prof)
@@ -177,11 +203,21 @@ def definir_materias(cod_pro: int, cod_mats: list[int], db: Session = Depends(ge
     """Substitui o conjunto de matérias que o professor leciona."""
     if not db.get(Professor, cod_pro):
         raise HTTPException(404, "Professor não encontrado")
+    codigos = list(dict.fromkeys(cod_mats))
+    existentes = set(
+        db.scalars(select(Materia.cod_mat).where(Materia.cod_mat.in_(codigos)))
+    ) if codigos else set()
+    ausentes = sorted(set(codigos) - existentes)
+    if ausentes:
+        raise HTTPException(
+            404,
+            f"Matéria(s) não encontrada(s): {', '.join(map(str, ausentes))}",
+        )
     db.execute(MatProf.__table__.delete().where(MatProf.cod_pro == cod_pro))
-    for i, cod_mat in enumerate(cod_mats, start=1):
+    for i, cod_mat in enumerate(codigos, start=1):
         db.add(MatProf(cod_mat=cod_mat, cod_pro=cod_pro, seq_mp=i))
     db.commit()
-    return {"ok": True, "quantidade": len(cod_mats)}
+    return {"ok": True, "quantidade": len(codigos)}
 
 
 @public_router.get("/{token}")

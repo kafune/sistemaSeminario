@@ -6,7 +6,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..database import get_db, row_to_dict
-from ..models import Aluno, AluNota, AluTurma, DocTurma, Materia, Professor
+from ..models import (
+    Aluno,
+    AluNota,
+    AluTurma,
+    DocTurma,
+    Materia,
+    Professor,
+    Turma,
+)
 
 router = APIRouter(prefix="/notas", tags=["notas"])
 
@@ -40,6 +48,15 @@ class LancamentoInput(BaseModel):
     ano: str | None = None
     semestre: str | None = None
     alunos: list[LancamentoAluno]
+
+
+def _validar_referencias_nota(db: Session, dados: NotaInput) -> None:
+    if not db.get(Materia, dados.cod_mat):
+        raise HTTPException(404, "Matéria não encontrada")
+    if dados.cod_tur is not None and not db.get(Turma, dados.cod_tur):
+        raise HTTPException(404, "Turma não encontrada")
+    if dados.cod_pro is not None and not db.get(Professor, dados.cod_pro):
+        raise HTTPException(404, "Professor não encontrado")
 
 
 @router.get("/turma/{cod_tur}/materia/{cod_mat}")
@@ -87,10 +104,37 @@ def grade_lancamento(cod_tur: int, cod_mat: int, db: Session = Depends(get_db)):
 @router.post("/lancar")
 def lancar(dados: LancamentoInput, db: Session = Depends(get_db)):
     """Upsert das notas da turma+matéria para os alunos informados."""
-    materia = db.get(Materia, dados.cod_mat)
-    if not materia:
+    if not db.get(Turma, dados.cod_tur):
+        raise HTTPException(404, "Turma não encontrada")
+    if not db.get(Materia, dados.cod_mat):
         raise HTTPException(404, "Matéria não encontrada")
+    if not db.scalar(
+        select(DocTurma).where(
+            DocTurma.cod_tur == dados.cod_tur,
+            DocTurma.cod_mat == dados.cod_mat,
+        )
+    ):
+        raise HTTPException(404, "Matéria não está vinculada a esta turma")
+    if dados.cod_pro is not None and not db.get(Professor, dados.cod_pro):
+        raise HTTPException(404, "Professor não encontrado")
     codigos_alunos = [item.cod_alu for item in dados.alunos]
+    if len(codigos_alunos) != len(set(codigos_alunos)):
+        raise HTTPException(400, "A lista contém alunos repetidos")
+    matriculados = set(
+        db.scalars(
+            select(AluTurma.cod_alu).where(
+                AluTurma.cod_tur == dados.cod_tur,
+                AluTurma.cod_alu.in_(codigos_alunos),
+            )
+        )
+    ) if codigos_alunos else set()
+    nao_matriculados = sorted(set(codigos_alunos) - matriculados)
+    if nao_matriculados:
+        raise HTTPException(
+            400,
+            "Aluno(s) não matriculado(s) na turma: "
+            + ", ".join(map(str, nao_matriculados)),
+        )
     existentes = {
         registro.cod_alu: registro
         for registro in db.scalars(
@@ -152,8 +196,7 @@ def adicionar_nota(cod_alu: int, dados: NotaInput, db: Session = Depends(get_db)
     aluno = db.get(Aluno, cod_alu)
     if not aluno:
         raise HTTPException(404, "Aluno não encontrado")
-    if not db.get(Materia, dados.cod_mat):
-        raise HTTPException(404, "Matéria não encontrada")
+    _validar_referencias_nota(db, dados)
     registro = AluNota(
         cod_alu=cod_alu,
         status="L",
@@ -171,6 +214,7 @@ def atualizar_nota(alunota_id: int, dados: NotaInput, db: Session = Depends(get_
     registro = db.get(AluNota, alunota_id)
     if not registro:
         raise HTTPException(404, "Lançamento não encontrado")
+    _validar_referencias_nota(db, dados)
     for k, v in dados.model_dump().items():
         setattr(registro, k, v)
     db.commit()

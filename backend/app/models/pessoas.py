@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Index, Integer, String, Text
+from sqlalchemy import Date, DateTime, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -86,6 +86,9 @@ class Professor(Base):
 
 class MatProf(Base):
     __tablename__ = "matprof"
+    __table_args__ = (
+        UniqueConstraint("cod_mat", "cod_pro", name="uq_matprof_cod_mat_cod_pro"),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cod_mat: Mapped[int] = mapped_column(Integer)
     cod_pro: Mapped[int] = mapped_column(Integer)

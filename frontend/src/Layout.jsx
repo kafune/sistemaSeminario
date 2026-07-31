@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   AppBar, BottomNavigation, BottomNavigationAction, Box, Drawer, IconButton,
@@ -153,7 +153,28 @@ export default function Layout({ children }) {
   const [notificacoesAbertas, setNotificacoesAbertas] = useState(false)
   const [alteracoesPendentes, setAlteracoesPendentes] = useState(null)
   const [destinoPendente, setDestinoPendente] = useState(null)
+  const acaoAposFecharMenu = useRef(null)
   const estadoNotificacoes = useNotificacoes()
+
+  function executarComMenuFechado(acao) {
+    if (!menuAberto) {
+      acao()
+      return
+    }
+    acaoAposFecharMenu.current = acao
+    setMenuAberto(false)
+  }
+
+  function concluirFechamentoMenu() {
+    const acao = acaoAposFecharMenu.current
+    acaoAposFecharMenu.current = null
+    acao?.()
+  }
+
+  function fecharMenu() {
+    acaoAposFecharMenu.current = null
+    setMenuAberto(false)
+  }
 
   async function executarSaida() {
     try {
@@ -171,31 +192,34 @@ export default function Layout({ children }) {
   }
 
   function sair() {
-    if (alteracoesPendentes) {
-      setMenuAberto(false)
-      setDestinoPendente({ tipo: 'sair' })
-      return
-    }
-    executarSaida()
+    executarComMenuFechado(() => {
+      if (alteracoesPendentes) {
+        setDestinoPendente({ tipo: 'sair' })
+        return
+      }
+      executarSaida()
+    })
   }
 
   function irPara(rota) {
-    setMenuAberto(false)
-    if (rota === location.pathname) return
-    if (alteracoesPendentes) {
-      setDestinoPendente({ tipo: 'rota', rota })
-      return
-    }
-    navigate(rota)
+    executarComMenuFechado(() => {
+      if (rota === location.pathname) return
+      if (alteracoesPendentes) {
+        setDestinoPendente({ tipo: 'rota', rota })
+        return
+      }
+      navigate(rota)
+    })
   }
 
   function trocarSistema(url) {
-    setMenuAberto(false)
-    if (alteracoesPendentes) {
-      setDestinoPendente({ tipo: 'sistema', url })
-      return
-    }
-    window.location.assign(url)
+    executarComMenuFechado(() => {
+      if (alteracoesPendentes) {
+        setDestinoPendente({ tipo: 'sistema', url })
+        return
+      }
+      window.location.assign(url)
+    })
   }
 
   function confirmarNavegacao() {
@@ -320,8 +344,12 @@ export default function Layout({ children }) {
       <Drawer
         variant="temporary"
         open={menuAberto}
-        onClose={() => setMenuAberto(false)}
-        ModalProps={{ keepMounted: true }}
+        onClose={fecharMenu}
+        ModalProps={{
+          keepMounted: true,
+          closeAfterTransition: true,
+          onTransitionExited: concluirFechamentoMenu,
+        }}
         sx={{
           display: { xs: 'block', md: 'none' },
           '& .MuiDrawer-paper': {

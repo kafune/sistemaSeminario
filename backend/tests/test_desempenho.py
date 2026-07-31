@@ -9,6 +9,7 @@ from app.models import (
     Aluno,
     AluNota,
     AluTurma,
+    DocTurma,
     Materia,
     Notificacao,
     Professor,
@@ -72,13 +73,21 @@ class ConsultasEscalaveisTest(unittest.TestCase):
         self.assertEqual(sum(item["qtd_alunos"] for item in resposta), 10)
 
     def test_lancamento_de_notas_busca_existentes_em_lote(self):
+        turma = Turma(nome="Turma de teste", qtalu=20)
         materia = Materia(NOME="Introdução")
         alunos = [Aluno(nome=f"Aluno {indice}") for indice in range(20)]
+        self.db.add(turma)
         self.db.add(materia)
         self.db.add_all(alunos)
+        self.db.flush()
+        self.db.add(DocTurma(cod_tur=turma.cod_tur, cod_mat=materia.cod_mat))
+        self.db.add_all(
+            AluTurma(cod_tur=turma.cod_tur, cod_alu=aluno.cod_alu)
+            for aluno in alunos
+        )
         self.db.commit()
         dados = LancamentoInput(
-            cod_tur=1,
+            cod_tur=turma.cod_tur,
             cod_mat=materia.cod_mat,
             alunos=[
                 LancamentoAluno(cod_alu=aluno.cod_alu, nota=8, falta=0)
@@ -90,7 +99,7 @@ class ConsultasEscalaveisTest(unittest.TestCase):
             lambda: lancar(dados, db=self.db)
         )
 
-        self.assertLessEqual(quantidade_selects, 2)
+        self.assertLessEqual(quantidade_selects, 4)
         self.assertEqual(resposta["criados"], 20)
 
     def test_notificacoes_agregam_contagem_e_marcam_em_lote(self):

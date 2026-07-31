@@ -1,7 +1,7 @@
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import DECIMAL, Date, Index, Integer, String
+from sqlalchemy import DECIMAL, Date, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..database import Base
@@ -31,6 +31,11 @@ class Turma(Base):
 class AluTurma(Base):
     __tablename__ = "aluturma"
     __table_args__ = (
+        UniqueConstraint(
+            "cod_tur",
+            "cod_alu",
+            name="uq_aluturma_cod_tur_cod_alu",
+        ),
         Index("ix_aluturma_cod_tur_cod_alu", "cod_tur", "cod_alu"),
         Index("ix_aluturma_cod_alu", "cod_alu"),
     )

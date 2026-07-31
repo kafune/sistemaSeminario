@@ -7,7 +7,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db, row_to_dict
-from ..models import Aluno, AluNota, AluTurma, Turma
+from ..models import Aluno, AluNota, Turma
+from ..services.matriculas import sincronizar_matricula
 
 router = APIRouter(prefix="/alunos", tags=["alunos"])
 
@@ -109,11 +110,15 @@ def obter(cod_alu: int, db: Session = Depends(get_db)):
 
 @router.post("")
 def criar(dados: AlunoInput, db: Session = Depends(get_db)):
-    aluno = Aluno(**dados.model_dump())
+    valores = dados.model_dump()
+    cod_tur = valores.pop("cod_tur")
+    aluno = Aluno(**valores)
     if not aluno.dat_cad:
         aluno.dat_cad = date.today()
     aluno.origem_cadastro = "MANUAL"
     db.add(aluno)
+    db.flush()
+    sincronizar_matricula(db, aluno, cod_tur)
     db.commit()
     db.refresh(aluno)
     return row_to_dict(aluno)
@@ -124,8 +129,11 @@ def atualizar(cod_alu: int, dados: AlunoInput, db: Session = Depends(get_db)):
     aluno = db.get(Aluno, cod_alu)
     if not aluno:
         raise HTTPException(404, "Aluno não encontrado")
-    for k, v in dados.model_dump().items():
+    valores = dados.model_dump()
+    cod_tur = valores.pop("cod_tur")
+    for k, v in valores.items():
         setattr(aluno, k, v)
+    sincronizar_matricula(db, aluno, cod_tur)
     db.commit()
     return row_to_dict(aluno)
 
@@ -144,7 +152,7 @@ def excluir(cod_alu: int, db: Session = Depends(get_db)):
             f"Aluno possui {tem_notas} lançamentos de notas. "
             "Altere o status para inativo em vez de excluir.",
         )
-    db.execute(AluTurma.__table__.delete().where(AluTurma.cod_alu == cod_alu))
+    sincronizar_matricula(db, aluno, None)
     db.delete(aluno)
     db.commit()
     return {"ok": True}

@@ -79,7 +79,7 @@ Use o `BytesIO` já importado no arquivo; não faça asserções sobre detalhes 
 
 - [ ] **Step 3: Executar o teste e confirmar a falha esperada**
 
-Run: `cd backend && python -m unittest tests.test_leads.ImportacaoLeadsTest.test_modelo_planilha_de_leads_tem_cabecalhos_e_nome_de_download -v`
+Run: `cd backend && python3 -m unittest tests.test_leads.ImportacaoLeadsTest.test_modelo_planilha_de_leads_tem_cabecalhos_e_nome_de_download -v`
 
 Expected: FAIL porque `modelo_importacao_leads` ainda não existe no router.
 
@@ -146,13 +146,13 @@ Não consultar `db` nesse endpoint: o arquivo é completamente estático e gerad
 
 - [ ] **Step 3: Executar o teste e confirmar o verde**
 
-Run: `cd backend && python -m unittest tests.test_leads.ImportacaoLeadsTest.test_modelo_planilha_de_leads_tem_cabecalhos_e_nome_de_download -v`
+Run: `cd backend && python3 -m unittest tests.test_leads.ImportacaoLeadsTest.test_modelo_planilha_de_leads_tem_cabecalhos_e_nome_de_download -v`
 
 Expected: PASS. O teste lê o iterator assíncrono da `StreamingResponse` e valida o XML da planilha sem depender de um servidor HTTP.
 
 - [ ] **Step 4: Executar toda a suíte backend**
 
-Run: `cd backend && python -m unittest discover -s tests -v`
+Run: `cd backend && python3 -m unittest discover -s tests -v`
 
 Expected: PASS sem falhas ou erros.
 
@@ -227,13 +227,13 @@ git commit -m "feat: adiciona download de modelo na importacao de leads"
 
 - [ ] **Step 1: Reexecutar o teste específico do endpoint**
 
-Run: `cd backend && python -m unittest tests.test_leads.ImportacaoLeadsTest.test_modelo_planilha_de_leads_tem_cabecalhos_e_nome_de_download -v`
+Run: `cd backend && python3 -m unittest tests.test_leads.ImportacaoLeadsTest.test_modelo_planilha_de_leads_tem_cabecalhos_e_nome_de_download -v`
 
 Expected: PASS com o tipo MIME XLSX e o nome de arquivo esperado.
 
 - [ ] **Step 2: Reexecutar a suíte backend e o build frontend**
 
-Run: `cd backend && python -m unittest discover -s tests -v`
+Run: `cd backend && python3 -m unittest discover -s tests -v`
 
 Then run: `cd frontend && npm run build`
 

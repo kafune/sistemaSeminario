@@ -221,6 +221,7 @@ def _vinculo_duplicado(
     consulta = select(DocTurma).where(
         DocTurma.cod_tur == cod_tur,
         DocTurma.cod_mat == dados.cod_mat,
+        DocTurma.cod_pro == dados.cod_pro,
         DocTurma.Ano == dados.Ano,
         DocTurma.semestre == dados.semestre,
     )

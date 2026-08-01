@@ -180,3 +180,62 @@ class IntegridadeAcademicaTest(unittest.TestCase):
         self.db.rollback()
         with self.assertRaises(HTTPException):
             excluir_professor(professor.cod_pro, db=self.db)
+
+    def test_materia_aceita_professores_diferentes_mas_rejeita_vinculo_identico(self):
+        turma = Turma(nome="Sabado", qtalu=0)
+        materia = Materia(NOME="Teologia Sistemática II")
+        primeiro = Professor(nome="Primeiro professor")
+        segundo = Professor(nome="Segundo professor")
+        self.db.add_all([turma, materia, primeiro, segundo])
+        self.db.commit()
+
+        periodo = {"Ano": "2026", "semestre": "2"}
+        adicionar_materia(
+            turma.cod_tur,
+            DocTurmaInput(
+                cod_mat=materia.cod_mat,
+                cod_pro=primeiro.cod_pro,
+                **periodo,
+            ),
+            db=self.db,
+        )
+        try:
+            adicionar_materia(
+                turma.cod_tur,
+                DocTurmaInput(
+                    cod_mat=materia.cod_mat,
+                    cod_pro=segundo.cod_pro,
+                    **periodo,
+                ),
+                db=self.db,
+            )
+        except HTTPException as erro:
+            self.fail(
+                "Professores diferentes deveriam ser aceitos para a mesma "
+                f"matéria e período, mas a API retornou {erro.status_code}."
+            )
+
+        vinculos = list(
+            self.db.scalars(
+                select(DocTurma).where(
+                    DocTurma.cod_tur == turma.cod_tur,
+                    DocTurma.cod_mat == materia.cod_mat,
+                )
+            )
+        )
+        self.assertEqual(
+            {vinculo.cod_pro for vinculo in vinculos},
+            {primeiro.cod_pro, segundo.cod_pro},
+        )
+
+        with self.assertRaises(HTTPException) as erro:
+            adicionar_materia(
+                turma.cod_tur,
+                DocTurmaInput(
+                    cod_mat=materia.cod_mat,
+                    cod_pro=primeiro.cod_pro,
+                    **periodo,
+                ),
+                db=self.db,
+            )
+        self.assertEqual(erro.exception.status_code, 400)

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogContent, DialogTitle,
   MenuItem, TextField, Typography,
 } from '@mui/material'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import FilterListIcon from '@mui/icons-material/FilterList'
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import { getPublico } from '../api'
 import { TOV } from '../theme'
 import { cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
@@ -36,9 +37,12 @@ function textoData(data) {
 
 export default function CalendarioPublico() {
   const { token } = useParams()
+  const [searchParams] = useSearchParams()
+  const codTurmaLink = searchParams.get('turma') || ''
   const [mes, setMes] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [aulas, setAulas] = useState([])
-  const [filtros, setFiltros] = useState({ cod_tur: '', cod_mat: '', cod_pro: '' })
+  const [filtros, setFiltros] = useState({ cod_tur: codTurmaLink, cod_mat: '', cod_pro: '' })
+  const [turmaCompartilhada, setTurmaCompartilhada] = useState(null)
   const [selecionada, setSelecionada] = useState(null)
   const [filtrosAbertos, setFiltrosAbertos] = useState(false)
   const [carregando, setCarregando] = useState(true)
@@ -51,21 +55,24 @@ export default function CalendarioPublico() {
     setErro('')
     const periodo = intervaloGrade(mes)
     const query = new URLSearchParams(periodo)
+    if (codTurmaLink) query.set('cod_tur', codTurmaLink)
     try {
       const resposta = await getPublico(`/calendario-publico/${token}?${query}`)
       setAulas(resposta.aulas)
+      setTurmaCompartilhada(resposta.turma || null)
       setFiltros((atuais) => ({
-        cod_tur: resposta.aulas.some((aula) => String(aula.cod_tur) === atuais.cod_tur) ? atuais.cod_tur : '',
+        cod_tur: codTurmaLink || (resposta.aulas.some((aula) => String(aula.cod_tur) === atuais.cod_tur) ? atuais.cod_tur : ''),
         cod_mat: resposta.aulas.some((aula) => String(aula.cod_mat) === atuais.cod_mat) ? atuais.cod_mat : '',
         cod_pro: resposta.aulas.some((aula) => String(aula.cod_pro) === atuais.cod_pro) ? atuais.cod_pro : '',
       }))
     } catch (e) {
       setErro(e.message)
       setAulas([])
+      setTurmaCompartilhada(null)
     } finally {
       setCarregando(false)
     }
-  }, [mes, token])
+  }, [codTurmaLink, mes, token])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -84,7 +91,9 @@ export default function CalendarioPublico() {
     <Box sx={{ minHeight: '100vh', bgcolor: TOV.offwhite }}>
       <Box component="header" sx={{ bgcolor: TOV.graphite, color: '#fff', px: { xs: 2, md: 5 }, py: 2.25, borderTop: `3px solid ${TOV.coral}` }}>
         <Box sx={{ maxWidth: 1240, mx: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <CalendarMonthIcon />
+          <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', borderRadius: '12px', bgcolor: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.1)' }}>
+            <CalendarMonthIcon sx={{ fontSize: 22 }} />
+          </Box>
           <Box>
             <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 23, lineHeight: 1.1 }}>
               Calendário de aulas
@@ -99,6 +108,32 @@ export default function CalendarioPublico() {
 
         {!erro && (
           <>
+            {turmaCompartilhada && (
+              <Box
+                component="section"
+                aria-labelledby="titulo-turma"
+                sx={{
+                  ...cardSx, p: { xs: 2, sm: 2.5 }, mb: 2,
+                  display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' },
+                  gap: 1.75, position: 'relative', overflow: 'hidden',
+                  '&::before': { content: '""', position: 'absolute', inset: '0 auto 0 0', width: 3, bgcolor: TOV.coral },
+                }}
+              >
+                <Box sx={{ width: 50, height: 50, flex: '0 0 50px', display: 'grid', placeItems: 'center', borderRadius: '14px', bgcolor: TOV.coralTint, color: TOV.coral }}>
+                  <SchoolOutlinedIcon />
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography variant="overline" sx={{ display: 'block', color: TOV.caption, mb: 0.25 }}>Agenda da sua turma</Typography>
+                  <Typography id="titulo-turma" component="h2" variant="h2" sx={{ fontSize: { xs: 24, sm: 29 }, overflowWrap: 'anywhere' }}>{turmaCompartilhada.nome}</Typography>
+                  <Typography sx={{ color: TOV.caption, fontSize: 13.5, mt: 0.5 }}>Datas, horários e conteúdos atualizados pela secretaria.</Typography>
+                </Box>
+                <Box sx={{ display: { xs: 'none', sm: 'inline-flex' }, alignItems: 'center', gap: 0.75, px: 1.25, py: 0.75, borderRadius: 999, bgcolor: TOV.successTint, color: TOV.success, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  <Box aria-hidden="true" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: TOV.success }} />
+                  Agenda oficial
+                </Box>
+              </Box>
+            )}
+
             <Box sx={{ ...cardSx, p: 2, mb: 2 }}>
               <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Button
@@ -110,10 +145,12 @@ export default function CalendarioPublico() {
                 >
                   {filtrosAbertos ? 'Ocultar filtros' : 'Filtrar agenda'}
                 </Button>
-                <TextField select size="small" label="Turma" value={filtros.cod_tur} onChange={(e) => setFiltros({ ...filtros, cod_tur: e.target.value })} sx={{ display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' }, width: { xs: '100%', sm: 'auto' }, minWidth: 170 }}>
-                  <MenuItem value="">Todas</MenuItem>
-                  {turmas.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}
-                </TextField>
+                {!codTurmaLink && (
+                  <TextField select size="small" label="Turma" value={filtros.cod_tur} onChange={(e) => setFiltros({ ...filtros, cod_tur: e.target.value })} sx={{ display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' }, width: { xs: '100%', sm: 'auto' }, minWidth: 170 }}>
+                    <MenuItem value="">Todas</MenuItem>
+                    {turmas.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}
+                  </TextField>
+                )}
                 <TextField select size="small" label="Matéria" value={filtros.cod_mat} onChange={(e) => setFiltros({ ...filtros, cod_mat: e.target.value })} sx={{ display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' }, width: { xs: '100%', sm: 'auto' }, minWidth: 190 }}>
                   <MenuItem value="">Todas</MenuItem>
                   {materias.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}

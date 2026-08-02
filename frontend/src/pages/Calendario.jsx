@@ -4,11 +4,15 @@ import {
   MenuItem, Snackbar, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import DownloadIcon from '@mui/icons-material/Download'
 import FilterListIcon from '@mui/icons-material/FilterList'
 import LinkIcon from '@mui/icons-material/Link'
+import OpenInNewIcon from '@mui/icons-material/OpenInNew'
+import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
+import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined'
 import { api, baixarArquivo } from '../api'
 import { TOV } from '../theme'
 import { CabecalhoPagina, DialogoConfirmacao, cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
@@ -54,6 +58,25 @@ function unicos(itens, chave, rotulo) {
   return [...mapa].map(([valor, nome]) => ({ valor, nome })).sort((a, b) => a.nome.localeCompare(b.nome))
 }
 
+function resumirTurmas(vinculos) {
+  const mapa = new Map()
+  vinculos.forEach((vinculo) => {
+    if (vinculo.cod_tur == null) return
+    const chave = String(vinculo.cod_tur)
+    if (!mapa.has(chave)) {
+      mapa.set(chave, {
+        valor: chave,
+        nome: vinculo.turma_nome || 'Turma sem nome',
+        materias: new Set(),
+      })
+    }
+    if (vinculo.cod_mat != null) mapa.get(chave).materias.add(vinculo.cod_mat)
+  })
+  return [...mapa.values()]
+    .map((turma) => ({ ...turma, qtdMaterias: turma.materias.size }))
+    .sort((a, b) => a.nome.localeCompare(b.nome))
+}
+
 export default function Calendario() {
   const [mes, setMes] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [aulas, setAulas] = useState([])
@@ -67,6 +90,10 @@ export default function Calendario() {
   const [mensagem, setMensagem] = useState('')
   const [ehErro, setEhErro] = useState(false)
   const [tokenPublico, setTokenPublico] = useState(null)
+  const [compartilharAberto, setCompartilharAberto] = useState(false)
+  const [turmaCompartilhamento, setTurmaCompartilhamento] = useState(null)
+  const [preparandoLink, setPreparandoLink] = useState(false)
+  const [confirmarRenovacao, setConfirmarRenovacao] = useState(false)
   const [turmaDiario, setTurmaDiario] = useState('')
   const [vinculoDiario, setVinculoDiario] = useState('')
   const [filtrosAbertos, setFiltrosAbertos] = useState(false)
@@ -89,6 +116,7 @@ export default function Calendario() {
   const turmas = useMemo(() => unicos(vinculos, 'cod_tur', 'turma_nome'), [vinculos])
   const materias = useMemo(() => unicos(vinculos, 'cod_mat', 'materia_nome'), [vinculos])
   const professores = useMemo(() => unicos(vinculos, 'cod_pro', 'professor_nome'), [vinculos])
+  const turmasCompartilhamento = useMemo(() => resumirTurmas(vinculos), [vinculos])
   const materiasDiario = vinculos.filter((item) => String(item.cod_tur) === String(turmaDiario))
 
   function abrirNovo(data = isoLocal(new Date())) {
@@ -142,27 +170,74 @@ export default function Calendario() {
   }
 
   async function garantirLink(renovar = false) {
+    setPreparandoLink(true)
     try {
       const resposta = await api.post(`/calendario/compartilhamento${renovar ? '/renovar' : ''}`, {})
       setTokenPublico(resposta.token)
+      if (renovar) {
+        setEhErro(false)
+        setMensagem('Novo acesso criado. Os links enviados anteriormente não funcionam mais.')
+      }
       return resposta.token
     } catch (e) {
       setEhErro(true)
       setMensagem(e.message)
       return null
+    } finally {
+      setPreparandoLink(false)
     }
   }
 
-  async function copiarLink() {
+  function abrirCompartilhamento() {
+    const turmaDoFiltro = turmasCompartilhamento.find((turma) => turma.valor === String(filtros.cod_tur))
+    setTurmaCompartilhamento(turmaDoFiltro || (turmasCompartilhamento.length === 1 ? turmasCompartilhamento[0] : null))
+    setCompartilharAberto(true)
+    if (!tokenPublico) garantirLink()
+  }
+
+  function montarLinkTurma(token, turma) {
+    if (!token || !turma) return ''
+    const url = new URL(`/agenda/${token}`, window.location.origin)
+    url.searchParams.set('turma', turma.valor)
+    return url.toString()
+  }
+
+  async function copiarLinkTurma() {
+    if (!turmaCompartilhamento) return
     const token = tokenPublico || await garantirLink()
     if (!token) return
-    const url = `${window.location.origin}/agenda/${token}`
+    const url = montarLinkTurma(token, turmaCompartilhamento)
     try {
       await navigator.clipboard.writeText(url)
-      setMensagem('Link público copiado.')
+      setEhErro(false)
+      setMensagem(`Link da turma ${turmaCompartilhamento.nome} copiado.`)
     } catch {
       setEhErro(true)
-      setMensagem(`Não foi possível copiar automaticamente. Link: ${url}`)
+      setMensagem('Não foi possível copiar automaticamente. Selecione o link exibido e copie manualmente.')
+    }
+  }
+
+  function abrirPreviaTurma() {
+    const url = montarLinkTurma(tokenPublico, turmaCompartilhamento)
+    if (url) window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  async function compartilharTurma() {
+    if (!turmaCompartilhamento) return
+    const token = tokenPublico || await garantirLink()
+    if (!token) return
+    const url = montarLinkTurma(token, turmaCompartilhamento)
+    try {
+      await navigator.share({
+        title: `Agenda de aulas — ${turmaCompartilhamento.nome}`,
+        text: `Confira o calendário de aulas da turma ${turmaCompartilhamento.nome}.`,
+        url,
+      })
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        setEhErro(true)
+        setMensagem('Não foi possível abrir o compartilhamento neste dispositivo.')
+      }
     }
   }
 
@@ -177,10 +252,12 @@ export default function Calendario() {
 
   const tituloMes = `${MESES[mes.getMonth()][0].toUpperCase()}${MESES[mes.getMonth()].slice(1)} de ${mes.getFullYear()}`
   const mudarMes = (delta) => setMes(new Date(mes.getFullYear(), mes.getMonth() + delta, 1))
+  const linkTurma = montarLinkTurma(tokenPublico, turmaCompartilhamento)
+  const podeCompartilhar = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
   const acoes = (
     <>
-      <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={copiarLink} sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Copiar link dos alunos</Button>
+      <Button variant="outlined" startIcon={<ShareOutlinedIcon />} onClick={abrirCompartilhamento} sx={{ display: { xs: 'none', sm: 'inline-flex' } }}>Compartilhar com alunos</Button>
       <Button variant="contained" startIcon={<AddIcon />} onClick={() => abrirNovo()}>Nova aula</Button>
     </>
   )
@@ -265,13 +342,116 @@ export default function Calendario() {
         </Box>
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="h3" sx={{ fontSize: 20, mb: 1 }}>Visualização para alunos</Typography>
-          <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2 }}>O link mostra apenas a agenda. Cadastro, notas e ações de edição continuam protegidos.</Typography>
+          <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2 }}>Escolha uma turma e envie ao grupo um link que abre somente as aulas dela.</Typography>
           <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
-            <Button variant="outlined" startIcon={<LinkIcon />} onClick={copiarLink}>Copiar link</Button>
-            <Button variant="text" onClick={() => garantirLink(true)}>Renovar link</Button>
+            <Button variant="contained" startIcon={<ShareOutlinedIcon />} onClick={abrirCompartilhamento}>Escolher turma</Button>
+            <Button variant="text" onClick={() => setConfirmarRenovacao(true)} disabled={preparandoLink || !tokenPublico}>Renovar acesso</Button>
           </Box>
         </Box>
       </Box>
+
+      <Dialog open={compartilharAberto} onClose={() => setCompartilharAberto(false)} maxWidth="md" fullWidth fullScreen={telaCheia}>
+        <DialogTitle sx={{ pb: 0.75 }}>Compartilhar calendário</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2.5 }}>
+            Escolha a turma do grupo. O link abrirá uma agenda limpa, sem acesso a notas ou dados dos alunos.
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '280px minmax(0, 1fr)' }, gap: { xs: 2.5, md: 3 }, alignItems: 'start' }}>
+            <Box component="nav" aria-label="Escolher turma" sx={{ minWidth: 0 }}>
+              <Typography variant="overline" sx={{ color: TOV.caption, display: 'block', mb: 1 }}>1. Escolha a turma</Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {!turmasCompartilhamento.length && (
+                  <Box sx={{ p: 2, border: `1px dashed ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.offwhite }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: 14 }}>Nenhuma turma disponível</Typography>
+                    <Typography sx={{ color: TOV.caption, fontSize: 12.5, mt: 0.5 }}>Vincule uma matéria a uma turma para criar a agenda dela.</Typography>
+                  </Box>
+                )}
+                {turmasCompartilhamento.map((turma) => {
+                  const selecionada = turmaCompartilhamento?.valor === turma.valor
+                  return (
+                    <Box
+                      component="button"
+                      type="button"
+                      key={turma.valor}
+                      aria-pressed={selecionada}
+                      onClick={() => setTurmaCompartilhamento(turma)}
+                      sx={{
+                        appearance: 'none', width: '100%', minHeight: 72, p: 1.25,
+                        display: 'grid', gridTemplateColumns: '42px minmax(0, 1fr) 24px',
+                        alignItems: 'center', gap: 1.25, textAlign: 'left', cursor: 'pointer',
+                        borderRadius: `${TOV.radiusSm}px`,
+                        border: `1px solid ${selecionada ? TOV.coral : TOV.border}`,
+                        bgcolor: selecionada ? TOV.coralTint : TOV.surface,
+                        color: TOV.ink, font: 'inherit',
+                        transition: `border-color ${TOV.durationFast} ${TOV.ease}, background-color ${TOV.durationFast} ${TOV.ease}`,
+                        '&:hover': { borderColor: selecionada ? TOV.coral : TOV.caption, bgcolor: selecionada ? TOV.coralTint : TOV.offwhite },
+                        '&:focus-visible': { outline: `3px solid ${TOV.coralTintStrong}`, outlineOffset: 2 },
+                      }}
+                    >
+                      <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', borderRadius: '12px', bgcolor: selecionada ? TOV.coral : TOV.slateTint, color: selecionada ? '#fff' : TOV.graphite }}>
+                        <SchoolOutlinedIcon fontSize="small" />
+                      </Box>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography component="span" sx={{ display: 'block', fontWeight: 700, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{turma.nome}</Typography>
+                        <Typography component="span" sx={{ display: 'block', color: TOV.caption, fontSize: 12.5, mt: 0.25 }}>
+                          {turma.qtdMaterias} {turma.qtdMaterias === 1 ? 'matéria' : 'matérias'}
+                        </Typography>
+                      </Box>
+                      {selecionada ? <CheckCircleOutlineIcon sx={{ color: TOV.coral, fontSize: 21 }} /> : <ChevronRightIcon sx={{ color: TOV.caption, fontSize: 21 }} />}
+                    </Box>
+                  )
+                })}
+              </Box>
+            </Box>
+
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="overline" sx={{ color: TOV.caption, display: 'block', mb: 1 }}>2. Compartilhe o link</Typography>
+              {turmaCompartilhamento ? (
+                <Box sx={{ border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, overflow: 'hidden', bgcolor: TOV.surface }}>
+                  <Box sx={{ p: { xs: 2, sm: 2.5 }, bgcolor: TOV.graphite, color: '#fff', position: 'relative', overflow: 'hidden' }}>
+                    <Box aria-hidden="true" sx={{ position: 'absolute', width: 150, height: 150, borderRadius: '50%', bgcolor: 'rgba(255,255,255,.045)', right: -45, top: -75 }} />
+                    <Typography sx={{ color: 'rgba(255,255,255,.62)', fontSize: 12, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Agenda da turma</Typography>
+                    <Typography variant="h3" sx={{ fontSize: { xs: 23, sm: 27 }, mt: 0.5, color: '#fff', overflowWrap: 'anywhere' }}>{turmaCompartilhamento.nome}</Typography>
+                    <Typography sx={{ color: 'rgba(255,255,255,.68)', fontSize: 13.5, mt: 0.75 }}>Atualiza automaticamente quando as aulas forem alteradas.</Typography>
+                  </Box>
+                  <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Link da turma"
+                      value={preparandoLink ? 'Preparando link…' : linkTurma}
+                      InputProps={{ readOnly: true }}
+                      onFocus={(e) => e.target.select()}
+                    />
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5, '& > *': { flexGrow: { xs: 1, sm: 0 } } }}>
+                      <Button variant="contained" startIcon={<ContentCopyIcon />} onClick={copiarLinkTurma} disabled={!linkTurma || preparandoLink}>Copiar link</Button>
+                      {podeCompartilhar && <Button variant="outlined" startIcon={<ShareOutlinedIcon />} onClick={compartilharTurma} disabled={!linkTurma || preparandoLink}>Compartilhar</Button>}
+                      <Button variant="text" startIcon={<OpenInNewIcon />} onClick={abrirPreviaTurma} disabled={!linkTurma || preparandoLink}>Abrir prévia</Button>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 2, pt: 2, borderTop: `1px solid ${TOV.divider}` }}>
+                      <LinkIcon sx={{ color: TOV.success, fontSize: 19, mt: '1px' }} />
+                      <Typography sx={{ color: TOV.caption, fontSize: 12.5 }}>Você pode enviar este mesmo link no WhatsApp. Ele continuará mostrando a agenda atualizada da turma.</Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              ) : (
+                <Box sx={{ minHeight: 250, display: 'grid', placeItems: 'center', textAlign: 'center', border: `1px dashed ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, p: 3, bgcolor: TOV.offwhite }}>
+                  <Box>
+                    <Box sx={{ width: 52, height: 52, display: 'grid', placeItems: 'center', mx: 'auto', mb: 1.5, borderRadius: '50%', bgcolor: TOV.surface, color: TOV.coral, border: `1px solid ${TOV.border}` }}>
+                      <SchoolOutlinedIcon />
+                    </Box>
+                    <Typography variant="h3" sx={{ fontSize: 18 }}>Selecione uma turma</Typography>
+                    <Typography sx={{ color: TOV.caption, fontSize: 13.5, mt: 0.75, maxWidth: 310 }}>O link específico aparecerá aqui, pronto para enviar ao grupo.</Typography>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="outlined" onClick={() => setCompartilharAberto(false)}>Fechar</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={dialogo} onClose={() => setDialogo(false)} maxWidth="md" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{editando ? 'Editar aula' : 'Nova aula'}</DialogTitle>
@@ -302,6 +482,15 @@ export default function Calendario() {
       </Dialog>
 
       <DialogoConfirmacao aberto={!!excluir} titulo="Excluir aula" descricao="Excluir esta aula do calendário?" processando={false} onConfirmar={confirmarExclusao} onFechar={() => setExcluir(null)} />
+      <DialogoConfirmacao
+        aberto={confirmarRenovacao}
+        titulo="Renovar acesso público"
+        descricao="Todos os links de turmas enviados anteriormente deixarão de funcionar. Depois, será preciso compartilhar os novos links. Deseja continuar?"
+        rotuloConfirmar="Renovar acesso"
+        processando={preparandoLink}
+        onConfirmar={async () => { await garantirLink(true); setConfirmarRenovacao(false) }}
+        onFechar={() => setConfirmarRenovacao(false)}
+      />
       <Snackbar open={!!mensagem} autoHideDuration={6000} onClose={() => setMensagem('')}>
         <Alert severity={ehErro ? 'error' : 'success'} onClose={() => setMensagem('')}>{mensagem}</Alert>
       </Snackbar>

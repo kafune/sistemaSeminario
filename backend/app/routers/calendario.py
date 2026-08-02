@@ -239,6 +239,7 @@ def calendario_publico(
     token: str,
     inicio: date | None = Query(default=None),
     fim: date | None = Query(default=None),
+    cod_tur: int | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
     link = db.scalar(
@@ -249,14 +250,26 @@ def calendario_publico(
     )
     if not link:
         raise HTTPException(404, "Calendário não encontrado ou link expirado")
+    turma = None
+    if cod_tur is not None:
+        turma = db.get(Turma, cod_tur)
+        if not turma:
+            raise HTTPException(404, "Turma não encontrada")
     inicio = inicio or (date.today() - timedelta(days=45))
     fim = fim or (date.today() + timedelta(days=370))
-    aulas = _listar(db, inicio, fim)
+    aulas = _listar(db, inicio, fim, cod_tur=cod_tur)
     for aula in aulas:
         # Observações são de uso interno da secretaria.
         aula.pop("observacao", None)
         aula.pop("docturma_id", None)
-    return {"aulas": aulas}
+    return {
+        "aulas": aulas,
+        "turma": (
+            {"cod_tur": turma.cod_tur, "nome": turma.nome}
+            if turma
+            else None
+        ),
+    }
 
 
 @router.get("/diario.xlsx")

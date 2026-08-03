@@ -24,6 +24,7 @@ from .routers import (
     usuarios,
     whatsapp,
     notificacoes,
+    presencas,
 )
 from .services.notificacoes import (
     agora_local,
@@ -113,6 +114,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(integracoes.router)
 app.include_router(calendario.public_router)
+app.include_router(presencas.public_router)
 app.include_router(professores.public_router)
 app.include_router(whatsapp.public_router)
 protegido = [Depends(usuario_atual)]
@@ -128,6 +130,7 @@ app.include_router(leads.router, dependencies=protegido)
 app.include_router(professores.router, dependencies=academico)
 app.include_router(materias.router, dependencies=academico)
 app.include_router(turmas.router, dependencies=academico)
+app.include_router(presencas.router, dependencies=academico)
 app.include_router(notas.router, dependencies=academico)
 app.include_router(relatorios.router, dependencies=academico)
 app.include_router(dashboard.router, dependencies=academico)

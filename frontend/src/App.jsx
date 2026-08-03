@@ -15,6 +15,8 @@ const AutocadastroProfessor = lazy(() => import('./pages/AutocadastroProfessor')
 const Materias = lazy(() => import('./pages/Materias'))
 const Turmas = lazy(() => import('./pages/Turmas'))
 const TurmaDetalhe = lazy(() => import('./pages/TurmaDetalhe'))
+const PresencasTurma = lazy(() => import('./pages/PresencasTurma'))
+const PresencaTotem = lazy(() => import('./pages/PresencaTotem'))
 const Calendario = lazy(() => import('./pages/Calendario'))
 const CalendarioPublico = lazy(() => import('./pages/CalendarioPublico'))
 const Notas = lazy(() => import('./pages/Notas'))
@@ -59,6 +61,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/agenda/:token" element={<CalendarioPublico />} />
           <Route path="/cadastro-professor/:token" element={<AutocadastroProfessor />} />
+          <Route path="/presenca/:token" element={<PresencaTotem />} />
           <Route path="/" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Dashboard /></Protegida>} />
           <Route path="/alunos" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Alunos /></Protegida>} />
           <Route path="/alunos/:codAlu" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><AlunoDetalhe /></Protegida>} />
@@ -66,6 +69,7 @@ export default function App() {
           <Route path="/materias" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Materias /></Protegida>} />
           <Route path="/turmas" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Turmas /></Protegida>} />
           <Route path="/turmas/:codTur" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><TurmaDetalhe /></Protegida>} />
+          <Route path="/turmas/:codTur/presencas" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><PresencasTurma /></Protegida>} />
           <Route path="/calendario" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Calendario /></Protegida>} />
           <Route path="/notas" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Notas /></Protegida>} />
           <Route path="/relatorios" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Relatorios /></Protegida>} />

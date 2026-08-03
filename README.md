@@ -8,6 +8,8 @@ do Centro TOV. Banco de dados novo e vazio — sem migração de dados legados.
 - **Secretaria acadêmica**: alunos, professores, matérias, turmas,
   matrícula em turma, vínculo professor×matéria×turma
 - **Notas e faltas**: lançamento em grade por turma + matéria (grava em `alunota`)
+- **Chamada digital**: modo totem para iPad, confirmação pelo próprio aluno,
+  horário de chegada e histórico diário por turma
 - **Relatórios em PDF**: boletim, histórico escolar, diário de classe,
   lista de alunos da turma, ficha do aluno, boletins da turma inteira em ZIP
   e geração em lote a partir de planilha (CSV/XLSX/XLS)

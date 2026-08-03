@@ -8,6 +8,7 @@ import {
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
+import HowToRegRoundedIcon from '@mui/icons-material/HowToRegRounded'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
@@ -150,6 +151,10 @@ export default function TurmaDetalhe() {
           <Typography variant="h1" sx={{ fontSize: { xs: 30, md: 40 } }}>{turma.nome}</Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, '& > *': { flexGrow: { xs: 1, sm: 0 } } }}>
+          <Button variant="outlined" startIcon={<HowToRegRoundedIcon />} sx={{ height: 44 }}
+            onClick={() => navigate(`/turmas/${codTur}/presencas`)}>
+            Fazer chamada
+          </Button>
           <Button variant="outlined" startIcon={<PictureAsPdfIcon />} sx={{ height: 44 }}
             onClick={() => abrirArquivo(`/relatorios/lista-turma/${codTur}`).catch((e) => avisar(e.message))}>
             Lista de alunos

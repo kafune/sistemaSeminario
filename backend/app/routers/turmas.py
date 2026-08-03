@@ -11,6 +11,7 @@ from ..models import (
     AluNota,
     AluTurma,
     Aula,
+    Chamada,
     DocTurma,
     Materia,
     Professor,
@@ -127,6 +128,14 @@ def excluir(cod_tur: int, db: Session = Depends(get_db)):
         raise HTTPException(
             400,
             f"Turma possui {tem_aulas} aula(s) no calendário; remova-as antes.",
+        )
+    tem_chamadas = db.scalar(
+        select(func.count()).select_from(Chamada).where(Chamada.cod_tur == cod_tur)
+    ) or 0
+    if tem_chamadas:
+        raise HTTPException(
+            400,
+            f"Turma possui {tem_chamadas} chamada(s) com histórico de presença; não pode ser excluída.",
         )
     db.execute(DocTurma.__table__.delete().where(DocTurma.cod_tur == cod_tur))
     db.delete(turma)

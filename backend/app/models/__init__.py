@@ -7,6 +7,7 @@ from .integracoes import (
     ItemImportacaoGoogleForms,
 )
 from .calendario import Aula, CalendarioPublico
+from .presencas import Chamada, Presenca
 from .whatsapp import (
     WhatsappArquivo,
     WhatsappConfiguracao,
@@ -28,7 +29,7 @@ __all__ = [
     "Aluno", "Professor", "MatProf", "TitProf",
     "Usuario", "ImportacaoGoogleForms", "ItemImportacaoGoogleForms",
     "ConviteProfessor",
-    "Aula", "CalendarioPublico",
+    "Aula", "CalendarioPublico", "Chamada", "Presenca",
     "WhatsappConfiguracao", "WhatsappDisparo", "WhatsappDestinatario",
     "WhatsappArquivo", "WhatsappTemplate",
     "Notificacao", "NotificacaoPreferencia", "PushInscricao",

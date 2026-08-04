@@ -2,6 +2,7 @@ from .academico import Materia, Turma, AluTurma, DocTurma, AluNota
 from .pessoas import Aluno, Professor, MatProf, TitProf
 from .auth import Usuario
 from .integracoes import (
+    ConviteAcessoProfessor,
     ConviteProfessor,
     ImportacaoGoogleForms,
     ItemImportacaoGoogleForms,
@@ -28,7 +29,7 @@ __all__ = [
     "Materia", "Turma", "AluTurma", "DocTurma", "AluNota",
     "Aluno", "Professor", "MatProf", "TitProf",
     "Usuario", "ImportacaoGoogleForms", "ItemImportacaoGoogleForms",
-    "ConviteProfessor",
+    "ConviteProfessor", "ConviteAcessoProfessor",
     "Aula", "CalendarioPublico", "Chamada", "Presenca",
     "WhatsappConfiguracao", "WhatsappDisparo", "WhatsappDestinatario",
     "WhatsappArquivo", "WhatsappTemplate",

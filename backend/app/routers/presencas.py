@@ -1,5 +1,5 @@
 import secrets
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -9,7 +9,19 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..models import Aluno, AluTurma, Chamada, Presenca, Turma
+from ..models import (
+    Aluno,
+    AluNota,
+    AluTurma,
+    Aula,
+    Chamada,
+    DocTurma,
+    Materia,
+    Presenca,
+    Professor,
+    Turma,
+)
+from ..services.faltas import faltas_do_vinculo
 
 router = APIRouter(prefix="/turmas", tags=["presenças"])
 public_router = APIRouter(prefix="/presenca-publica", tags=["presença pública"])
@@ -17,6 +29,10 @@ public_router = APIRouter(prefix="/presenca-publica", tags=["presença pública"
 
 class MarcarPresencaInput(BaseModel):
     cod_alu: int
+
+
+class AbrirChamadaInput(BaseModel):
+    aula_id: int | None = None
 
 
 def _agora_utc() -> datetime:
@@ -54,8 +70,13 @@ def _sincronizar_alunos(db: Session, chamada: Chamada) -> None:
             )
 
 
-def _resumo_chamada(chamada: Chamada, total: int, presentes: int) -> dict:
-    return {
+def _resumo_chamada(
+    chamada: Chamada,
+    total: int,
+    presentes: int,
+    aula_info: dict | None = None,
+) -> dict:
+    resposta = {
         "id": chamada.id,
         "data": chamada.data.isoformat(),
         "status": chamada.status,
@@ -65,6 +86,32 @@ def _resumo_chamada(chamada: Chamada, total: int, presentes: int) -> dict:
         "total": int(total or 0),
         "presentes": int(presentes or 0),
         "ausentes": max(0, int(total or 0) - int(presentes or 0)),
+    }
+    if aula_info:
+        resposta["aula"] = aula_info
+    return resposta
+
+
+def _aula_info(db: Session, chamada: Chamada) -> dict | None:
+    if chamada.aula_id is None:
+        return None
+    linha = db.execute(
+        select(Aula, DocTurma, Materia.NOME, Professor.nome)
+        .join(DocTurma, DocTurma.id == Aula.docturma_id)
+        .join(Materia, Materia.cod_mat == DocTurma.cod_mat)
+        .join(Professor, Professor.cod_pro == DocTurma.cod_pro, isouter=True)
+        .where(Aula.id == chamada.aula_id)
+    ).first()
+    if not linha:
+        return None
+    aula, vinculo, materia_nome, professor_nome = linha
+    return {
+        "id": aula.id,
+        "docturma_id": vinculo.id,
+        "materia_nome": (materia_nome or "").strip(),
+        "professor_nome": professor_nome,
+        "hora_inicio": aula.hora_inicio.strftime("%H:%M") if aula.hora_inicio else None,
+        "hora_fim": aula.hora_fim.strftime("%H:%M") if aula.hora_fim else None,
     }
 
 
@@ -77,7 +124,12 @@ def _detalhe_chamada(db: Session, chamada: Chamada) -> dict:
         )
     )
     presentes = sum(item.registrado_em is not None for item in registros)
-    resposta = _resumo_chamada(chamada, len(registros), presentes)
+    resposta = _resumo_chamada(
+        chamada,
+        len(registros),
+        presentes,
+        _aula_info(db, chamada),
+    )
     resposta["alunos"] = [
         {
             "cod_alu": item.cod_alu,
@@ -127,7 +179,52 @@ def listar_chamadas(
         .order_by(Chamada.data.desc(), Chamada.id.desc())
         .limit(limite)
     )
-    return [_resumo_chamada(chamada, total, presentes) for chamada, total, presentes in db.execute(consulta)]
+    return [
+        _resumo_chamada(
+            chamada,
+            total,
+            presentes,
+            _aula_info(db, chamada),
+        )
+        for chamada, total, presentes in db.execute(consulta)
+    ]
+
+
+@router.get("/{cod_tur}/chamadas/aulas-disponiveis")
+def aulas_disponiveis(
+    cod_tur: int,
+    data: date | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    if not db.get(Turma, cod_tur):
+        raise HTTPException(404, "Turma não encontrada")
+    dia = data or _hoje_local()
+    consulta = (
+        select(Aula, DocTurma, Materia.NOME, Professor.nome, Chamada.id)
+        .join(DocTurma, DocTurma.id == Aula.docturma_id)
+        .join(Materia, Materia.cod_mat == DocTurma.cod_mat)
+        .join(Professor, Professor.cod_pro == DocTurma.cod_pro, isouter=True)
+        .join(Chamada, Chamada.aula_id == Aula.id, isouter=True)
+        .where(
+            DocTurma.cod_tur == cod_tur,
+            Aula.data == dia,
+            Aula.status != "CANCELADA",
+        )
+        .order_by(Aula.hora_inicio, Materia.NOME)
+    )
+    return [
+        {
+            "aula_id": aula.id,
+            "docturma_id": vinculo.id,
+            "data": aula.data.isoformat(),
+            "hora_inicio": aula.hora_inicio.strftime("%H:%M") if aula.hora_inicio else None,
+            "hora_fim": aula.hora_fim.strftime("%H:%M") if aula.hora_fim else None,
+            "materia_nome": (materia_nome or "").strip(),
+            "professor_nome": professor_nome,
+            "chamada_id": chamada_id,
+        }
+        for aula, vinculo, materia_nome, professor_nome, chamada_id in db.execute(consulta)
+    ]
 
 
 @router.get("/{cod_tur}/chamadas/{chamada_id}")
@@ -139,13 +236,29 @@ def obter_chamada(cod_tur: int, chamada_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{cod_tur}/chamadas/abrir")
-def abrir_chamada(cod_tur: int, db: Session = Depends(get_db)):
+def abrir_chamada(
+    cod_tur: int,
+    dados: AbrirChamadaInput | None = None,
+    db: Session = Depends(get_db),
+):
     turma = db.get(Turma, cod_tur)
     if not turma:
         raise HTTPException(404, "Turma não encontrada")
 
     hoje = _hoje_local()
     agora = _agora_utc()
+    aula = None
+    if dados and dados.aula_id is not None:
+        aula = db.get(Aula, dados.aula_id)
+        if not aula:
+            raise HTTPException(404, "Aula não encontrada")
+        vinculo = db.get(DocTurma, aula.docturma_id)
+        if not vinculo or vinculo.cod_tur != cod_tur:
+            raise HTTPException(400, "Aula não pertence a esta turma")
+        if aula.data != hoje:
+            raise HTTPException(400, "A chamada só pode ser aberta na data da aula")
+        if aula.status == "CANCELADA":
+            raise HTTPException(400, "Não é possível abrir chamada de aula cancelada")
     # Chamadas esquecidas abertas em dias anteriores deixam de ser utilizáveis.
     for antiga in db.scalars(
         select(Chamada).where(
@@ -157,15 +270,24 @@ def abrir_chamada(cod_tur: int, db: Session = Depends(get_db)):
         antiga.status = "ENCERRADA"
         antiga.encerrada_em = agora
 
-    chamada = db.scalar(
-        select(Chamada).where(Chamada.cod_tur == cod_tur, Chamada.data == hoje)
-    )
+    if aula:
+        chamada = db.scalar(select(Chamada).where(Chamada.aula_id == aula.id))
+    else:
+        # Compatibilidade com chamadas antigas e integrações sem calendário.
+        chamada = db.scalar(
+            select(Chamada).where(
+                Chamada.cod_tur == cod_tur,
+                Chamada.data == hoje,
+                Chamada.aula_id.is_(None),
+            )
+        )
     if chamada:
         chamada.status = "ABERTA"
         chamada.encerrada_em = None
     else:
         chamada = Chamada(
             cod_tur=cod_tur,
+            aula_id=aula.id if aula else None,
             data=hoje,
             token=secrets.token_urlsafe(32),
             status="ABERTA",
@@ -189,6 +311,16 @@ def encerrar_chamada(cod_tur: int, chamada_id: int, db: Session = Depends(get_db
     chamada.status = "ENCERRADA"
     chamada.encerrada_em = _agora_utc()
     db.commit()
+    if chamada.aula_id is not None:
+        aula = db.get(Aula, chamada.aula_id)
+        if aula:
+            aula.status = "REALIZADA"
+            faltas = faltas_do_vinculo(db, aula.docturma_id)
+            for nota in db.scalars(
+                select(AluNota).where(AluNota.docturma_id == aula.docturma_id)
+            ):
+                nota.falta = faltas.get(nota.cod_alu, 0)
+            db.commit()
     return _detalhe_chamada(db, chamada)
 
 

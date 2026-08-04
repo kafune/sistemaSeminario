@@ -116,11 +116,16 @@ app.include_router(integracoes.router)
 app.include_router(calendario.public_router)
 app.include_router(presencas.public_router)
 app.include_router(professores.public_router)
+app.include_router(professores.access_public_router)
 app.include_router(whatsapp.public_router)
 protegido = [Depends(usuario_atual)]
 academico = [
     Depends(usuario_atual),
     Depends(exigir_perfis("ADMIN", "SECRETARIA")),
+]
+notas_acesso = [
+    Depends(usuario_atual),
+    Depends(exigir_perfis("ADMIN", "SECRETARIA", "PROFESSOR")),
 ]
 administracao = [Depends(usuario_atual), Depends(exigir_perfis("ADMIN"))]
 app.include_router(alunos.router, dependencies=academico)
@@ -131,7 +136,7 @@ app.include_router(professores.router, dependencies=academico)
 app.include_router(materias.router, dependencies=academico)
 app.include_router(turmas.router, dependencies=academico)
 app.include_router(presencas.router, dependencies=academico)
-app.include_router(notas.router, dependencies=academico)
+app.include_router(notas.router, dependencies=notas_acesso)
 app.include_router(relatorios.router, dependencies=academico)
 app.include_router(dashboard.router, dependencies=academico)
 app.include_router(usuarios.router, dependencies=administracao)

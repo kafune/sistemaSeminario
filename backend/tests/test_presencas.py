@@ -8,8 +8,18 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database import Base
-from app.models import Aluno, AluTurma, Presenca, Turma
+from app.models import (
+    Aluno,
+    AluTurma,
+    Aula,
+    DocTurma,
+    Materia,
+    Presenca,
+    Professor,
+    Turma,
+)
 from app.routers import presencas
+from app.routers.notas import grade_por_vinculo
 
 
 class PresencasTest(unittest.TestCase):
@@ -103,6 +113,50 @@ class PresencasTest(unittest.TestCase):
         self.assertEqual(segunda["id"], primeira["id"])
         self.assertEqual(segunda["token"], primeira["token"])
         self.assertEqual(segunda["total"], 3)
+
+    def test_faltas_sao_calculadas_por_aula_e_vinculo_academico(self):
+        professor = Professor(nome="Docente")
+        materia = Materia(NOME="Introdução")
+        self.db.add_all([professor, materia])
+        self.db.flush()
+        vinculo = DocTurma(
+            cod_tur=self.turma.cod_tur,
+            cod_mat=materia.cod_mat,
+            cod_pro=professor.cod_pro,
+            Ano="2026",
+            semestre="2",
+        )
+        self.db.add(vinculo)
+        self.db.flush()
+        aula = Aula(docturma_id=vinculo.id, data=self.hoje, status="AGENDADA")
+        self.db.add(aula)
+        self.db.commit()
+
+        with (
+            patch.object(presencas, "_hoje_local", return_value=self.hoje),
+            patch.object(presencas, "_agora_utc", return_value=self.agora),
+        ):
+            chamada = presencas.abrir_chamada(
+                self.turma.cod_tur,
+                presencas.AbrirChamadaInput(aula_id=aula.id),
+                db=self.db,
+            )
+            presencas.marcar_presenca(
+                chamada["token"],
+                presencas.MarcarPresencaInput(cod_alu=self.ana.cod_alu),
+                db=self.db,
+            )
+            presencas.encerrar_chamada(
+                self.turma.cod_tur,
+                chamada["id"],
+                db=self.db,
+            )
+
+        grade = grade_por_vinculo(vinculo.id, db=self.db)
+        faltas = {item["cod_alu"]: item["falta"] for item in grade["alunos"]}
+        self.assertEqual(faltas[self.ana.cod_alu], 0)
+        self.assertEqual(faltas[self.bruno.cod_alu], 1)
+        self.assertEqual(aula.status, "REALIZADA")
 
 
 if __name__ == "__main__":

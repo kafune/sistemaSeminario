@@ -36,10 +36,10 @@ const MENU = [
   { rotulo: 'Matérias', rota: '/materias', icone: MenuBookIcon, perfis: ['ADMIN', 'SECRETARIA'] },
   { rotulo: 'Turmas', rota: '/turmas', icone: GroupsIcon, perfis: ['ADMIN', 'SECRETARIA'] },
   { rotulo: 'Calendário', rota: '/calendario', icone: CalendarMonthIcon, perfis: ['ADMIN', 'SECRETARIA'] },
-  { rotulo: 'Notas e Faltas', rota: '/notas', icone: EditNoteIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Notas e Faltas', rota: '/notas', icone: EditNoteIcon, perfis: ['ADMIN', 'SECRETARIA', 'PROFESSOR'] },
   { rotulo: 'Relatórios', rota: '/relatorios', icone: DescriptionIcon, perfis: ['ADMIN', 'SECRETARIA'] },
   { rotulo: 'Leads', rota: '/leads', icone: CampaignIcon, perfis: ['ADMIN', 'MARKETING'] },
-  { rotulo: 'WhatsApp', rota: '/whatsapp', icone: WhatsAppIcon },
+  { rotulo: 'WhatsApp', rota: '/whatsapp', icone: WhatsAppIcon, perfis: ['ADMIN', 'SECRETARIA', 'MARKETING'] },
   { rotulo: 'Usuários', rota: '/usuarios', icone: ManageAccountsIcon, perfis: ['ADMIN'] },
 ]
 
@@ -243,6 +243,8 @@ export default function Layout({ children }) {
   const tituloAtual = menuVisivel.find(estaAtivo)?.rotulo || 'TOV'
   const valorNavegacao = location.pathname === '/'
     ? '/'
+    : location.pathname.startsWith('/notas')
+      ? '/notas'
     : location.pathname.startsWith('/alunos')
       ? '/alunos'
         : location.pathname.startsWith('/turmas')
@@ -266,10 +268,10 @@ export default function Layout({ children }) {
         <Typography component="span" sx={{ fontSize: 11, color: 'rgba(255,255,255,.56)' }}>acadêmico</Typography>
       </Box>
 
-      <SeletorSistema onTrocar={trocarSistema} />
+      {perfil !== 'PROFESSOR' && <SeletorSistema onTrocar={trocarSistema} />}
 
       <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', px: 1.25, mb: 0.75 }}>
-        {perfil === 'MARKETING' ? 'Marketing' : 'Secretaria'}
+        {perfil === 'MARKETING' ? 'Marketing' : perfil === 'PROFESSOR' ? 'Portal do professor' : 'Secretaria'}
       </Box>
 
       <Box component="nav" aria-label="Navegação principal" sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
@@ -284,19 +286,19 @@ export default function Layout({ children }) {
 
       <Box
         sx={{
-          mt: 'auto', display: 'grid', gridTemplateColumns: '44px 36px minmax(0,1fr) 44px',
+          mt: 'auto', display: 'grid', gridTemplateColumns: perfil === 'PROFESSOR' ? '36px minmax(0,1fr) 44px' : '44px 36px minmax(0,1fr) 44px',
           alignItems: 'center', gap: 1, pt: 2, px: 0.25,
           borderTop: '1px solid rgba(255,255,255,.1)',
         }}
       >
-        <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
+        {perfil !== 'PROFESSOR' && <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />}
         <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
           {iniciais(usuario)}
         </Box>
         <Box sx={{ lineHeight: 1.2, overflow: 'hidden' }}>
           <Box sx={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{usuario}</Box>
           <Box sx={{ fontSize: 11, color: 'rgba(255,255,255,.55)' }}>
-            {perfil === 'ADMIN' ? 'Administrador' : perfil === 'MARKETING' ? 'Marketing' : 'Secretaria'}
+            {perfil === 'ADMIN' ? 'Administrador' : perfil === 'MARKETING' ? 'Marketing' : perfil === 'PROFESSOR' ? 'Professor' : 'Secretaria'}
           </Box>
         </Box>
         <Box
@@ -360,9 +362,9 @@ export default function Layout({ children }) {
             <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 19, letterSpacing: '-.025em' }}>TOV</Typography>
             <Typography noWrap sx={{ fontSize: 12, color: TOV.caption }}>{tituloAtual}</Typography>
           </Box>
-          <Box sx={{ ml: 'auto' }}>
+          {perfil !== 'PROFESSOR' && <Box sx={{ ml: 'auto' }}>
             <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
-          </Box>
+          </Box>}
         </Toolbar>
       </AppBar>
 
@@ -416,12 +418,12 @@ export default function Layout({ children }) {
       >
         {children}
       </Box>
-      <NotificationCenter
+      {perfil !== 'PROFESSOR' && <NotificationCenter
         aberto={notificacoesAbertas}
         onFechar={() => setNotificacoesAbertas(false)}
         onNavigate={irPara}
         estado={estadoNotificacoes}
-      />
+      />}
 
       {/* Atalhos de uso frequente — somente em celulares. */}
       <Paper
@@ -451,17 +453,21 @@ export default function Layout({ children }) {
             '& .MuiBottomNavigationAction-label': { fontSize: 11, fontWeight: 700 },
           }}
         >
-          {perfil === 'MARKETING' ? (
-            <BottomNavigationAction label="Leads" value="/leads" icon={<CampaignIcon />} />
-          ) : (
-            <BottomNavigationAction label="Início" value="/" icon={<SpaceDashboardIcon />} />
-          )}
-          {perfil === 'MARKETING' ? (
-            <BottomNavigationAction label="WhatsApp" value="/whatsapp" icon={<WhatsAppIcon />} />
-          ) : (
-            <BottomNavigationAction label="Alunos" value="/alunos" icon={<SchoolIcon />} />
-          )}
-          {perfil !== 'MARKETING' && <BottomNavigationAction label="Turmas" value="/turmas" icon={<GroupsIcon />} />}
+          {perfil === 'PROFESSOR' ? (
+            <BottomNavigationAction label="Notas e faltas" value="/notas" icon={<EditNoteIcon />} />
+          ) : <>
+            {perfil === 'MARKETING' ? (
+              <BottomNavigationAction label="Leads" value="/leads" icon={<CampaignIcon />} />
+            ) : (
+              <BottomNavigationAction label="Início" value="/" icon={<SpaceDashboardIcon />} />
+            )}
+            {perfil === 'MARKETING' ? (
+              <BottomNavigationAction label="WhatsApp" value="/whatsapp" icon={<WhatsAppIcon />} />
+            ) : (
+              <BottomNavigationAction label="Alunos" value="/alunos" icon={<SchoolIcon />} />
+            )}
+            {perfil !== 'MARKETING' && <BottomNavigationAction label="Turmas" value="/turmas" icon={<GroupsIcon />} />}
+          </>}
           <BottomNavigationAction label="Mais" value="mais" icon={<MoreHorizIcon />} />
         </BottomNavigation>
       </Paper>

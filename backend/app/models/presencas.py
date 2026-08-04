@@ -9,13 +9,17 @@ from ..database import Base
 class Chamada(Base):
     __tablename__ = "chamadas"
     __table_args__ = (
-        UniqueConstraint("cod_tur", "data", name="uq_chamadas_turma_data"),
+        UniqueConstraint("aula_id", name="uq_chamadas_aula_id"),
         Index("ix_chamadas_turma_data", "cod_tur", "data"),
+        Index("ix_chamadas_aula_id", "aula_id"),
         Index("ix_chamadas_token_status", "token", "status"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cod_tur: Mapped[int] = mapped_column(Integer)
+    # Nulo somente em chamadas legadas que não puderam ser associadas com
+    # segurança a uma única aula do calendário.
+    aula_id: Mapped[int | None] = mapped_column(Integer)
     data: Mapped[date] = mapped_column(Date)
     token: Mapped[str] = mapped_column(String(64), unique=True)
     status: Mapped[str] = mapped_column(String(12), default="ABERTA")

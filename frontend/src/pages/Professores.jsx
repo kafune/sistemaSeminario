@@ -86,7 +86,26 @@ export default function Professores() {
     try {
       const resposta = await api.post('/professores/convites', {})
       setConvite({
+        tipo: 'cadastro',
         url: `${window.location.origin}/cadastro-professor/${resposta.token}`,
+        expira_em: resposta.expira_em,
+      })
+    } catch (e) {
+      setMsgTipo('error')
+      setMsg(e.message)
+    } finally {
+      setCriandoConvite(false)
+    }
+  }
+
+  async function criarConviteAcesso(professor) {
+    setCriandoConvite(true)
+    try {
+      const resposta = await api.post(`/professores/${professor.cod_pro}/convite-acesso`, {})
+      setConvite({
+        tipo: 'acesso',
+        professor_nome: resposta.professor_nome,
+        url: `${window.location.origin}/acesso-professor/${resposta.token}`,
         expira_em: resposta.expira_em,
       })
     } catch (e) {
@@ -101,7 +120,7 @@ export default function Professores() {
     try {
       await navigator.clipboard.writeText(convite.url)
       setMsgTipo('success')
-      setMsg('Link de autocadastro copiado.')
+      setMsg(convite.tipo === 'acesso' ? 'Link de acesso copiado.' : 'Link de autocadastro copiado.')
     } catch {
       setMsgTipo('error')
       setMsg('Não foi possível copiar automaticamente. Selecione o link no campo.')
@@ -164,8 +183,10 @@ export default function Professores() {
             </Box>
             <LinhaCartao rotulo="Telefone" valor={p.fone1 || p.celular} />
             <LinhaCartao rotulo="E-mail" valor={p.e_mail} />
+            <LinhaCartao rotulo="Acesso" valor={p.usuario_acesso || 'Ainda não criado'} />
             <LinhaCartao rotulo="Áreas indicadas" valor={p.materias_atuacao} />
             <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
+              <Button size="small" variant="outlined" fullWidth disabled={!!p.usuario_acesso || criandoConvite} onClick={() => criarConviteAcesso(p)}>{p.usuario_acesso ? 'Acesso criado' : 'Criar acesso'}</Button>
               <Button size="small" variant="outlined" fullWidth onClick={() => setForm({ ...p })}>Editar</Button>
               <Button size="small" variant="outlined" color="error" fullWidth onClick={() => setParaExcluir(p)}>Excluir</Button>
             </Box>
@@ -175,7 +196,7 @@ export default function Professores() {
 
       {/* Tabela — desktop */}
       {telaDesktop && <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
-        <Table sx={{ minWidth: 820 }}>
+        <Table sx={{ minWidth: 920 }}>
           <TableHead>
             <TableRow>
               <TableCell sx={{ width: 90 }}>Código</TableCell>
@@ -183,17 +204,18 @@ export default function Professores() {
               <TableCell sx={{ width: 90 }}>Sigla</TableCell>
               <TableCell>Telefone</TableCell>
               <TableCell>E-mail</TableCell>
+              <TableCell>Acesso</TableCell>
               <TableCell>Áreas indicadas</TableCell>
               <TableCell sx={{ width: 110 }}>Status</TableCell>
-              <TableCell align="right" sx={{ width: 120 }}>Ações</TableCell>
+              <TableCell align="right" sx={{ width: 190 }}>Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {carregando && professores.length === 0 && (
-              <TableRow><TableCell colSpan={8} sx={{ py: 5, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} sx={{ py: 5, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
             )}
             {!carregando && professores.length === 0 && (
-              <TableRow><TableCell colSpan={8} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={9} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></TableCell></TableRow>
             )}
             {professores.map((p) => (
               <TableRow key={p.cod_pro} hover>
@@ -202,6 +224,7 @@ export default function Professores() {
                 <TableCell sx={{ color: TOV.slate }}>{p.sigla || '—'}</TableCell>
                 <TableCell sx={{ color: TOV.slate }}>{p.fone1 || p.celular || '—'}</TableCell>
                 <TableCell sx={{ color: TOV.slate }}>{p.e_mail || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.slate }}>{p.usuario_acesso || '—'}</TableCell>
                 <TableCell sx={{ color: TOV.slate, maxWidth: 260 }}>
                   <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.materias_atuacao || ''}>
                     {p.materias_atuacao || '—'}
@@ -210,6 +233,13 @@ export default function Professores() {
                 <TableCell><PilulaStatus status={p.status} /></TableCell>
                 <TableCell align="right">
                   <Box sx={{ display: 'inline-flex', gap: 1.25, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
+                    {!p.usuario_acesso && <>
+                      <Box component="button" type="button" onClick={() => criarConviteAcesso(p)} disabled={criandoConvite}
+                        sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
+                        Criar acesso
+                      </Box>
+                      <Box component="span" sx={{ color: TOV.border }}>·</Box>
+                    </>}
                     <Box component="button" type="button" onClick={() => setForm({ ...p })}
                       sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
                       Editar
@@ -333,10 +363,12 @@ export default function Professores() {
       </Dialog>
 
       <Dialog open={!!convite} onClose={() => setConvite(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>Link de autocadastro</DialogTitle>
+        <DialogTitle>{convite?.tipo === 'acesso' ? 'Link de acesso às notas' : 'Link de autocadastro'}</DialogTitle>
         <DialogContent>
           <Box sx={{ color: TOV.slate, fontSize: 15, mb: 2 }}>
-            Envie este link a um professor. Ele é individual, expira em 30 dias e deixa de funcionar após o primeiro cadastro.
+            {convite?.tipo === 'acesso'
+              ? `Envie este link a ${convite.professor_nome}. Ele poderá criar a senha e acessar somente as próprias turmas. O link expira em 7 dias.`
+              : 'Envie este link a um professor. Ele é individual, expira em 30 dias e deixa de funcionar após o primeiro cadastro.'}
           </Box>
           <TextField
             fullWidth value={convite?.url || ''}

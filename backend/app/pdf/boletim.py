@@ -1,19 +1,32 @@
 """Boletim de notas — portado do projetoGi/backendPythonPdf (fpdf -> fpdf2)."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import Aluno, AluNota, Materia
 from .base import PdfTov, formatar_nota
+from ..services.faltas import subconsulta_faltas
 
 LARGURAS = [82, 30, 30, 30]
 COLUNAS = list(zip(["Matéria", "Nota", "Faltas", "Cursou"], LARGURAS))
 
 
 def notas_do_aluno(db: Session, cod_alu: int):
+    faltas = subconsulta_faltas()
     q = (
-        select(Materia.NOME, AluNota.nota, AluNota.falta, AluNota.cursou)
+        select(
+            Materia.NOME,
+            AluNota.nota,
+            func.coalesce(faltas.c.faltas, AluNota.falta, 0),
+            AluNota.cursou,
+        )
         .join(Materia, Materia.cod_mat == AluNota.cod_mat)
+        .join(
+            faltas,
+            (faltas.c.docturma_id == AluNota.docturma_id)
+            & (faltas.c.cod_alu == AluNota.cod_alu),
+            isouter=True,
+        )
         .where(AluNota.cod_alu == cod_alu)
         .order_by(Materia.NOME)
     )

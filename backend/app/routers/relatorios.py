@@ -174,9 +174,17 @@ def historico(cod_alu: int, db: Session = Depends(get_db)):
 
 
 @router.get("/diario/{cod_tur}")
-def diario(cod_tur: int, cod_mat: int | None = None, db: Session = Depends(get_db)):
+def diario(
+    cod_tur: int,
+    cod_mat: int | None = None,
+    docturma_id: int | None = None,
+    db: Session = Depends(get_db),
+):
     try:
-        return _pdf(gerar_diario(db, cod_tur, cod_mat), f"Diario_{cod_tur}.pdf")
+        return _pdf(
+            gerar_diario(db, cod_tur, cod_mat, docturma_id),
+            f"Diario_{cod_tur}.pdf",
+        )
     except ValueError as e:
         raise HTTPException(404, str(e))
 

@@ -10,14 +10,23 @@ from .base import PdfTov
 N_COLUNAS_AULA = 10
 
 
-def gerar_diario(db: Session, cod_tur: int, cod_mat: int | None = None) -> bytes:
+def gerar_diario(
+    db: Session,
+    cod_tur: int,
+    cod_mat: int | None = None,
+    docturma_id: int | None = None,
+) -> bytes:
     turma = db.get(Turma, cod_tur)
     if not turma:
         raise ValueError(f"Turma {cod_tur} não encontrada")
 
+    dt = db.get(DocTurma, docturma_id) if docturma_id else None
+    if dt and dt.cod_tur != cod_tur:
+        raise ValueError("Vínculo acadêmico não pertence à turma")
+    cod_mat = dt.cod_mat if dt else cod_mat
     materia = db.get(Materia, cod_mat) if cod_mat else None
     professor = None
-    if cod_mat:
+    if cod_mat and not dt:
         dt = db.scalar(
             select(DocTurma).where(
                 DocTurma.cod_tur == cod_tur, DocTurma.cod_mat == cod_mat

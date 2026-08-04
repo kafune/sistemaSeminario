@@ -22,7 +22,7 @@ export default function Login() {
     try {
       const r = await api.post('/auth/login', { user, senha })
       setSession(r.token, r.user, r.perfil)
-      navigate('/')
+      navigate(r.perfil === 'PROFESSOR' ? '/notas' : r.perfil === 'MARKETING' ? '/leads' : '/')
     } catch (err) {
       setErro(err.message)
     } finally {
@@ -77,7 +77,7 @@ export default function Login() {
           </Box>
           <Eyebrow sx={{ mb: 1.25 }}>Acesso restrito</Eyebrow>
           <Typography component="h1" variant="h2">Entrar</Typography>
-          <Typography sx={{ mt: 1.25, fontSize: 14.5, color: TOV.caption }}>Use suas credenciais da secretaria.</Typography>
+          <Typography sx={{ mt: 1.25, fontSize: 14.5, color: TOV.caption }}>Use suas credenciais de acesso.</Typography>
 
           {erro && <Alert severity="error" sx={{ mt: 3 }}>{erro}</Alert>}
 

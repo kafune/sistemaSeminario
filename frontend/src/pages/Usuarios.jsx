@@ -236,6 +236,7 @@ export default function Usuarios() {
                   <MenuItem value="SECRETARIA">Secretaria</MenuItem>
                   <MenuItem value="MARKETING">Marketing</MenuItem>
                   <MenuItem value="ADMIN">Administrador</MenuItem>
+                  <MenuItem value="PROFESSOR" disabled={form.perfil !== 'PROFESSOR'}>Professor (criado por convite)</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12}>

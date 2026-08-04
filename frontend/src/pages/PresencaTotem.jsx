@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
@@ -7,8 +7,11 @@ import {
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import HowToRegRoundedIcon from '@mui/icons-material/HowToRegRounded'
+import PeopleAltRoundedIcon from '@mui/icons-material/PeopleAltRounded'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
+import TouchAppRoundedIcon from '@mui/icons-material/TouchAppRounded'
 import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded'
 import { getPublico, postPublico } from '../api'
 import { TOV } from '../theme'
@@ -18,23 +21,59 @@ function normalizar(texto) {
   return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
+const formatadorData = new Intl.DateTimeFormat('pt-BR', {
+  weekday: 'long', day: '2-digit', month: 'long',
+})
+const formatadorHora = new Intl.DateTimeFormat('pt-BR', {
+  hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
+})
+
 function textoData(data) {
   if (!data) return ''
-  const texto = new Intl.DateTimeFormat('pt-BR', {
-    weekday: 'long', day: '2-digit', month: 'long',
-  }).format(new Date(`${data}T12:00:00`))
+  const texto = formatadorData.format(new Date(`${data}T12:00:00`))
   return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
 function textoHora(dataHora) {
   if (!dataHora) return ''
-  return new Intl.DateTimeFormat('pt-BR', {
-    hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
-  }).format(new Date(dataHora))
+  return formatadorHora.format(new Date(dataHora))
 }
 
 function primeiroNome(nome) {
   return String(nome || '').trim().split(/\s+/)[0]
+}
+
+function reconciliarChamada(atual, recebida) {
+  if (
+    !atual
+    || atual.data !== recebida.data
+    || atual.turma?.cod_tur !== recebida.turma?.cod_tur
+  ) return recebida
+  const anteriores = new Map((atual.alunos || []).map((aluno) => [aluno.cod_alu, aluno]))
+  const alunos = (recebida.alunos || []).map((aluno) => {
+    const anterior = anteriores.get(aluno.cod_alu)
+    if (
+      anterior
+      && anterior.nome === aluno.nome
+      && anterior.presente === aluno.presente
+      && anterior.registrado_em === aluno.registrado_em
+    ) return anterior
+    return aluno
+  })
+  return { ...recebida, alunos }
+}
+
+function Relogio() {
+  const [agora, setAgora] = useState(() => new Date())
+  useEffect(() => {
+    const timer = window.setInterval(() => setAgora(new Date()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [])
+  return (
+    <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 18, lineHeight: 1.15, fontVariantNumeric: 'tabular-nums' }}>
+      {textoHora(agora.toISOString())}
+    </Typography>
+  )
 }
 
 function CabecalhoSecao({ id, titulo, quantidade, descricao, tom = 'neutral' }) {
@@ -64,7 +103,7 @@ function CabecalhoSecao({ id, titulo, quantidade, descricao, tom = 'neutral' }) 
   )
 }
 
-function CartaoAluno({ aluno, onSelecionar }) {
+const CartaoAluno = memo(function CartaoAluno({ aluno, onSelecionar }) {
   const presente = aluno.presente
   return (
     <Box
@@ -74,37 +113,40 @@ function CartaoAluno({ aluno, onSelecionar }) {
       aria-label={presente ? `${aluno.nome}, presença marcada às ${textoHora(aluno.registrado_em)}` : `Marcar presença de ${aluno.nome}`}
       sx={{
         ...(presente ? {} : resetBotao),
-        minHeight: { xs: 84, sm: 94 }, width: '100%', px: { xs: 1.5, sm: 2 }, py: 1.5,
+        minHeight: { xs: 88, sm: 102 }, width: '100%', px: { xs: 1.5, sm: 2.25 }, py: 1.5,
         display: 'flex', alignItems: 'center', gap: { xs: 1.4, sm: 1.75 }, textAlign: 'left',
         borderRadius: '18px', border: `1px solid ${presente ? 'rgba(39,116,81,.20)' : TOV.border}`,
         bgcolor: presente ? 'rgba(39,116,81,.075)' : TOV.surface,
         boxShadow: presente ? 'none' : '0 10px 30px -30px rgba(25,27,29,.55)',
         cursor: presente ? 'default' : 'pointer', position: 'relative', overflow: 'hidden',
         userSelect: 'none', WebkitUserSelect: 'none',
+        touchAction: 'manipulation', WebkitTouchCallout: 'none',
         transition: `border-color ${TOV.durationFast} ${TOV.ease}, transform ${TOV.durationFast} ${TOV.ease}, background-color ${TOV.durationFast} ${TOV.ease}`,
         '&::before': presente ? undefined : {
           content: '""', position: 'absolute', inset: '14px auto 14px 0', width: 3,
           borderRadius: '0 4px 4px 0', bgcolor: TOV.coral,
         },
-        '&:hover': presente ? {} : { borderColor: '#C3B9B1', bgcolor: '#FCFAF7' },
+        '@media (hover: hover)': {
+          '&:hover': presente ? {} : { borderColor: '#C3B9B1', bgcolor: '#FCFAF7' },
+        },
         '&:active': presente ? {} : { transform: 'scale(.992)', bgcolor: TOV.canvas },
       }}
     >
       <AvatarIniciais
         nome={aluno.nome}
-        tamanho={56}
-        radius={17}
-        fontSize={19}
+        tamanho={60}
+        radius={18}
+        fontSize={20}
         sx={presente
           ? { bgcolor: TOV.success, color: '#fff', borderColor: 'transparent' }
           : { bgcolor: TOV.surfaceMuted, color: TOV.graphite, borderColor: TOV.divider }}
       />
       <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 17, sm: 18.5 }, lineHeight: 1.25, color: TOV.ink }}>
+        <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 17, sm: 20 }, lineHeight: 1.22, color: TOV.ink }}>
           {aluno.nome}
         </Typography>
         <Typography sx={{ color: presente ? TOV.success : TOV.caption, fontSize: 12.5, fontWeight: 700, mt: 0.45 }}>
-          {presente ? `Presença confirmada às ${textoHora(aluno.registrado_em)}` : 'Toque aqui para confirmar'}
+          {presente ? `Confirmada às ${textoHora(aluno.registrado_em)}` : 'Toque para marcar sua chegada'}
         </Typography>
       </Box>
       <Box
@@ -119,7 +161,13 @@ function CartaoAluno({ aluno, onSelecionar }) {
       </Box>
     </Box>
   )
-}
+}, (anterior, proximo) => (
+  anterior.aluno.cod_alu === proximo.aluno.cod_alu
+  && anterior.aluno.nome === proximo.aluno.nome
+  && anterior.aluno.presente === proximo.aluno.presente
+  && anterior.aluno.registrado_em === proximo.aluno.registrado_em
+  && anterior.onSelecionar === proximo.onSelecionar
+))
 
 export default function PresencaTotem() {
   const { token } = useParams()
@@ -128,17 +176,26 @@ export default function PresencaTotem() {
   const [selecionado, setSelecionado] = useState(null)
   const [confirmando, setConfirmando] = useState(false)
   const [sucesso, setSucesso] = useState(null)
-  const [agora, setAgora] = useState(new Date())
+  const [mostrarPresentes, setMostrarPresentes] = useState(false)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState('')
   const [reconectando, setReconectando] = useState(false)
   const sucessoTimer = useRef(null)
+  const requisicaoEmCurso = useRef(false)
+  const confirmacaoEmCurso = useRef(false)
+  const versaoLocal = useRef(0)
 
   const carregar = useCallback(async (silencioso = false) => {
+    if (requisicaoEmCurso.current) return
+    requisicaoEmCurso.current = true
+    const versaoAoIniciar = versaoLocal.current
     if (!silencioso) setCarregando(true)
     try {
       const resposta = await getPublico(`/presenca-publica/${token}`)
-      setChamada(resposta)
+      // Não deixa uma leitura iniciada antes do toque desfazer a confirmação local.
+      if (versaoAoIniciar === versaoLocal.current) {
+        setChamada((atual) => reconciliarChamada(atual, resposta))
+      }
       setErro('')
       setReconectando(false)
     } catch (e) {
@@ -151,17 +208,25 @@ export default function PresencaTotem() {
         setReconectando(true)
       }
     } finally {
+      requisicaoEmCurso.current = false
       if (!silencioso) setCarregando(false)
     }
   }, [token])
 
   useEffect(() => {
     carregar()
-    const atualizacao = window.setInterval(() => carregar(true), 15_000)
-    const relogio = window.setInterval(() => setAgora(new Date()), 30_000)
+    const atualizarSeVisivel = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) carregar(true)
+    }
+    const atualizacao = window.setInterval(atualizarSeVisivel, 30_000)
+    window.addEventListener('online', atualizarSeVisivel)
+    window.addEventListener('focus', atualizarSeVisivel)
+    document.addEventListener('visibilitychange', atualizarSeVisivel)
     return () => {
       window.clearInterval(atualizacao)
-      window.clearInterval(relogio)
+      window.removeEventListener('online', atualizarSeVisivel)
+      window.removeEventListener('focus', atualizarSeVisivel)
+      document.removeEventListener('visibilitychange', atualizarSeVisivel)
       if (sucessoTimer.current) window.clearTimeout(sucessoTimer.current)
     }
   }, [carregar])
@@ -184,21 +249,34 @@ export default function PresencaTotem() {
     }
   }, [])
 
-  const alunosFiltrados = useMemo(() => {
+  const { alunosFiltrados, aguardando, presentes } = useMemo(() => {
     const termo = normalizar(busca.trim())
-    if (!termo) return chamada?.alunos || []
-    return (chamada?.alunos || []).filter((aluno) => normalizar(aluno.nome).includes(termo))
+    const filtrados = termo
+      ? (chamada?.alunos || []).filter((aluno) => normalizar(aluno.nome).includes(termo))
+      : (chamada?.alunos || [])
+    return {
+      alunosFiltrados: filtrados,
+      aguardando: filtrados.filter((aluno) => !aluno.presente),
+      presentes: filtrados.filter((aluno) => aluno.presente),
+    }
   }, [busca, chamada])
-  const aguardando = alunosFiltrados.filter((aluno) => !aluno.presente)
-  const presentes = alunosFiltrados.filter((aluno) => aluno.presente)
   const progresso = chamada?.total ? Math.min(100, (chamada.presentes / chamada.total) * 100) : 0
+  const buscaAtiva = Boolean(busca.trim())
+  const exibirPresentes = buscaAtiva || mostrarPresentes
+
+  const selecionarAluno = useCallback((aluno) => {
+    document.activeElement?.blur?.()
+    setSelecionado(aluno)
+  }, [])
 
   async function confirmarPresenca() {
-    if (!selecionado) return
+    if (!selecionado || confirmacaoEmCurso.current) return
+    confirmacaoEmCurso.current = true
     setConfirmando(true)
     try {
       const resposta = await postPublico(`/presenca-publica/${token}`, { cod_alu: selecionado.cod_alu })
       const marcadoEm = resposta.registrado_em
+      versaoLocal.current += 1
       setChamada((atual) => ({
         ...atual,
         presentes: atual.presentes + (selecionado.presente ? 0 : 1),
@@ -211,11 +289,13 @@ export default function PresencaTotem() {
       setBusca('')
       setSucesso({ nome: resposta.nome, horario: textoHora(marcadoEm) })
       if (sucessoTimer.current) window.clearTimeout(sucessoTimer.current)
-      sucessoTimer.current = window.setTimeout(() => setSucesso(null), 2400)
+      navigator.vibrate?.(40)
+      sucessoTimer.current = window.setTimeout(() => setSucesso(null), 1700)
     } catch (e) {
       setErro(e.message)
       setSelecionado(null)
     } finally {
+      confirmacaoEmCurso.current = false
       setConfirmando(false)
     }
   }
@@ -275,7 +355,7 @@ export default function PresencaTotem() {
                 {chamada.turma.nome}
               </Typography>
               <Typography sx={{ color: 'rgba(255,255,255,.62)', fontSize: { xs: 11.5, sm: 13.5 }, mt: 0.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {textoData(chamada.data)}
+                {textoData(chamada.data)}{chamada.aula?.materia_nome ? ` · ${chamada.aula.materia_nome}` : ''}
               </Typography>
             </Box>
           </Box>
@@ -288,7 +368,7 @@ export default function PresencaTotem() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.25, sm: 2 }, flexShrink: 0 }}>
             <Box sx={{ display: { xs: 'none', sm: 'block' }, textAlign: 'right' }}>
               <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 9.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase' }}>Agora</Typography>
-              <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 18, lineHeight: 1.15, fontVariantNumeric: 'tabular-nums' }}>{textoHora(agora.toISOString())}</Typography>
+              <Relogio />
             </Box>
             <Box aria-hidden="true" sx={{ display: { xs: 'none', sm: 'block' }, width: '1px', height: 35, bgcolor: 'rgba(255,255,255,.12)' }} />
             <Box sx={{ textAlign: 'right' }}>
@@ -304,34 +384,46 @@ export default function PresencaTotem() {
         </Box>
       </Box>
 
-      <Box component="main" sx={{ maxWidth: 1160, mx: 'auto', px: { xs: 1.5, sm: 3 }, pt: { xs: 2.5, sm: 3.5 } }}>
+      <Box component="main" sx={{ maxWidth: 1280, mx: 'auto', px: { xs: 1.5, sm: 3 }, pt: { xs: 2, sm: 0 } }}>
         {erro && <Alert severity="error" onClose={() => setErro('')} sx={{ mb: 2 }}>{erro}</Alert>}
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'minmax(0,1fr) 370px' }, alignItems: 'end', gap: { xs: 2.25, md: 4 }, mb: { xs: 3, sm: 3.5 } }}>
-          <Box>
-            <Typography variant="overline" sx={{ color: TOV.coral, display: 'block', mb: 0.75 }}>Presença de hoje</Typography>
-            <Typography component="h1" variant="h1" sx={{ fontSize: { xs: 31, sm: 42 }, maxWidth: 700 }}>
-              Olá! Marque sua chegada.
-            </Typography>
-            <Typography sx={{ color: TOV.caption, fontSize: { xs: 14, sm: 15.5 }, mt: 1, maxWidth: 620 }}>
-              Encontre seu nome na lista, toque nele e confirme. Leva só alguns segundos.
-            </Typography>
-          </Box>
-          <Box component="section" aria-label="Busca de aluno">
-            <Typography component="label" htmlFor="busca-presenca" variant="overline" sx={{ color: TOV.caption, display: 'block', mb: 0.7 }}>Buscar na lista</Typography>
+        <Box
+          component="section"
+          aria-label="Busca de aluno"
+          sx={{
+            position: { xs: 'static', sm: 'sticky' }, top: { sm: 'calc(73px + max(16px, env(safe-area-inset-top)))' }, zIndex: 15,
+            mx: { sm: -1 }, px: { sm: 1 }, pt: { sm: 2.25 }, pb: { xs: 2.5, sm: 2.25 },
+            bgcolor: TOV.canvas,
+          }}
+        >
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(230px,.75fr) minmax(360px,1.25fr)' }, alignItems: 'center', gap: { xs: 1.75, sm: 3.5 }, p: { xs: 0, sm: 2 }, borderRadius: { sm: '22px' }, bgcolor: { sm: 'rgba(255,255,255,.94)' }, border: { sm: `1px solid ${TOV.border}` }, boxShadow: { sm: '0 16px 36px -34px rgba(25,27,29,.72)' }, WebkitBackdropFilter: 'blur(14px)', backdropFilter: 'blur(14px)' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box aria-hidden="true" sx={{ width: 50, height: 50, flex: '0 0 50px', display: 'grid', placeItems: 'center', borderRadius: '15px', bgcolor: TOV.coralTint, color: TOV.coral }}>
+                <TouchAppRoundedIcon sx={{ fontSize: 27 }} />
+              </Box>
+              <Box>
+                <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 25, sm: 27 }, lineHeight: 1.08 }}>
+                  Encontre seu nome
+                </Typography>
+                <Typography sx={{ color: TOV.caption, fontSize: { xs: 13, sm: 14 }, mt: 0.45 }}>
+                  {chamada.ausentes === 0 ? 'Todas as presenças foram confirmadas.' : `${chamada.ausentes} ${chamada.ausentes === 1 ? 'pessoa ainda não confirmou' : 'pessoas ainda não confirmaram'}.`}
+                </Typography>
+              </Box>
+            </Box>
             <TextField
               id="busca-presenca"
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               placeholder="Digite seu primeiro nome"
               autoComplete="off"
+              inputProps={{ inputMode: 'search', enterKeyHint: 'search', autoCorrect: 'off', spellCheck: false, 'aria-label': 'Digite seu nome para buscar na chamada' }}
               fullWidth
               InputProps={{
-                startAdornment: <InputAdornment position="start"><SearchRoundedIcon sx={{ color: TOV.caption }} /></InputAdornment>,
+                startAdornment: <InputAdornment position="start"><SearchRoundedIcon sx={{ color: TOV.coral, fontSize: 27 }} /></InputAdornment>,
                 endAdornment: busca
-                  ? <InputAdornment position="end"><IconButton size="small" aria-label="Limpar busca" onClick={() => setBusca('')}><CloseRoundedIcon fontSize="small" /></IconButton></InputAdornment>
+                  ? <InputAdornment position="end"><IconButton aria-label="Limpar busca" onClick={() => setBusca('')} sx={{ width: 44, height: 44 }}><CloseRoundedIcon /></IconButton></InputAdornment>
                   : undefined,
-                sx: { height: 58, fontSize: 16.5, bgcolor: TOV.surface },
+                sx: { height: { xs: 58, sm: 64 }, fontSize: { xs: 16.5, sm: 18 }, bgcolor: TOV.surface, borderRadius: '16px', touchAction: 'manipulation' },
               }}
             />
           </Box>
@@ -348,8 +440,18 @@ export default function PresencaTotem() {
         {aguardando.length > 0 && (
           <Box component="section" aria-labelledby="titulo-aguardando">
             <CabecalhoSecao id="titulo-aguardando" titulo="Aguardando confirmação" quantidade={aguardando.length} descricao="Toque no seu nome para registrar a chegada." />
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))' }, gap: { xs: 1.15, sm: 1.5 } }}>
-              {aguardando.map((aluno) => <CartaoAluno key={aluno.cod_alu} aluno={aluno} onSelecionar={setSelecionado} />)}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))', md: 'repeat(3,minmax(0,1fr))' }, gap: { xs: 1.15, sm: 1.5 } }}>
+              {aguardando.map((aluno) => <CartaoAluno key={aluno.cod_alu} aluno={aluno} onSelecionar={selecionarAluno} />)}
+            </Box>
+          </Box>
+        )}
+
+        {buscaAtiva && aguardando.length === 0 && presentes.length > 0 && (
+          <Box sx={{ mb: 2.5, px: { xs: 2.25, sm: 3 }, py: 2.25, display: 'flex', alignItems: 'center', gap: 1.75, borderRadius: '20px', bgcolor: TOV.successTint, border: '1px solid rgba(39,116,81,.18)' }}>
+            <CheckCircleRoundedIcon sx={{ color: TOV.success, fontSize: 36 }} />
+            <Box>
+              <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 20 }}>Presença já confirmada</Typography>
+              <Typography sx={{ color: TOV.success, fontSize: 13.5, mt: 0.2 }}>Este nome já está na lista de quem chegou.</Typography>
             </Box>
           </Box>
         )}
@@ -365,11 +467,29 @@ export default function PresencaTotem() {
         )}
 
         {presentes.length > 0 && (
-          <Box component="section" aria-labelledby="titulo-presentes" sx={{ mt: aguardando.length ? { xs: 3.5, sm: 4.5 } : 0 }}>
-            <CabecalhoSecao id="titulo-presentes" titulo="Já chegaram" quantidade={presentes.length} descricao="Presenças confirmadas nesta chamada." tom="success" />
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))' }, gap: { xs: 1.15, sm: 1.5 } }}>
-              {presentes.map((aluno) => <CartaoAluno key={aluno.cod_alu} aluno={aluno} onSelecionar={setSelecionado} />)}
-            </Box>
+          <Box component="section" aria-label="Presenças já confirmadas" sx={{ mt: aguardando.length ? { xs: 3, sm: 3.75 } : 0 }}>
+            {!buscaAtiva && (
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={() => setMostrarPresentes((valor) => !valor)}
+                aria-expanded={mostrarPresentes}
+                aria-controls="lista-presentes"
+                startIcon={<PeopleAltRoundedIcon />}
+                endIcon={<ExpandMoreRoundedIcon sx={{ transition: `transform ${TOV.durationFast} ${TOV.ease}`, transform: mostrarPresentes ? 'rotate(180deg)' : 'none' }} />}
+                sx={{ minHeight: 58, justifyContent: 'flex-start', px: 2, color: TOV.graphite, borderColor: TOV.border, bgcolor: 'rgba(255,255,255,.55)', '& .MuiButton-endIcon': { ml: 'auto' } }}
+              >
+                {mostrarPresentes ? 'Ocultar confirmados' : `Ver quem já confirmou (${presentes.length})`}
+              </Button>
+            )}
+            {exibirPresentes && (
+              <Box id="lista-presentes" sx={{ mt: buscaAtiva ? 0 : 2 }}>
+                <CabecalhoSecao id="titulo-presentes" titulo={buscaAtiva ? 'Resultado confirmado' : 'Já chegaram'} quantidade={presentes.length} descricao={buscaAtiva ? 'Este nome já registrou presença.' : 'Presenças confirmadas nesta chamada.'} tom="success" />
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))', md: 'repeat(3,minmax(0,1fr))' }, gap: { xs: 1.15, sm: 1.5 } }}>
+                  {presentes.map((aluno) => <CartaoAluno key={aluno.cod_alu} aluno={aluno} onSelecionar={selecionarAluno} />)}
+                </Box>
+              </Box>
+            )}
           </Box>
         )}
       </Box>
@@ -377,10 +497,12 @@ export default function PresencaTotem() {
       <Dialog
         open={!!selecionado}
         onClose={confirmando ? undefined : () => setSelecionado(null)}
+        disableEscapeKeyDown={confirmando}
         maxWidth="sm"
         fullWidth
         aria-labelledby="titulo-confirmacao-presenca"
-        PaperProps={{ sx: { borderRadius: '26px', overflow: 'hidden', m: { xs: 2, sm: 4 }, width: { xs: 'calc(100% - 32px)', sm: '100%' } } }}
+        aria-describedby="descricao-confirmacao-presenca"
+        PaperProps={{ sx: { borderRadius: '26px', overflow: 'hidden', m: { xs: 2, sm: 4 }, width: { xs: 'calc(100% - 32px)', sm: '100%' }, maxWidth: 620 } }}
       >
         {selecionado && (
           <>
@@ -394,9 +516,9 @@ export default function PresencaTotem() {
               <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 23, sm: 29 }, lineHeight: 1.22, overflowWrap: 'anywhere' }}>
                 {selecionado.nome}
               </Typography>
-              <Typography sx={{ color: TOV.caption, mt: 1 }}>Ao confirmar, sua chegada será registrada com o horário atual.</Typography>
+              <Typography id="descricao-confirmacao-presenca" sx={{ color: TOV.caption, mt: 1 }}>Confira o nome antes de continuar. A chegada será registrada com o horário atual.</Typography>
             </DialogContent>
-            <DialogActions sx={{ p: { xs: 2, sm: 3 }, pt: 2, gap: 1.25, bgcolor: '#FAF8F5', borderTop: `1px solid ${TOV.divider}`, '& > button': { flex: 1, minHeight: 56, fontSize: { xs: 13.5, sm: 14.5 } } }}>
+            <DialogActions sx={{ p: { xs: 2, sm: 3 }, pt: 2, gap: 1.25, bgcolor: '#FAF8F5', borderTop: `1px solid ${TOV.divider}`, '& > button': { flex: 1, minHeight: { xs: 58, sm: 64 }, fontSize: { xs: 13.5, sm: 16 }, touchAction: 'manipulation' } }}>
               <Button variant="outlined" onClick={() => setSelecionado(null)} disabled={confirmando}>Não sou eu</Button>
               <Button variant="contained" onClick={confirmarPresenca} disabled={confirmando} startIcon={!confirmando && <CheckCircleRoundedIcon />}>
                 {confirmando ? 'Confirmando…' : 'Sim, confirmar'}
@@ -410,6 +532,7 @@ export default function PresencaTotem() {
         <Box
           role="status"
           aria-live="assertive"
+          onClick={() => setSucesso(null)}
           sx={{
             position: 'fixed', inset: 0, zIndex: 1500, display: 'grid', placeItems: 'center',
             bgcolor: TOV.ink,
@@ -431,7 +554,10 @@ export default function PresencaTotem() {
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, mt: 2.5, px: 1.6, py: 0.9, borderRadius: 999, bgcolor: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.72)', fontSize: 13.5, fontWeight: 700 }}>
               Chegada registrada às {sucesso.horario}
             </Box>
-            <Typography sx={{ color: 'rgba(255,255,255,.42)', fontSize: 12, mt: 3 }}>A lista voltará automaticamente para o próximo aluno.</Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,.52)', fontSize: 13, mt: 3 }}>Toque em qualquer lugar para continuar.</Typography>
+          </Box>
+          <Box aria-hidden="true" sx={{ position: 'absolute', inset: 'auto 0 0', height: 5, bgcolor: 'rgba(255,255,255,.12)', overflow: 'hidden' }}>
+            <Box sx={{ height: '100%', bgcolor: '#62C596', transformOrigin: 'left', animation: 'tempoSucesso 1700ms linear both', '@keyframes tempoSucesso': { from: { transform: 'scaleX(1)' }, to: { transform: 'scaleX(0)' } } }} />
           </Box>
         </Box>
       )}

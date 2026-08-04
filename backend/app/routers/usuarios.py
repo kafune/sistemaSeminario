@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Usuario
+from ..models import Professor, Usuario
 from ..security import gerar_hash, usuario_atual
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
@@ -17,7 +17,8 @@ SENHA_MINIMA = 6
 class UsuarioInput(BaseModel):
     user: str
     senha: str
-    perfil: Literal["ADMIN", "SECRETARIA", "MARKETING"] = "SECRETARIA"
+    perfil: Literal["ADMIN", "SECRETARIA", "MARKETING", "PROFESSOR"] = "SECRETARIA"
+    cod_pro: int | None = None
 
 
 class SenhaInput(BaseModel):
@@ -25,7 +26,8 @@ class SenhaInput(BaseModel):
 
 
 class PerfilInput(BaseModel):
-    perfil: Literal["ADMIN", "SECRETARIA", "MARKETING"]
+    perfil: Literal["ADMIN", "SECRETARIA", "MARKETING", "PROFESSOR"]
+    cod_pro: int | None = None
 
 
 def _validar_senha(senha: str) -> None:
@@ -37,8 +39,17 @@ def _validar_senha(senha: str) -> None:
 def listar(db: Session = Depends(get_db)):
     """Lista os usuários de acesso (nunca expõe o hash da senha)."""
     return [
-        {"user": u.user, "perfil": u.perfil or "ADMIN"}
-        for u in db.scalars(select(Usuario).order_by(Usuario.user))
+        {
+            "user": usuario.user,
+            "perfil": usuario.perfil or "ADMIN",
+            "cod_pro": usuario.cod_pro,
+            "professor_nome": professor_nome,
+        }
+        for usuario, professor_nome in db.execute(
+            select(Usuario, Professor.nome)
+            .join(Professor, Professor.cod_pro == Usuario.cod_pro, isouter=True)
+            .order_by(Usuario.user)
+        )
     ]
 
 
@@ -50,10 +61,16 @@ def criar(dados: UsuarioInput, db: Session = Depends(get_db)):
     _validar_senha(dados.senha)
     if db.get(Usuario, user):
         raise HTTPException(409, "Já existe um usuário com esse nome")
+    if dados.perfil == "PROFESSOR":
+        if dados.cod_pro is None or not db.get(Professor, dados.cod_pro):
+            raise HTTPException(400, "Selecione o professor vinculado ao acesso")
+        if db.scalar(select(Usuario).where(Usuario.cod_pro == dados.cod_pro)):
+            raise HTTPException(409, "Este professor já possui acesso")
     novo = Usuario(
         user=user,
         senha_hash=gerar_hash(dados.senha),
         perfil=dados.perfil,
+        cod_pro=dados.cod_pro if dados.perfil == "PROFESSOR" else None,
     )
     db.add(novo)
     db.commit()
@@ -70,6 +87,21 @@ def alterar_perfil(
     usuario = db.get(Usuario, user)
     if not usuario:
         raise HTTPException(404, "Usuário não encontrado")
+    if dados.perfil == "PROFESSOR":
+        cod_pro = dados.cod_pro if dados.cod_pro is not None else usuario.cod_pro
+        if cod_pro is None or not db.get(Professor, cod_pro):
+            raise HTTPException(400, "Selecione o professor vinculado ao acesso")
+        ocupado = db.scalar(
+            select(Usuario).where(
+                Usuario.cod_pro == cod_pro,
+                Usuario.user != usuario.user,
+            )
+        )
+        if ocupado:
+            raise HTTPException(409, "Este professor já possui acesso")
+        usuario.cod_pro = cod_pro
+    else:
+        usuario.cod_pro = None
     if user == atual and dados.perfil != "ADMIN":
         administradores = db.scalar(
             select(func.count())

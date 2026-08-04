@@ -12,6 +12,7 @@ const Alunos = lazy(() => import('./pages/Alunos'))
 const AlunoDetalhe = lazy(() => import('./pages/AlunoDetalhe'))
 const Professores = lazy(() => import('./pages/Professores'))
 const AutocadastroProfessor = lazy(() => import('./pages/AutocadastroProfessor'))
+const AcessoProfessor = lazy(() => import('./pages/AcessoProfessor'))
 const Materias = lazy(() => import('./pages/Materias'))
 const Turmas = lazy(() => import('./pages/Turmas'))
 const TurmaDetalhe = lazy(() => import('./pages/TurmaDetalhe'))
@@ -48,7 +49,8 @@ function Protegida({ children, perfis }) {
   if (!getToken()) return <Navigate to="/login" replace />
   const perfil = getPerfil()
   if (perfis && !perfis.includes(perfil)) {
-    return <Navigate to={perfil === 'MARKETING' ? '/leads' : '/'} replace />
+    const inicio = perfil === 'MARKETING' ? '/leads' : perfil === 'PROFESSOR' ? '/notas' : '/'
+    return <Navigate to={inicio} replace />
   }
   return <Layout>{children}</Layout>
 }
@@ -61,6 +63,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/agenda/:token" element={<CalendarioPublico />} />
           <Route path="/cadastro-professor/:token" element={<AutocadastroProfessor />} />
+          <Route path="/acesso-professor/:token" element={<AcessoProfessor />} />
           <Route path="/presenca/:token" element={<PresencaTotem />} />
           <Route path="/" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Dashboard /></Protegida>} />
           <Route path="/alunos" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Alunos /></Protegida>} />
@@ -71,11 +74,11 @@ export default function App() {
           <Route path="/turmas/:codTur" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><TurmaDetalhe /></Protegida>} />
           <Route path="/turmas/:codTur/presencas" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><PresencasTurma /></Protegida>} />
           <Route path="/calendario" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Calendario /></Protegida>} />
-          <Route path="/notas" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Notas /></Protegida>} />
+          <Route path="/notas" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'PROFESSOR']}><Notas /></Protegida>} />
           <Route path="/relatorios" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Relatorios /></Protegida>} />
           <Route path="/leads" element={<Protegida perfis={['ADMIN', 'MARKETING']}><Leads /></Protegida>} />
           <Route path="/usuarios" element={<Protegida perfis={['ADMIN']}><Usuarios /></Protegida>} />
-          <Route path="/whatsapp" element={<Protegida><WhatsApp /></Protegida>} />
+          <Route path="/whatsapp" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'MARKETING']}><WhatsApp /></Protegida>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

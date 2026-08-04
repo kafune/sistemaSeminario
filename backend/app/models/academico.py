@@ -72,12 +72,21 @@ class AluNota(Base):
             "cod_alu",
         ),
         Index("ix_alunota_cod_alu", "cod_alu"),
+        UniqueConstraint(
+            "docturma_id",
+            "cod_alu",
+            name="uq_alunota_docturma_aluno",
+        ),
+        Index("ix_alunota_docturma_aluno", "docturma_id", "cod_alu"),
     )
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cod_alu: Mapped[int] = mapped_column(Integer)
     cod_mat: Mapped[int] = mapped_column(Integer)
     cod_tur: Mapped[int | None] = mapped_column(Integer)
     cod_pro: Mapped[int | None] = mapped_column(Integer)
+    # Fonte canônica do contexto turma/matéria/professor/período.
+    # As colunas acima são mantidas para compatibilidade com o histórico legado.
+    docturma_id: Mapped[int | None] = mapped_column(Integer)
     nota: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2))
     falta: Mapped[int | None] = mapped_column(Integer)
     dispensa: Mapped[str | None] = mapped_column(String(5))

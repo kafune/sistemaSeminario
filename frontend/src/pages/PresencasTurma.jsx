@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Alert, Box, Button, CircularProgress, IconButton, Snackbar, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, Typography,
+  Alert, Box, Button, CircularProgress, IconButton, MenuItem, Snackbar, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
@@ -55,6 +55,8 @@ export default function PresencasTurma() {
   const telaDesktop = useTelaDesktop()
   const [turma, setTurma] = useState(null)
   const [chamadas, setChamadas] = useState([])
+  const [aulas, setAulas] = useState([])
+  const [aulaSelecionada, setAulaSelecionada] = useState('')
   const [selecionadaId, setSelecionadaId] = useState(null)
   const [detalhe, setDetalhe] = useState(null)
   const [carregando, setCarregando] = useState(true)
@@ -70,13 +72,26 @@ export default function PresencasTurma() {
     return resposta
   }, [codTur])
 
+  const carregarAulas = useCallback(async () => {
+    const resposta = await api.get(`/turmas/${codTur}/chamadas/aulas-disponiveis?data=${hojeLocal()}`)
+    setAulas(resposta)
+    setAulaSelecionada((atual) => atual || (resposta.length === 1 ? String(resposta[0].aula_id) : ''))
+    return resposta
+  }, [codTur])
+
   useEffect(() => {
     let ativo = true
-    Promise.all([api.get(`/turmas/${codTur}`), api.get(`/turmas/${codTur}/chamadas`)])
-      .then(([dadosTurma, dadosChamadas]) => {
+    Promise.all([
+      api.get(`/turmas/${codTur}`),
+      api.get(`/turmas/${codTur}/chamadas`),
+      api.get(`/turmas/${codTur}/chamadas/aulas-disponiveis?data=${hojeLocal()}`),
+    ])
+      .then(([dadosTurma, dadosChamadas, dadosAulas]) => {
         if (!ativo) return
         setTurma(dadosTurma)
         setChamadas(dadosChamadas)
+        setAulas(dadosAulas)
+        if (dadosAulas.length === 1) setAulaSelecionada(String(dadosAulas[0].aula_id))
         setSelecionadaId(dadosChamadas[0]?.id || null)
       })
       .catch((e) => { if (ativo) setErro(e.message) })
@@ -109,20 +124,22 @@ export default function PresencasTurma() {
     return () => window.clearInterval(intervalo)
   }, [carregarDetalhe, carregarLista, detalhe?.status])
 
-  const chamadaHoje = useMemo(
-    () => chamadas.find((item) => item.data === hojeLocal()) || null,
-    [chamadas],
+  const chamadaDaAula = useMemo(
+    () => chamadas.find((item) => String(item.aula?.id) === String(aulaSelecionada)) || null,
+    [aulaSelecionada, chamadas],
   )
-  const chamadaAbertaHoje = chamadaHoje?.status === 'ABERTA' ? chamadaHoje : null
+  const chamadaAbertaHoje = chamadaDaAula?.status === 'ABERTA' ? chamadaDaAula : null
 
   async function iniciarChamada() {
     setProcessando(true)
     setErro('')
     try {
-      const chamada = await api.post(`/turmas/${codTur}/chamadas/abrir`)
+      if (!aulaSelecionada) throw new Error('Selecione a aula antes de iniciar a chamada.')
+      const chamada = await api.post(`/turmas/${codTur}/chamadas/abrir`, { aula_id: Number(aulaSelecionada) })
       setSelecionadaId(chamada.id)
       setDetalhe(chamada)
       await carregarLista()
+      await carregarAulas()
       navigate(`/presenca/${chamada.token}`)
     } catch (e) {
       setErro(e.message)
@@ -166,10 +183,29 @@ export default function PresencasTurma() {
         descricao="Abra a chamada neste iPad para cada aluno registrar a própria chegada."
         acoes={chamadaAbertaHoje
           ? <Button variant="contained" startIcon={<OpenInFullRoundedIcon />} onClick={() => abrirTotem(chamadaAbertaHoje)}>Abrir modo iPad</Button>
-          : <Button variant="contained" startIcon={<PlayArrowRoundedIcon />} onClick={iniciarChamada} disabled={processando}>{chamadaHoje ? 'Reabrir chamada de hoje' : 'Iniciar chamada no iPad'}</Button>}
+          : <Button variant="contained" startIcon={<PlayArrowRoundedIcon />} onClick={iniciarChamada} disabled={processando || !aulaSelecionada}>{chamadaDaAula ? 'Reabrir chamada desta aula' : 'Iniciar chamada no iPad'}</Button>}
       />
 
       {erro && <Alert severity="error" onClose={() => setErro('')} sx={{ mb: 2 }}>{erro}</Alert>}
+
+      <Box sx={{ ...cardSx, p: 2, mb: 2.5 }}>
+        <TextField
+          select fullWidth size="small" label="Aula de hoje"
+          value={aulaSelecionada}
+          onChange={(event) => setAulaSelecionada(event.target.value)}
+          helperText="A matéria desta aula define onde as faltas serão contabilizadas."
+        >
+          <MenuItem value=""><em>Selecione a matéria e o horário</em></MenuItem>
+          {aulas.map((aula) => (
+            <MenuItem key={aula.aula_id} value={aula.aula_id}>
+              {[aula.hora_inicio, aula.materia_nome, aula.professor_nome].filter(Boolean).join(' · ')}
+            </MenuItem>
+          ))}
+        </TextField>
+        {aulas.length === 0 && (
+          <Alert severity="info" sx={{ mt: 1.5 }}>Não há aula agendada para esta turma hoje. Cadastre a aula no calendário antes de abrir a chamada.</Alert>
+        )}
+      </Box>
 
       {chamadas.length === 0 && (
         <Box sx={{ ...cardSx, overflow: 'hidden' }}>
@@ -221,7 +257,7 @@ export default function PresencasTurma() {
                       <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{dataCurta(chamada.data)}</Typography>
                       {chamada.status === 'ABERTA' && <StatusBadge tom="success" dot sx={{ minHeight: 24, px: 1, fontSize: 10.5 }}>Aberta</StatusBadge>}
                     </Box>
-                    <Typography sx={{ color: TOV.caption, fontSize: 12.5, mt: 0.4 }}>{chamada.presentes} de {chamada.total} presentes</Typography>
+                    <Typography sx={{ color: TOV.caption, fontSize: 12.5, mt: 0.4 }}>{chamada.aula?.materia_nome ? `${chamada.aula.materia_nome} · ` : ''}{chamada.presentes} de {chamada.total} presentes</Typography>
                   </Box>
                 )
               })}
@@ -235,6 +271,7 @@ export default function PresencasTurma() {
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
                   <Box>
                     <Typography variant="h2" sx={{ fontSize: { xs: 24, sm: 29 } }}>{dataLonga(detalhe.data)}</Typography>
+                    {detalhe.aula?.materia_nome && <Typography sx={{ color: TOV.caption, mt: 0.5 }}>{[detalhe.aula.hora_inicio, detalhe.aula.materia_nome, detalhe.aula.professor_nome].filter(Boolean).join(' · ')}</Typography>}
                     <Box sx={{ mt: 0.9 }}>
                       <StatusBadge tom={detalhe.status === 'ABERTA' ? 'success' : 'muted'} dot>
                         {detalhe.status === 'ABERTA' ? 'Chamada aberta' : `Encerrada${detalhe.encerrada_em ? ` às ${hora(detalhe.encerrada_em)}` : ''}`}

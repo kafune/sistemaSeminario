@@ -102,7 +102,9 @@ def criar_para_todos(
     chave_evento: str,
 ) -> list[Notificacao]:
     criadas: list[Notificacao] = []
-    for usuario in db.scalars(select(Usuario.user)):
+    for usuario in db.scalars(
+        select(Usuario.user).where(Usuario.perfil != "PROFESSOR")
+    ):
         item = criar_notificacao(
             db,
             usuario=usuario,

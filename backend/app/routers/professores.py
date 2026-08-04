@@ -10,19 +10,26 @@ from sqlalchemy.orm import Session
 from ..database import get_db, row_to_dict
 from ..models import (
     AluNota,
+    ConviteAcessoProfessor,
     ConviteProfessor,
     DocTurma,
     Materia,
     MatProf,
     Professor,
     TitProf,
+    Usuario,
 )
+from ..security import gerar_hash
 from ..services.notificacoes import criar_para_todos, entregar_lista
 
 router = APIRouter(prefix="/professores", tags=["professores"])
 public_router = APIRouter(
     prefix="/cadastro-professor",
     tags=["autocadastro de professores"],
+)
+access_public_router = APIRouter(
+    prefix="/acesso-professor",
+    tags=["acesso de professores"],
 )
 
 
@@ -72,6 +79,13 @@ class AutocadastroProfessorInput(BaseModel):
     materias_atuacao: str = Field(min_length=3, max_length=1000)
 
 
+class CriarAcessoProfessorInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    user: str = Field(min_length=3, max_length=50)
+    senha: str = Field(min_length=6, max_length=100)
+
+
 def _convite_valido(
     db: Session,
     token: str,
@@ -101,10 +115,19 @@ def _somente_digitos(valor: str | None) -> str:
 
 @router.get("")
 def listar(busca: str = "", db: Session = Depends(get_db)):
-    q = select(Professor)
+    q = select(Professor, Usuario.user).join(
+        Usuario,
+        Usuario.cod_pro == Professor.cod_pro,
+        isouter=True,
+    )
     if busca:
         q = q.where(Professor.nome.like(f"%{busca}%"))
-    return [row_to_dict(p) for p in db.scalars(q.order_by(Professor.nome))]
+    resposta = []
+    for professor, usuario in db.execute(q.order_by(Professor.nome)):
+        item = row_to_dict(professor)
+        item["usuario_acesso"] = usuario
+        resposta.append(item)
+    return resposta
 
 
 @router.post("/convites")
@@ -122,6 +145,41 @@ def criar_convite(db: Session = Depends(get_db)):
     return {
         "token": convite.token,
         "expira_em": convite.expira_em.isoformat(),
+    }
+
+
+@router.post("/{cod_pro}/convite-acesso")
+def criar_convite_acesso(cod_pro: int, db: Session = Depends(get_db)):
+    professor = db.get(Professor, cod_pro)
+    if not professor:
+        raise HTTPException(404, "Professor não encontrado")
+    acesso = db.scalar(select(Usuario).where(Usuario.cod_pro == cod_pro))
+    if acesso:
+        raise HTTPException(409, f"Professor já possui o usuário {acesso.user}")
+
+    agora = datetime.now()
+    for anterior in db.scalars(
+        select(ConviteAcessoProfessor).where(
+            ConviteAcessoProfessor.cod_pro == cod_pro,
+            ConviteAcessoProfessor.ativo == "S",
+        )
+    ):
+        anterior.ativo = "N"
+    convite = ConviteAcessoProfessor(
+        token=secrets.token_urlsafe(32),
+        cod_pro=cod_pro,
+        criado_em=agora,
+        expira_em=agora + timedelta(days=7),
+        usado_em=None,
+        ativo="S",
+    )
+    db.add(convite)
+    db.commit()
+    db.refresh(convite)
+    return {
+        "token": convite.token,
+        "expira_em": convite.expira_em.isoformat(),
+        "professor_nome": professor.nome,
     }
 
 
@@ -179,12 +237,17 @@ def excluir(cod_pro: int, db: Session = Depends(get_db)):
     notas = db.scalar(
         select(func.count()).select_from(AluNota).where(AluNota.cod_pro == cod_pro)
     ) or 0
-    if turmas or notas:
+    acesso = db.scalar(
+        select(func.count()).select_from(Usuario).where(Usuario.cod_pro == cod_pro)
+    ) or 0
+    if turmas or notas or acesso:
         detalhes = []
         if turmas:
             detalhes.append(f"{turmas} vínculo(s) com turma")
         if notas:
             detalhes.append(f"{notas} nota(s) lançada(s)")
+        if acesso:
+            detalhes.append("um acesso ao portal")
         raise HTTPException(
             400,
             "Professor possui "
@@ -287,3 +350,73 @@ def autocadastrar_professor(
         "ok": True,
         "mensagem": "Cadastro enviado com sucesso",
     }
+
+
+def _convite_acesso_valido(
+    db: Session,
+    token: str,
+    *,
+    bloquear: bool = False,
+) -> tuple[ConviteAcessoProfessor, Professor]:
+    consulta = select(ConviteAcessoProfessor).where(
+        ConviteAcessoProfessor.token == token,
+        ConviteAcessoProfessor.ativo == "S",
+        ConviteAcessoProfessor.usado_em.is_(None),
+    )
+    if bloquear:
+        consulta = consulta.with_for_update()
+    convite = db.scalar(consulta)
+    if not convite:
+        raise HTTPException(404, "Convite de acesso inválido ou já utilizado")
+    if convite.expira_em < datetime.now():
+        convite.ativo = "N"
+        db.commit()
+        raise HTTPException(410, "Este convite de acesso expirou")
+    professor = db.get(Professor, convite.cod_pro)
+    if not professor:
+        raise HTTPException(404, "Professor não encontrado")
+    if db.scalar(select(Usuario).where(Usuario.cod_pro == professor.cod_pro)):
+        raise HTTPException(409, "Este professor já possui acesso")
+    return convite, professor
+
+
+@access_public_router.get("/{token}")
+def validar_convite_acesso(token: str, db: Session = Depends(get_db)):
+    convite, professor = _convite_acesso_valido(db, token)
+    sugestao = (professor.e_mail or "").split("@", 1)[0].upper()
+    sugestao = re.sub(r"[^A-Z0-9._-]", "", sugestao)
+    return {
+        "valido": True,
+        "professor_nome": professor.nome,
+        "usuario_sugerido": sugestao,
+        "expira_em": convite.expira_em.isoformat(),
+    }
+
+
+@access_public_router.post("/{token}")
+def concluir_acesso_professor(
+    token: str,
+    dados: CriarAcessoProfessorInput,
+    db: Session = Depends(get_db),
+):
+    convite, professor = _convite_acesso_valido(db, token, bloquear=True)
+    user = dados.user.strip().upper()
+    if not re.fullmatch(r"[A-Z0-9._-]+", user):
+        raise HTTPException(
+            400,
+            "O usuário pode conter somente letras, números, ponto, hífen e sublinhado",
+        )
+    if db.get(Usuario, user):
+        raise HTTPException(409, "Este nome de usuário já está em uso")
+    agora = datetime.now()
+    usuario = Usuario(
+        user=user,
+        senha_hash=gerar_hash(dados.senha),
+        perfil="PROFESSOR",
+        cod_pro=professor.cod_pro,
+    )
+    db.add(usuario)
+    convite.usado_em = agora
+    convite.ativo = "N"
+    db.commit()
+    return {"ok": True, "user": usuario.user}

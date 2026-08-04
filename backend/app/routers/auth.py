@@ -28,6 +28,7 @@ def login(dados: LoginInput, db: Session = Depends(get_db)):
         "token": criar_token(usuario.user),
         "user": usuario.user,
         "perfil": usuario.perfil or "ADMIN",
+        "cod_pro": usuario.cod_pro,
     }
 
 
@@ -39,7 +40,11 @@ def obter_sessao(
     usuario = db.get(Usuario, user)
     if not usuario:
         raise HTTPException(404, "Usuário não encontrado")
-    return {"user": usuario.user, "perfil": usuario.perfil or "ADMIN"}
+    return {
+        "user": usuario.user,
+        "perfil": usuario.perfil or "ADMIN",
+        "cod_pro": usuario.cod_pro,
+    }
 
 
 @router.post("/trocar-senha")

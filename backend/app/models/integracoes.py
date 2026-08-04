@@ -46,3 +46,17 @@ class ConviteProfessor(Base):
     usado_em: Mapped[datetime | None] = mapped_column(DateTime)
     ativo: Mapped[str] = mapped_column(String(1), default="S")
     professor_id: Mapped[int | None] = mapped_column(Integer)
+
+
+class ConviteAcessoProfessor(Base):
+    """Convite individual para o professor criar seu acesso autenticado."""
+
+    __tablename__ = "convites_acesso_professor"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True)
+    cod_pro: Mapped[int] = mapped_column(Integer, index=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime)
+    expira_em: Mapped[datetime] = mapped_column(DateTime)
+    usado_em: Mapped[datetime | None] = mapped_column(DateTime)
+    ativo: Mapped[str] = mapped_column(String(1), default="S")

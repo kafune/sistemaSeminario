@@ -1,10 +1,11 @@
 """Histórico escolar — notas agrupadas por ano/semestre."""
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models import Aluno, AluNota, Materia
 from .base import PdfTov, formatar_nota
+from ..services.faltas import subconsulta_faltas
 
 LARGURAS = [96, 28, 28, 28]
 COLUNAS = list(zip(["Matéria", "Nota", "Faltas", "Cursou"], LARGURAS))
@@ -15,18 +16,29 @@ def gerar_historico(db: Session, cod_alu: int) -> bytes:
     if not aluno:
         raise ValueError(f"Aluno {cod_alu} não encontrado")
 
+    faltas = subconsulta_faltas()
     q = (
-        select(AluNota, Materia.NOME)
+        select(
+            AluNota,
+            Materia.NOME,
+            func.coalesce(faltas.c.faltas, AluNota.falta, 0),
+        )
         .join(Materia, Materia.cod_mat == AluNota.cod_mat, isouter=True)
+        .join(
+            faltas,
+            (faltas.c.docturma_id == AluNota.docturma_id)
+            & (faltas.c.cod_alu == AluNota.cod_alu),
+            isouter=True,
+        )
         .where(AluNota.cod_alu == cod_alu)
         .order_by(AluNota.ano, AluNota.semestre, Materia.NOME)
     )
 
     # Agrupa por (ano, semestre)
     grupos: dict[tuple, list] = {}
-    for nota, materia_nome in db.execute(q):
+    for nota, materia_nome, total_faltas in db.execute(q):
         chave = (nota.ano or "", nota.semestre or "")
-        grupos.setdefault(chave, []).append((materia_nome, nota))
+        grupos.setdefault(chave, []).append((materia_nome, nota, total_faltas))
 
     pdf = PdfTov(titulo="Histórico Escolar")
     pdf.add_page()
@@ -44,12 +56,12 @@ def gerar_historico(db: Session, cod_alu: int) -> bytes:
         pdf.set_font("Helvetica", "B", 12)
         pdf.cell(0, 8, rotulo, 0, 1)
         pdf.tabela_cabecalho(COLUNAS)
-        for materia_nome, nota in linhas:
+        for materia_nome, nota, total_faltas in linhas:
             pdf.tabela_linha(
                 [
                     (materia_nome or "").strip(),
                     formatar_nota(nota.nota),
-                    nota.falta if nota.falta is not None else "",
+                    int(total_faltas or 0),
                     nota.cursou or "",
                 ],
                 LARGURAS,

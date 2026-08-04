@@ -368,6 +368,28 @@ def atualizar_schema(engine: Engine) -> None:
                 "ALTER TABLE usuarios ADD COLUMN perfil VARCHAR(20) "
                 "NOT NULL DEFAULT 'ADMIN'"
             )
+        if "cod_pro" not in colunas_usuario:
+            comandos.append(
+                "ALTER TABLE usuarios ADD COLUMN cod_pro INT NULL"
+            )
+
+    if "alunota" in tabelas:
+        colunas_alunota = {
+            coluna["name"] for coluna in inspector.get_columns("alunota")
+        }
+        if "docturma_id" not in colunas_alunota:
+            comandos.append(
+                "ALTER TABLE alunota ADD COLUMN docturma_id INT NULL"
+            )
+
+    if "chamadas" in tabelas:
+        colunas_chamada = {
+            coluna["name"] for coluna in inspector.get_columns("chamadas")
+        }
+        if "aula_id" not in colunas_chamada:
+            comandos.append(
+                "ALTER TABLE chamadas ADD COLUMN aula_id INT NULL"
+            )
 
     # Índices usados pelos filtros, ordenações e relacionamentos mais frequentes.
     # ``create_all`` os cria em bancos novos; esta lista mantém bancos existentes
@@ -398,8 +420,14 @@ def atualizar_schema(engine: Engine) -> None:
                 ("cod_tur", "cod_mat", "cod_alu"),
             ),
             ("ix_alunota_cod_alu", ("cod_alu",)),
+            ("ix_alunota_docturma_aluno", ("docturma_id", "cod_alu")),
         ],
         "aulas": [("ix_aulas_data_status", ("data", "status"))],
+        "chamadas": [
+            ("ix_chamadas_turma_data", ("cod_tur", "data")),
+            ("ix_chamadas_aula_id", ("aula_id",)),
+        ],
+        "usuarios": [("ix_usuarios_cod_pro", ("cod_pro",))],
         "notificacoes": [
             ("ix_notificacoes_usuario_lido_em", ("usuario", "lido_em")),
             (
@@ -444,6 +472,60 @@ def atualizar_schema(engine: Engine) -> None:
             for comando in comandos:
                 conexao.execute(text(comando))
 
+    # Associa registros legados somente quando existe uma correspondência
+    # acadêmica inequívoca. Casos ambíguos permanecem nulos para revisão.
+    tabelas_atualizadas = set(inspect(engine).get_table_names())
+    with engine.begin() as conexao:
+        if {"alunota", "docturma"}.issubset(tabelas_atualizadas):
+            conexao.execute(
+                text(
+                    "UPDATE alunota SET docturma_id = ("
+                    "SELECT MIN(dt.id) FROM docturma dt "
+                    "WHERE dt.cod_tur = alunota.cod_tur "
+                    "AND dt.cod_mat = alunota.cod_mat"
+                    ") WHERE docturma_id IS NULL AND 1 = ("
+                    "SELECT COUNT(*) FROM docturma dt "
+                    "WHERE dt.cod_tur = alunota.cod_tur "
+                    "AND dt.cod_mat = alunota.cod_mat"
+                    ")"
+                )
+            )
+        if {"chamadas", "aulas", "docturma"}.issubset(tabelas_atualizadas):
+            conexao.execute(
+                text(
+                    "UPDATE chamadas SET aula_id = ("
+                    "SELECT MIN(a.id) FROM aulas a "
+                    "JOIN docturma dt ON dt.id = a.docturma_id "
+                    "WHERE dt.cod_tur = chamadas.cod_tur "
+                    "AND a.data = chamadas.data"
+                    ") WHERE aula_id IS NULL AND 1 = ("
+                    "SELECT COUNT(*) FROM aulas a "
+                    "JOIN docturma dt ON dt.id = a.docturma_id "
+                    "WHERE dt.cod_tur = chamadas.cod_tur "
+                    "AND a.data = chamadas.data"
+                    ")"
+                )
+            )
+
+    # A regra antiga impedia duas matérias da mesma turma no mesmo dia.
+    # SQLite não permite remover a restrição sem recriar a tabela; bancos de
+    # teste já nascem com o modelo novo, e instalações reais usam MySQL/MariaDB.
+    if engine.dialect.name in {"mysql", "mariadb"} and "chamadas" in tabelas_atualizadas:
+        inspector_chamadas = inspect(engine)
+        nomes_unicos = {
+            item.get("name")
+            for item in inspector_chamadas.get_unique_constraints("chamadas")
+        } | {
+            item.get("name")
+            for item in inspector_chamadas.get_indexes("chamadas")
+            if item.get("unique")
+        }
+        if "uq_chamadas_turma_data" in nomes_unicos:
+            with engine.begin() as conexao:
+                conexao.execute(
+                    text("ALTER TABLE chamadas DROP INDEX uq_chamadas_turma_data")
+                )
+
     _reparar_integridade_academica(engine)
 
     # As restrições abaixo também são declaradas nos modelos para bancos novos.
@@ -458,6 +540,12 @@ def atualizar_schema(engine: Engine) -> None:
             "uq_matprof_cod_mat_cod_pro",
             ["cod_mat", "cod_pro"],
         ),
+        "usuarios": ("uq_usuarios_cod_pro", ["cod_pro"]),
+        "alunota": (
+            "uq_alunota_docturma_aluno",
+            ["docturma_id", "cod_alu"],
+        ),
+        "chamadas": ("uq_chamadas_aula_id", ["aula_id"]),
     }
     with engine.begin() as conexao:
         for tabela, (nome, colunas_unicas) in unicidades.items():
@@ -466,6 +554,20 @@ def atualizar_schema(engine: Engine) -> None:
                 tabela,
                 colunas_unicas,
             ):
+                continue
+            filtros_nao_nulos = " AND ".join(
+                f"`{coluna}` IS NOT NULL" for coluna in colunas_unicas
+            )
+            agrupamento = ", ".join(f"`{coluna}`" for coluna in colunas_unicas)
+            tem_duplicata = conexao.execute(
+                text(
+                    f"SELECT 1 FROM `{tabela}` WHERE {filtros_nao_nulos} "
+                    f"GROUP BY {agrupamento} HAVING COUNT(*) > 1 LIMIT 1"
+                )
+            ).first()
+            if tem_duplicata:
+                # Preserva histórico potencialmente divergente. Novas escritas
+                # da aplicação ainda fazem upsert pela mesma chave lógica.
                 continue
             colunas_sql = ", ".join(
                 f"`{coluna}`" for coluna in colunas_unicas

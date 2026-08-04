@@ -9,7 +9,17 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import Aluno, AluTurma, Aula, DocTurma, Materia, Professor, Turma
+from ..models import (
+    Aluno,
+    AluTurma,
+    Aula,
+    Chamada,
+    DocTurma,
+    Materia,
+    Presenca,
+    Professor,
+    Turma,
+)
 
 # O arquivo TS3 TURMA 2.xls usa treze colunas estreitas para as aulas e
 # aproximadamente 29 alunos por página impressa.
@@ -176,6 +186,8 @@ def _linhas_alunos(
     linha_inicial: int,
     alunos_pagina: list[tuple[int, str]],
     numero_inicial: int,
+    aulas_pagina: list[Aula],
+    presencas: dict[tuple[int, int], str],
 ) -> None:
     for posicao in range(ALUNOS_POR_PAGINA):
         linha = linha_inicial + posicao
@@ -205,7 +217,13 @@ def _linhas_alunos(
             )
 
         for coluna in range(COLUNA_PRIMEIRA_DATA, COLUNA_ULTIMA_DATA + 1):
-            cell = ws.cell(linha, coluna)
+            deslocamento = coluna - COLUNA_PRIMEIRA_DATA
+            valor_presenca = None
+            if tem_aluno and deslocamento < len(aulas_pagina):
+                valor_presenca = presencas.get(
+                    (aulas_pagina[deslocamento].id, matricula)
+                )
+            cell = ws.cell(linha, coluna, valor_presenca)
             cell.font = Font(name=FONTE_TABELA, size=10)
             cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.border = _borda(
@@ -231,6 +249,7 @@ def _montar_lista_presenca(
     alunos: list[tuple[int, str]],
     aulas: list[Aula],
     ano: str,
+    presencas: dict[tuple[int, int], str],
 ) -> None:
     grupos_datas = [
         aulas[inicio : inicio + DATAS_POR_PAGINA]
@@ -263,6 +282,8 @@ def _montar_lista_presenca(
                 linha_inicial + 3,
                 alunos_pagina,
                 indice_alunos * ALUNOS_POR_PAGINA + 1,
+                aulas_pagina,
+                presencas,
             )
             pagina += 1
             ws.print_area = (
@@ -308,6 +329,19 @@ def gerar_diario_xlsx(db: Session, docturma_id: int) -> tuple[bytes, str]:
         )
     )
 
+    presencas = {
+        (aula_id, cod_alu): "P" if registrado_em is not None else "F"
+        for aula_id, cod_alu, registrado_em in db.execute(
+            select(Chamada.aula_id, Presenca.cod_alu, Presenca.registrado_em)
+            .join(Presenca, Presenca.chamada_id == Chamada.id)
+            .where(
+                Chamada.aula_id.in_([aula.id for aula in aulas]),
+                Chamada.status == "ENCERRADA",
+            )
+        )
+        if aula_id is not None
+    }
+
     ano = vinculo.Ano or str(aulas[0].data.year if aulas else date.today().year)
     workbook = Workbook()
     _montar_lista_presenca(
@@ -318,6 +352,7 @@ def gerar_diario_xlsx(db: Session, docturma_id: int) -> tuple[bytes, str]:
         alunos,
         aulas,
         ano,
+        presencas,
     )
 
     buffer = io.BytesIO()

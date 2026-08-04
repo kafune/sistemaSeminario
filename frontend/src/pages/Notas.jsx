@@ -5,15 +5,13 @@ import {
 } from '@mui/material'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import SaveIcon from '@mui/icons-material/Save'
-import { api, abrirArquivo } from '../api'
+import { api, abrirArquivo, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
   BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio, StatusBadge,
   cardSx, useTelaDesktop,
 } from '../ui'
 import { useUnsavedChanges } from '../UnsavedChanges'
-
-const ANO_ATUAL = String(new Date().getFullYear())
 
 /** Rótulo de um seletor (uppercase caption) acima do campo. */
 function RotuloCampo({ children }) {
@@ -24,11 +22,12 @@ function RotuloCampo({ children }) {
 
 export default function Notas() {
   const [turmas, setTurmas] = useState([])
+  const [vinculos, setVinculos] = useState([])
   const [codTur, setCodTur] = useState('')
   const [materiasTurma, setMateriasTurma] = useState([])
   const [docSel, setDocSel] = useState(null) // entrada docturma escolhida
-  const [ano, setAno] = useState(ANO_ATUAL)
-  const [semestre, setSemestre] = useState('2')
+  const [ano, setAno] = useState('')
+  const [semestre, setSemestre] = useState('')
 
   const [linhas, setLinhas] = useState([])
   const [profResponsavel, setProfResponsavel] = useState('')
@@ -41,20 +40,25 @@ export default function Notas() {
   const avisar = (texto, erro = true) => { setEhErro(erro); setMsg(texto) }
 
   useEffect(() => {
-    api.getCached('/turmas').then(setTurmas).catch((e) => avisar(e.message))
+    api.get('/notas/opcoes')
+      .then((resposta) => {
+        setTurmas(resposta.turmas)
+        setVinculos(resposta.vinculos)
+      })
+      .catch((e) => avisar(e.message))
   }, [])
 
   // Ao trocar a turma, carrega as matérias vinculadas.
   useEffect(() => {
     setDocSel(null); setLinhas([]); setMateriasTurma([]); setProfResponsavel('')
     if (!codTur) return
-    api.get(`/turmas/${codTur}/materias`).then(setMateriasTurma).catch(() => setMateriasTurma([]))
-  }, [codTur])
+    setMateriasTurma(vinculos.filter((item) => String(item.cod_tur) === String(codTur)))
+  }, [codTur, vinculos])
 
   const carregarGrade = useCallback((doc) => {
     if (!codTur || !doc) { setLinhas([]); return }
     setCarregandoGrade(true)
-    api.get(`/notas/turma/${codTur}/materia/${doc.cod_mat}`)
+    api.get(`/notas/vinculo/${doc.id}`)
       .then((r) => {
         setLinhas(r.alunos.map((a) => ({
           cod_alu: a.cod_alu,
@@ -76,8 +80,8 @@ export default function Notas() {
     setDocSel(doc)
     setProfResponsavel(doc?.professor_nome || '')
     if (doc) {
-      if (doc.Ano) setAno(doc.Ano)
-      if (doc.semestre) setSemestre(doc.semestre)
+      setAno(doc.Ano || '')
+      setSemestre(doc.semestre || '')
       carregarGrade(doc)
     } else {
       setLinhas([])
@@ -97,8 +101,7 @@ export default function Notas() {
   )
 
   const notaInvalida = (l) => l.nota !== '' && (Number.isNaN(Number(l.nota)) || Number(l.nota) < 0 || Number(l.nota) > 10)
-  const faltaInvalida = (l) => l.falta !== '' && (Number.isNaN(Number(l.falta)) || Number(l.falta) < 0)
-  const temInvalida = linhas.some((l) => notaInvalida(l) || faltaInvalida(l))
+  const temInvalida = linhas.some((l) => notaInvalida(l))
 
   // Evita perder lançamentos não salvos ao fechar/recarregar a aba.
   useEffect(() => {
@@ -111,12 +114,13 @@ export default function Notas() {
   async function salvarGrade() {
     if (!docSel || sujas.length === 0) return
     if (temInvalida) {
-      avisar('Há valores inválidos na grade: nota deve ficar entre 0 e 10 e faltas não podem ser negativas.')
+      avisar('Há valores inválidos na grade: a nota deve ficar entre 0 e 10.')
       return
     }
     setSalvando(true)
     try {
       await api.post('/notas/lancar', {
+        docturma_id: docSel.id,
         cod_tur: Number(codTur),
         cod_mat: docSel.cod_mat,
         cod_pro: docSel.cod_pro ?? null,
@@ -125,7 +129,6 @@ export default function Notas() {
         alunos: sujas.map((l) => ({
           cod_alu: l.cod_alu,
           nota: l.nota === '' ? null : Number(l.nota),
-          falta: l.falta === '' ? null : Number(l.falta),
           dispensa: l.dispensa || null,
           cursou: l.cursou ? 'S' : 'N',
         })),
@@ -140,13 +143,13 @@ export default function Notas() {
   }
 
   const celulaInput = (l, campo, props) => {
-    const invalida = campo === 'nota' ? notaInvalida(l) : faltaInvalida(l)
+    const invalida = notaInvalida(l)
     return (
       <TextField
         type="number" size="small" value={l[campo]}
         error={invalida}
         onChange={(e) => editarLinha(l.cod_alu, campo, e.target.value)}
-        inputProps={{ style: { textAlign: 'center', fontWeight: 700 }, 'aria-label': campo === 'nota' ? `Nota de ${l.nome}` : `Faltas de ${l.nome}`, ...props }}
+        inputProps={{ style: { textAlign: 'center', fontWeight: 700 }, 'aria-label': `Nota de ${l.nome}`, ...props }}
         sx={{
           width: 88,
           '& .MuiOutlinedInput-root': { height: 42 },
@@ -160,7 +163,7 @@ export default function Notas() {
     <Box>
       <CabecalhoPagina
         titulo="Notas e faltas"
-        descricao="Selecione o contexto acadêmico, edite a grade e salve as alterações em conjunto."
+        descricao="As notas são editadas na grade; as faltas vêm automaticamente das chamadas encerradas."
       />
 
       {/* Seletores */}
@@ -178,27 +181,32 @@ export default function Notas() {
           <TextField select size="small" fullWidth value={docSel?.id ?? ''} onChange={(e) => escolherMateria(e.target.value)}
             disabled={!codTur} sx={{ '& .MuiOutlinedInput-root': { height: 48 } }} displayEmpty>
             <MenuItem value=""><em>{codTur ? (materiasTurma.length ? 'Selecione a matéria' : 'Sem matérias vinculadas') : 'Escolha a turma antes'}</em></MenuItem>
-            {materiasTurma.map((m) => <MenuItem key={m.id} value={m.id}>{m.materia_nome?.trim()}</MenuItem>)}
+            {materiasTurma.map((m) => (
+              <MenuItem key={m.id} value={m.id}>
+                {[m.materia_nome?.trim(), m.professor_nome, m.Ano && m.semestre ? `${m.Ano}/${m.semestre}` : null].filter(Boolean).join(' · ')}
+              </MenuItem>
+            ))}
           </TextField>
         </Box>
         <Box sx={{ flex: { xs: '1 1 40%', sm: '0 0 110px' } }}>
           <RotuloCampo>Ano</RotuloCampo>
-          <TextField size="small" fullWidth value={ano} onChange={(e) => setAno(e.target.value)}
+          <TextField size="small" fullWidth value={ano} InputProps={{ readOnly: true }}
             sx={{ '& .MuiOutlinedInput-root': { height: 48 } }} />
         </Box>
         <Box sx={{ flex: { xs: '1 1 40%', sm: '0 0 110px' } }}>
           <RotuloCampo>Semestre</RotuloCampo>
-          <TextField select size="small" fullWidth value={semestre} onChange={(e) => setSemestre(e.target.value)}
+          <TextField select size="small" fullWidth value={semestre} disabled
             sx={{ '& .MuiOutlinedInput-root': { height: 48 } }}>
+            <MenuItem value="">—</MenuItem>
             <MenuItem value="1">1º</MenuItem>
             <MenuItem value="2">2º</MenuItem>
           </TextField>
         </Box>
         <Box sx={{ ml: { md: 'auto' }, display: 'flex', gap: 1.25, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, '& > *': { flexGrow: { xs: 1, md: 0 } } }}>
-          <Button variant="outlined" startIcon={<PictureAsPdfIcon />} disabled={!docSel} sx={{ height: 48 }}
-            onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?cod_mat=${docSel.cod_mat}`).catch((e) => avisar(e.message))}>
+          {getPerfil() !== 'PROFESSOR' && <Button variant="outlined" startIcon={<PictureAsPdfIcon />} disabled={!docSel} sx={{ height: 48 }}
+            onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?docturma_id=${docSel.id}`).catch((e) => avisar(e.message))}>
             Diário (PDF)
-          </Button>
+          </Button>}
           <Button variant="contained" startIcon={<SaveIcon />} disabled={!docSel || sujas.length === 0 || salvando} sx={{ height: 48 }}
             onClick={salvarGrade}>
             {salvando ? 'Salvando…' : temInvalida ? 'Corrija os valores' : `Salvar grade${sujas.length ? ` (${sujas.length})` : ''}`}
@@ -252,13 +260,7 @@ export default function Notas() {
                       inputProps={{ min: 0, max: 10, step: 0.1, inputMode: 'decimal', style: { fontWeight: 700 } }}
                       sx={notaInvalida(l) ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.coral : TOV.border } }}
                     />
-                    <TextField
-                      type="number" size="small" fullWidth label="Faltas" value={l.falta}
-                      error={faltaInvalida(l)}
-                      onChange={(e) => editarLinha(l.cod_alu, 'falta', e.target.value)}
-                      inputProps={{ min: 0, step: 1, inputMode: 'numeric', style: { fontWeight: 700 } }}
-                      sx={faltaInvalida(l) ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.coral : TOV.border } }}
-                    />
+                    <TextField size="small" fullWidth label="Faltas da chamada" value={l.falta} InputProps={{ readOnly: true }} />
                   </Box>
                 </CartaoLista>
               ))}
@@ -298,7 +300,7 @@ export default function Notas() {
                       {l._dirty && <StatusBadge tom="warning" sx={{ ml: 1 }}>Não salvo</StatusBadge>}
                     </TableCell>
                     <TableCell>{celulaInput(l, 'nota', { min: 0, max: 10, step: 0.1 })}</TableCell>
-                    <TableCell>{celulaInput(l, 'falta', { min: 0, step: 1 })}</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: TOV.slate }}>{l.falta}</TableCell>
                     <TableCell>
                       <Switch checked={l.cursou} onChange={(e) => editarLinha(l.cod_alu, 'cursou', e.target.checked)} />
                     </TableCell>

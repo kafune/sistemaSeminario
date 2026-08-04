@@ -15,7 +15,14 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..models import Aula, Notificacao, NotificacaoPreferencia, PushInscricao, Usuario
+from ..models import (
+    Aula,
+    DocTurma,
+    Notificacao,
+    NotificacaoPreferencia,
+    PushInscricao,
+    Usuario,
+)
 
 CATEGORIAS = {"WHATSAPP", "CADASTROS", "AULAS"}
 CAMPO_PREFERENCIA = {
@@ -194,24 +201,44 @@ def gerar_lembretes_aulas(db: Session) -> list[Notificacao]:
     if local.hour < 18:
         return []
     amanha = local.date() + timedelta(days=1)
-    quantidade = db.scalar(
+    quantidade_geral = db.scalar(
         select(func.count()).select_from(Aula).where(
             Aula.data == amanha, Aula.status == "AGENDADA"
         )
     ) or 0
-    if not quantidade:
+    if not quantidade_geral:
         return []
     criadas: list[Notificacao] = []
-    plural = "aula agendada" if quantidade == 1 else "aulas agendadas"
-    for usuario in db.scalars(select(Usuario.user)):
+    for usuario in db.scalars(select(Usuario)):
+        perfil = (usuario.perfil or "ADMIN").upper()
+        if perfil == "PROFESSOR":
+            if usuario.cod_pro is None:
+                continue
+            quantidade = db.scalar(
+                select(func.count())
+                .select_from(Aula)
+                .join(DocTurma, DocTurma.id == Aula.docturma_id)
+                .where(
+                    Aula.data == amanha,
+                    Aula.status == "AGENDADA",
+                    DocTurma.cod_pro == usuario.cod_pro,
+                )
+            ) or 0
+            rota = "/professor"
+        else:
+            quantidade = quantidade_geral
+            rota = "/calendario"
+        if not quantidade:
+            continue
+        plural = "aula agendada" if quantidade == 1 else "aulas agendadas"
         item = criar_notificacao(
             db,
-            usuario=usuario,
+            usuario=usuario.user,
             categoria="AULAS",
             titulo="Aulas de amanhã",
             corpo=f"Há {quantidade} {plural} para amanhã.",
-            rota="/calendario",
-            chave_evento=f"aulas:{usuario}:{amanha.isoformat()}",
+            rota=rota,
+            chave_evento=f"aulas:{usuario.user}:{amanha.isoformat()}",
         )
         if item:
             criadas.append(item)

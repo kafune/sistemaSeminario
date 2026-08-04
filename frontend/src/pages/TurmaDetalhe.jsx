@@ -12,7 +12,7 @@ import HowToRegRoundedIcon from '@mui/icons-material/HowToRegRounded'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
-  CartaoLista, DialogoConfirmacao, EstadoVazio, LinhaCartao, Regua,
+  CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao, Regua,
   SkeletonCards, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 
@@ -30,6 +30,8 @@ export default function TurmaDetalhe() {
   const [materias, setMaterias] = useState([])
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState(true)
+  const [erroCarga, setErroCarga] = useState('')
+  const [carregando, setCarregando] = useState(true)
   const navigate = useNavigate()
   const telaCheia = useDialogoTelaCheia()
   const telaDesktop = useTelaDesktop()
@@ -49,7 +51,12 @@ export default function TurmaDetalhe() {
   const avisar = (texto, ehErro = true) => { setErro(ehErro); setMsg(texto) }
 
   const carregar = useCallback(() => {
-    api.get(`/turmas/${codTur}`).then(setTurma).catch((e) => avisar(e.message))
+    setCarregando(true)
+    setErroCarga('')
+    api.get(`/turmas/${codTur}`)
+      .then(setTurma)
+      .catch((e) => setErroCarga(e.message))
+      .finally(() => setCarregando(false))
     api.get(`/turmas/${codTur}/alunos`).then(setAlunos).catch(() => {})
     api.get(`/turmas/${codTur}/materias`).then(setMaterias).catch(() => {})
   }, [codTur])
@@ -130,7 +137,13 @@ export default function TurmaDetalhe() {
   }
 
 
-  if (!turma) return <SkeletonCards quantidade={3} altura={150} />
+  if (carregando && !turma) return <SkeletonCards quantidade={3} altura={150} />
+  if (erroCarga && !turma) return (
+    <Box>
+      <Box component="button" type="button" onClick={() => navigate('/turmas')} sx={{ ...resetBotao, px: 0.5, color: TOV.caption, fontWeight: 600, mb: 1.5 }}>‹ Voltar para Turmas</Box>
+      <EstadoErro titulo="Não foi possível abrir esta turma" descricao={erroCarga} onTentarNovamente={carregar} />
+    </Box>
+  )
 
   const subtitulo = [
     turma.curso,
@@ -186,14 +199,14 @@ export default function TurmaDetalhe() {
               <CartaoLista><EstadoVazio compacto titulo="Nenhum aluno matriculado" descricao="Use a ação acima para adicionar o primeiro aluno." /></CartaoLista>
             )}
             {alunos.map((a) => (
-              <CartaoLista key={a.cod_alu} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>
+              <CartaoLista key={a.cod_alu}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
                   <Box sx={{ minWidth: 0 }}>
-                    <Box sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3 }}>{a.nome}</Box>
+                    <Box component="button" type="button" onClick={() => navigate(`/alunos/${a.cod_alu}`)} sx={{ ...resetBotao, minHeight: 0, color: TOV.ink, fontWeight: 700, fontSize: 16, lineHeight: 1.3, '&:hover': { color: TOV.coral } }}>{a.nome}</Box>
                     <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>Matrícula {a.cod_alu}</Box>
                   </Box>
-                  <IconButton size="small" color="error" title="Remover da turma"
-                    onClick={(e) => { e.stopPropagation(); setParaRemover({ tipo: 'aluno', item: a }) }}>
+                  <IconButton size="small" color="error" title="Remover da turma" aria-label={`Remover ${a.nome} da turma`}
+                    onClick={() => setParaRemover({ tipo: 'aluno', item: a })}>
                     <DeleteIcon fontSize="small" />
                   </IconButton>
                 </Box>
@@ -222,11 +235,13 @@ export default function TurmaDetalhe() {
                 {alunos.map((a) => (
                   <TableRow key={a.cod_alu} hover>
                     <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{a.cod_alu}</TableCell>
-                    <TableCell sx={{ fontWeight: 700, color: TOV.coral, cursor: 'pointer' }} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>{a.nome}</TableCell>
+                    <TableCell>
+                      <Box component="button" type="button" onClick={() => navigate(`/alunos/${a.cod_alu}`)} sx={{ ...resetBotao, minHeight: 0, fontWeight: 700, color: TOV.coral, '&:hover': { color: TOV.coralHover } }}>{a.nome}</Box>
+                    </TableCell>
                     <TableCell sx={{ color: TOV.slate }}>{a.celular || '—'}</TableCell>
                     <TableCell sx={{ color: TOV.slate }}>{a.e_mail || '—'}</TableCell>
                     <TableCell align="right">
-                      <IconButton size="small" color="error" title="Remover da turma" onClick={() => setParaRemover({ tipo: 'aluno', item: a })}>
+                      <IconButton size="small" color="error" title="Remover da turma" aria-label={`Remover ${a.nome} da turma`} onClick={() => setParaRemover({ tipo: 'aluno', item: a })}>
                         <DeleteIcon fontSize="small" />
                       </IconButton>
                     </TableCell>

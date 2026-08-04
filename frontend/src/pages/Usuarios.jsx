@@ -11,6 +11,7 @@ import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, iniciais,
   resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
+import { useDirtyForm } from '../UnsavedChanges'
 
 const SENHA_MINIMA = 6
 
@@ -18,6 +19,7 @@ export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [form, setForm] = useState(null) // null = fechado; { user, senha, confirmar, novo }
+  const [confirmarFecharForm, setConfirmarFecharForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [paraExcluir, setParaExcluir] = useState(null)
   const [excluindo, setExcluindo] = useState(false)
@@ -26,6 +28,12 @@ export default function Usuarios() {
   const atual = getUser()
   const telaCheia = useDialogoTelaCheia()
   const telaDesktop = useTelaDesktop()
+  const formAlterado = useDirtyForm(!!form, form, 'Há alterações de acesso que ainda não foram salvas.')
+
+  function fecharForm() {
+    if (formAlterado) setConfirmarFecharForm(true)
+    else setForm(null)
+  }
 
   function carregar() {
     setCarregando(true)
@@ -39,10 +47,12 @@ export default function Usuarios() {
 
   function novo() {
     setForm({ user: '', senha: '', confirmar: '', perfil: 'SECRETARIA', novo: true })
+    setConfirmarFecharForm(false)
   }
 
   function redefinir(u) {
     setForm({ user: u.user, senha: '', confirmar: '', perfil: u.perfil || 'ADMIN', novo: false })
+    setConfirmarFecharForm(false)
   }
 
   const senhaCurta = form && form.senha.length > 0 && form.senha.length < SENHA_MINIMA
@@ -116,7 +126,7 @@ export default function Usuarios() {
           const euMesmo = u.user === atual
           return (
             <CartaoLista key={u.user}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: '38px minmax(0,1fr)', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
                 <Box sx={{
                   width: 38, height: 38, flex: '0 0 38px', borderRadius: '11px',
                   bgcolor: TOV.graphite, color: '#fff', fontFamily: TOV.fontHead, fontWeight: 700,
@@ -124,16 +134,18 @@ export default function Usuarios() {
                 }}>
                   {iniciais(u.user)}
                 </Box>
-                      <Box component="span" sx={{ fontWeight: 700, fontSize: 16 }}>{u.user}</Box>
-                      <Chip size="small" variant="outlined" label={u.perfil || 'ADMIN'} />
-                {euMesmo && (
-                  <Box component="span" sx={{
-                    px: 1.25, py: '3px', borderRadius: 999, bgcolor: TOV.coralTint,
-                    color: TOV.coral, fontSize: 11, fontWeight: 700,
-                  }}>
-                    você
-                  </Box>
-                )}
+                <Box sx={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
+                  <Box component="span" sx={{ minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere', fontWeight: 700, fontSize: 16 }}>{u.user}</Box>
+                  <Chip size="small" variant="outlined" label={u.perfil || 'ADMIN'} />
+                  {euMesmo && (
+                    <Box component="span" sx={{
+                      px: 1.25, py: '3px', borderRadius: 999, bgcolor: TOV.coralTint,
+                      color: TOV.coral, fontSize: 11, fontWeight: 700,
+                    }}>
+                      você
+                    </Box>
+                  )}
+                </Box>
               </Box>
               <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
                 <Button size="small" variant="outlined" fullWidth onClick={() => redefinir(u)}>Gerenciar acesso</Button>
@@ -212,7 +224,7 @@ export default function Usuarios() {
         </Table>
       </TableContainer>}
 
-      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="xs" fullWidth fullScreen={telaCheia}>
+      <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="xs" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.novo ? 'Novo usuário' : `Gerenciar acesso — ${form?.user}`}</DialogTitle>
         <DialogContent>
           {form && (
@@ -262,12 +274,22 @@ export default function Usuarios() {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button variant="outlined" onClick={() => setForm(null)} disabled={salvando}>Cancelar</Button>
+          <Button variant="outlined" onClick={fecharForm} disabled={salvando}>Cancelar</Button>
           <Button variant="contained" onClick={salvar} disabled={!podeSalvar || salvando}>
             {salvando ? 'Salvando…' : 'Salvar'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacao
+        aberto={confirmarFecharForm}
+        titulo="Descartar alterações?"
+        descricao="As alterações deste acesso serão perdidas."
+        rotuloConfirmar="Descartar"
+        processando={false}
+        onConfirmar={() => { setConfirmarFecharForm(false); setForm(null) }}
+        onFechar={() => setConfirmarFecharForm(false)}
+      />
 
       <DialogoConfirmacao
         aberto={!!paraExcluir}

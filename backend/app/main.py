@@ -16,8 +16,10 @@ from .routers import (
     integracoes,
     importacoes,
     leads,
+    materiais,
     materias,
     notas,
+    portal_professor,
     professores,
     relatorios,
     turmas,
@@ -135,8 +137,10 @@ app.include_router(leads.router, dependencies=protegido)
 app.include_router(professores.router, dependencies=academico)
 app.include_router(materias.router, dependencies=academico)
 app.include_router(turmas.router, dependencies=academico)
-app.include_router(presencas.router, dependencies=academico)
+app.include_router(presencas.router, dependencies=notas_acesso)
 app.include_router(notas.router, dependencies=notas_acesso)
+app.include_router(materiais.router, dependencies=notas_acesso)
+app.include_router(portal_professor.router, dependencies=notas_acesso)
 app.include_router(relatorios.router, dependencies=academico)
 app.include_router(dashboard.router, dependencies=academico)
 app.include_router(usuarios.router, dependencies=administracao)

@@ -48,7 +48,7 @@ export default function AcessoProfessor() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: TOV.canvas, display: 'grid', placeItems: 'center', p: 2 }}>
+    <Box component="main" sx={{ minHeight: '100vh', bgcolor: TOV.canvas, display: 'grid', placeItems: 'center', p: 2 }}>
       <Superficie sx={{ width: '100%', maxWidth: 480, p: { xs: 3, sm: 4.5 } }}>
         <Eyebrow sx={{ mb: 1 }}>Portal do professor</Eyebrow>
         <Typography component="h1" variant="h2">Criar acesso</Typography>
@@ -56,7 +56,7 @@ export default function AcessoProfessor() {
         {erro && <Alert severity="error" sx={{ mt: 3 }}>{erro}</Alert>}
         {!carregando && concluido && (
           <Box sx={{ mt: 3 }}>
-            <Alert severity="success">Acesso criado. Você já pode lançar as notas das suas turmas.</Alert>
+            <Alert severity="success">Acesso criado. Você já pode lançar notas e anexar materiais para suas turmas.</Alert>
             <Button variant="contained" fullWidth sx={{ mt: 3 }} onClick={() => navigate('/login')}>Entrar no sistema</Button>
           </Box>
         )}

@@ -17,7 +17,9 @@ export const TOV = {
   coral: '#C92F2F',
   coralHover: '#AE2828',
   coralBright: '#F14949',
-  caption: '#68737A',
+  coralOnDark: '#FF9A9A',
+  // Texto secundário precisa manter contraste AA também sobre o canvas quente.
+  caption: '#5E696F',
   border: '#DED7D0',
   divider: '#E8E2DC',
 
@@ -119,6 +121,12 @@ export const tovTheme = createTheme(
     },
     shape: { borderRadius: TOV.radiusMd },
     components: {
+      MuiTypography: {
+        defaultProps: {
+          // Preserva a aparência dos variants e evita saltos h1 -> h3 nas páginas.
+          variantMapping: { h1: 'h1', h2: 'h2', h3: 'h2', h4: 'h3', h5: 'h4', h6: 'h5' },
+        },
+      },
       MuiCssBaseline: {
         styleOverrides: {
           ':root': { colorScheme: 'light' },

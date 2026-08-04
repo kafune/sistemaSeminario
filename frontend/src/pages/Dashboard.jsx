@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, Box, Button, Skeleton, Snackbar, Typography } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
 import { TOV } from '../theme'
 import {
-  CabecalhoPagina, CardMetrica, EstadoVazio, SkeletonCards, Superficie, resetBotao,
+  CabecalhoPagina, CardMetrica, EstadoErro, EstadoVazio, SkeletonCards, Superficie, resetBotao,
 } from '../ui'
 import AlunoForm from './AlunoForm'
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
@@ -39,9 +39,12 @@ export default function Dashboard() {
   const usuario = getUser() || 'Secretaria'
   const navigate = useNavigate()
 
-  useEffect(() => {
+  const carregar = useCallback(() => {
+    setErro('')
     api.get('/dashboard').then(setDados).catch((e) => setErro(e.message))
   }, [])
+
+  useEffect(() => { carregar() }, [carregar])
 
   const maxCurso = dados ? Math.max(1, ...dados.matriculas_por_curso.map((c) => c.total)) : 1
 
@@ -59,8 +62,12 @@ export default function Dashboard() {
         acoes={acoes}
       />
 
+      {erro && !dados && (
+        <EstadoErro titulo="Não foi possível carregar o painel" descricao={erro} onTentarNovamente={carregar} sx={{ mb: 2.5 }} />
+      )}
+
       {/* Métricas */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,1fr)' }, gap: { xs: 1.5, sm: 2 }, mb: 2.5 }}>
+      {!erro && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,1fr)' }, gap: { xs: 1.5, sm: 2 }, mb: 2.5 }}>
         {!dados ? (
           <SkeletonCards quantidade={4} altura={142} colunas="subgrid" sx={{ display: 'contents' }} />
         ) : (
@@ -71,10 +78,10 @@ export default function Dashboard() {
             <CardMetrica rotulo="Professores" valor={dados.professores_total} nota={{ texto: `${dados.professores_ativos} ativos`, destaque: true }} destaque />
           </>
         )}
-      </Box>
+      </Box>}
 
       {/* Matrículas por curso + Atividade recente */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.55fr 1fr' }, gap: '18px' }}>
+      {!erro && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.55fr 1fr' }, gap: '18px' }}>
         <Superficie sx={{ p: { xs: 2.5, md: 3.5 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.75 }}>
             <Typography variant="h3" sx={{ fontSize: 22 }}>Matrículas por curso</Typography>
@@ -127,14 +134,14 @@ export default function Dashboard() {
             </Box>
           )}
         </Superficie>
-      </Box>
+      </Box>}
 
       <AlunoForm
         aberto={formAberto}
         aoFechar={() => setFormAberto(false)}
         aoSalvar={(novo) => { setFormAberto(false); navigate(`/alunos/${novo.cod_alu}`) }}
       />
-      <Snackbar open={!!erro} autoHideDuration={6000} onClose={() => setErro('')}>
+      <Snackbar open={!!erro && !!dados} autoHideDuration={6000} onClose={() => setErro('')}>
         <Alert severity="error" onClose={() => setErro('')}>{erro}</Alert>
       </Snackbar>
     </Box>

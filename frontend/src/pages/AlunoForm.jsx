@@ -8,6 +8,8 @@ import { TOV } from '../theme'
 import {
   DialogoConfirmacao, LinhaCartao, cardSx, useDialogoTelaCheia,
 } from '../ui'
+import { useUnsavedChanges } from '../UnsavedChanges'
+import { emailValido, formatarCepInput, formatarCpfInput, formatarTelefoneInput } from '../formatters'
 
 const VAZIO = {
   nome: '', endereco: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
@@ -80,6 +82,8 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
 
   const alterado = JSON.stringify(form) !== JSON.stringify(inicial)
   const ultimaEtapa = etapa === ETAPAS.length - 1
+  const emailInvalido = !emailValido(form.e_mail)
+  const liberarProtecao = useUnsavedChanges(aberto && alterado, 'Há dados do aluno que ainda não foram salvos.')
 
   function pedirFechar() {
     if (alterado && !salvando) setConfirmarFechar(true)
@@ -108,6 +112,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
         ? await api.put(`/alunos/${aluno.cod_alu}`, corpo)
         : await api.post('/alunos', corpo)
       setInicial(form)
+      liberarProtecao()
       aoSalvar(salvo)
     } catch (e) {
       setErro(e.message)
@@ -197,7 +202,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
                 })}
               </Grid>
               <Grid item xs={6} sm={4}>
-                {campo('cpf', { label: 'CPF', inputProps: { inputMode: 'numeric', maxLength: 20 } })}
+                {campo('cpf', { label: 'CPF', inputProps: { inputMode: 'numeric', maxLength: 14 }, onChange: (e) => alterar('cpf', formatarCpfInput(e.target.value)) })}
               </Grid>
               <Grid item xs={6} sm={4}>
                 {campo('rg', { label: 'RG', inputProps: { inputMode: 'numeric', maxLength: 20 } })}
@@ -214,17 +219,19 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
               <Grid item xs={12} sm={6}>
                 {campo('celular', {
                   label: 'Celular / WhatsApp', type: 'tel', autoComplete: 'tel',
-                  inputProps: { inputMode: 'tel', maxLength: 20 },
+                  inputProps: { inputMode: 'tel', maxLength: 15 },
+                  onChange: (e) => alterar('celular', formatarTelefoneInput(e.target.value)),
                 })}
               </Grid>
               <Grid item xs={12} sm={6}>
                 {campo('fone1', {
                   label: 'Outro telefone', type: 'tel',
-                  inputProps: { inputMode: 'tel', maxLength: 20 },
+                  inputProps: { inputMode: 'tel', maxLength: 15 },
+                  onChange: (e) => alterar('fone1', formatarTelefoneInput(e.target.value)),
                 })}
               </Grid>
               <Grid item xs={12}>
-                {campo('e_mail', { label: 'E-mail', type: 'email', autoComplete: 'email' })}
+                {campo('e_mail', { label: 'E-mail', type: 'email', autoComplete: 'email', error: emailInvalido, helperText: emailInvalido ? 'Informe um e-mail válido.' : ' ' })}
               </Grid>
             </Grid>
           )}
@@ -245,7 +252,8 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
               <Grid item xs={12} sm={5}>
                 {campo('cep', {
                   label: 'CEP', autoComplete: 'postal-code',
-                  inputProps: { inputMode: 'numeric', maxLength: 10 },
+                  inputProps: { inputMode: 'numeric', maxLength: 9 },
+                  onChange: (e) => alterar('cep', formatarCepInput(e.target.value)),
                 })}
               </Grid>
             </Grid>
@@ -346,7 +354,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
           <Button
             variant="contained"
             onClick={ultimaEtapa ? salvar : continuar}
-            disabled={salvando || (etapa === 0 && form.nome.trim().length < 2)}
+            disabled={salvando || emailInvalido || (etapa === 0 && form.nome.trim().length < 2)}
           >
             {salvando ? 'Salvando…' : ultimaEtapa ? 'Salvar aluno' : 'Continuar'}
           </Button>

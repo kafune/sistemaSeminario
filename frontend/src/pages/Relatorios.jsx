@@ -8,17 +8,18 @@ import { TOV } from '../theme'
 import { CabecalhoPagina, Eyebrow, Superficie, cardSx, resetBotao } from '../ui'
 
 /** Botão-pílula usado nas ações dos cards (fundo off-white ou escuro). */
-function PillAcao({ children, escuro, disabled, onClick }) {
+function PillAcao({ children, escuro, disabled, carregando, onClick }) {
   return (
     <Box
       component="button"
       type="button"
       disabled={disabled}
       onClick={disabled ? undefined : onClick}
+      aria-busy={carregando || undefined}
       sx={{
         ...resetBotao,
         px: 2.25, py: 1.4, borderRadius: '10px', fontWeight: 600, fontSize: 14,
-        textAlign: 'center', flexGrow: { xs: 1, sm: 0 },
+        textAlign: 'center', flexGrow: { xs: 1, sm: 0 }, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 1,
         opacity: disabled ? 0.45 : 1, userSelect: 'none',
         cursor: disabled ? 'not-allowed' : 'pointer',
         bgcolor: escuro ? TOV.ink : TOV.offwhite, color: escuro ? '#fff' : TOV.ink,
@@ -27,7 +28,8 @@ function PillAcao({ children, escuro, disabled, onClick }) {
         '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2, borderRadius: '10px' },
       }}
     >
-      {children}
+      {carregando && <CircularProgress size={16} color="inherit" />}
+      {carregando ? 'Gerando…' : children}
     </Box>
   )
 }
@@ -48,6 +50,7 @@ export default function Relatorios() {
   const [aluno, setAluno] = useState(null)
   const [msg, setMsg] = useState('')
   const [ehErro, setEhErro] = useState(true)
+  const [abrindo, setAbrindo] = useState('')
 
   const [tipoLote, setTipoLote] = useState('boletim')
   const [arquivoLote, setArquivoLote] = useState(null)
@@ -73,7 +76,18 @@ export default function Relatorios() {
     }
   }, [buscaAluno])
 
-  const abrir = (path) => abrirArquivo(path).catch((e) => { setEhErro(true); setMsg(e.message) })
+  const abrir = async (path) => {
+    if (abrindo) return
+    setAbrindo(path)
+    try {
+      await abrirArquivo(path)
+    } catch (e) {
+      setEhErro(true)
+      setMsg(e.message)
+    } finally {
+      setAbrindo('')
+    }
+  }
 
   async function gerarLote() {
     if (!arquivoLote) return
@@ -122,9 +136,9 @@ export default function Relatorios() {
             sx={{ mb: 2.25 }}
           />
           <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
-            <PillAcao disabled={!aluno} onClick={() => abrir(`/relatorios/boletim/${aluno.cod_alu}`)}>Boletim</PillAcao>
-            <PillAcao disabled={!aluno} onClick={() => abrir(`/relatorios/historico/${aluno.cod_alu}`)}>Histórico escolar</PillAcao>
-            <PillAcao disabled={!aluno} onClick={() => abrir(`/relatorios/ficha-aluno/${aluno.cod_alu}`)}>Ficha cadastral</PillAcao>
+            <PillAcao disabled={!aluno || !!abrindo} carregando={abrindo === `/relatorios/boletim/${aluno?.cod_alu}`} onClick={() => abrir(`/relatorios/boletim/${aluno.cod_alu}`)}>Boletim</PillAcao>
+            <PillAcao disabled={!aluno || !!abrindo} carregando={abrindo === `/relatorios/historico/${aluno?.cod_alu}`} onClick={() => abrir(`/relatorios/historico/${aluno.cod_alu}`)}>Histórico escolar</PillAcao>
+            <PillAcao disabled={!aluno || !!abrindo} carregando={abrindo === `/relatorios/ficha-aluno/${aluno?.cod_alu}`} onClick={() => abrir(`/relatorios/ficha-aluno/${aluno.cod_alu}`)}>Ficha cadastral</PillAcao>
           </Box>
         </Box>
 
@@ -141,9 +155,9 @@ export default function Relatorios() {
             ))}
           </TextField>
           <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
-            <PillAcao disabled={!codTur} onClick={() => abrir(`/relatorios/lista-turma/${codTur}`)}>Lista de alunos</PillAcao>
-            <PillAcao disabled={!codTur} onClick={() => abrir(`/relatorios/diario/${codTur}`)}>Diário de classe</PillAcao>
-            <PillAcao escuro disabled={!codTur} onClick={() => abrir(`/relatorios/boletim-turma/${codTur}`)}>Boletins da turma (ZIP)</PillAcao>
+            <PillAcao disabled={!codTur || !!abrindo} carregando={abrindo === `/relatorios/lista-turma/${codTur}`} onClick={() => abrir(`/relatorios/lista-turma/${codTur}`)}>Lista de alunos</PillAcao>
+            <PillAcao disabled={!codTur || !!abrindo} carregando={abrindo === `/relatorios/diario/${codTur}`} onClick={() => abrir(`/relatorios/diario/${codTur}`)}>Diário de classe</PillAcao>
+            <PillAcao escuro disabled={!codTur || !!abrindo} carregando={abrindo === `/relatorios/boletim-turma/${codTur}`} onClick={() => abrir(`/relatorios/boletim-turma/${codTur}`)}>Boletins da turma (ZIP)</PillAcao>
           </Box>
         </Box>
       </Box>
@@ -152,7 +166,7 @@ export default function Relatorios() {
       <Superficie variante="inverse" sx={{ p: { xs: 2.5, md: 4 } }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 3.75, flexWrap: 'wrap' }}>
           <Box sx={{ maxWidth: 520 }}>
-            <Eyebrow sx={{ color: TOV.coral, mb: 1.25 }}>Geração em lote</Eyebrow>
+            <Eyebrow sx={{ color: TOV.coralOnDark, mb: 1.25 }}>Geração em lote</Eyebrow>
             <Typography variant="h3" sx={{ fontSize: 26, color: '#fff', mb: 1.5 }}>Vários PDFs de uma vez</Typography>
             <Typography sx={{ fontSize: 15, lineHeight: 1.5, color: 'rgba(255,255,255,.75)' }}>
               Envie um arquivo <b style={{ color: '#fff' }}>.csv</b>, <b style={{ color: '#fff' }}>.xlsx</b> ou <b style={{ color: '#fff' }}>.xls</b> com
@@ -171,30 +185,35 @@ export default function Relatorios() {
             </Box>
           </Box>
 
-          <Box
-            onClick={() => inputArquivo.current?.click()}
-            onDragOver={(e) => { e.preventDefault(); setArrastando(true) }}
-            onDragLeave={() => setArrastando(false)}
-            onDrop={soltarArquivo}
-            sx={{
-              flex: 1, minWidth: { xs: '100%', sm: 300 }, border: `2px dashed ${arrastando ? TOV.coral : 'rgba(255,255,255,.25)'}`,
-              borderRadius: '14px', p: { xs: '24px 16px', sm: '34px' }, display: 'flex', flexDirection: 'column', alignItems: 'center',
-              justifyContent: 'center', textAlign: 'center', cursor: 'pointer', transition: 'border-color .15s',
-              bgcolor: arrastando ? 'rgba(241,73,73,.08)' : 'transparent',
-            }}
-          >
-            <input ref={inputArquivo} type="file" hidden accept=".csv,.xlsx,.xls,.txt"
+          <Box sx={{ flex: 1, minWidth: { xs: '100%', sm: 300 }, display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 1.5 }}>
+            <input id="arquivo-relatorios-lote" ref={inputArquivo} type="file" hidden accept=".csv,.xlsx,.xls,.txt"
               onChange={(e) => setArquivoLote(e.target.files[0] ?? null)} />
-            <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 40, color: TOV.coral }}>↑</Box>
-            <Box sx={{ fontWeight: 700, fontSize: 16, mt: 1 }}>Arraste um arquivo ou clique</Box>
-            <Box sx={{ fontSize: 13, color: arquivoLote ? '#fff' : 'rgba(255,255,255,.6)', mt: 0.75 }}>
-              {arquivoLote ? arquivoLote.name : 'nenhum arquivo selecionado'}
+            <Box
+              component="button"
+              type="button"
+              onClick={() => inputArquivo.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); setArrastando(true) }}
+              onDragLeave={() => setArrastando(false)}
+              onDrop={soltarArquivo}
+              aria-describedby="ajuda-arquivo-relatorios"
+              sx={{
+                ...resetBotao, width: '100%', flex: 1, border: `2px dashed ${arrastando ? TOV.coralOnDark : 'rgba(255,255,255,.45)'}`,
+                borderRadius: '14px', p: { xs: '24px 16px', sm: '34px' }, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', textAlign: 'center', cursor: 'pointer', transition: 'border-color .15s',
+                bgcolor: arrastando ? 'rgba(241,73,73,.08)' : 'transparent', color: '#fff',
+              }}
+            >
+              <Box aria-hidden="true" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 40, color: TOV.coralOnDark }}>↑</Box>
+              <Box sx={{ fontWeight: 700, fontSize: 16, mt: 1 }}>Selecionar ou arrastar arquivo</Box>
+              <Box id="ajuda-arquivo-relatorios" sx={{ fontSize: 13, color: arquivoLote ? '#fff' : 'rgba(255,255,255,.78)', mt: 0.75, overflowWrap: 'anywhere' }}>
+                {arquivoLote ? arquivoLote.name : 'CSV ou planilha; use Enter para escolher'}
+              </Box>
             </Box>
             <Button
               variant="contained" disabled={!arquivoLote || gerandoLote}
               startIcon={gerandoLote ? <CircularProgress size={16} color="inherit" /> : null}
-              onClick={(e) => { e.stopPropagation(); gerarLote() }}
-              sx={{ mt: 2.25, height: 46 }}
+              onClick={gerarLote}
+              sx={{ height: 46 }}
             >
               {gerandoLote ? 'Gerando…' : 'Gerar ZIP'}
             </Button>

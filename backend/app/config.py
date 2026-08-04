@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     whatsapp_delay_min: int = 5
     whatsapp_delay_max: int = 15
     whatsapp_upload_max_mb: int = 20
+    materiais_upload_max_mb: int = 25
     whatsapp_mass_max_recipients: int = 1000
     public_api_url: str = ""
     vapid_public_key: str = ""

@@ -10,10 +10,14 @@ from ..models import (
     Aluno,
     AluNota,
     AluTurma,
+    AtividadeAvaliativa,
     Aula,
     Chamada,
+    ComunicadoTurma,
     DocTurma,
     Materia,
+    MaterialDidatico,
+    NotaAtividade,
     Professor,
     Turma,
 )
@@ -137,6 +141,48 @@ def excluir(cod_tur: int, db: Session = Depends(get_db)):
             400,
             f"Turma possui {tem_chamadas} chamada(s) com histórico de presença; não pode ser excluída.",
         )
+    tem_materiais = db.scalar(
+        select(func.count())
+        .select_from(MaterialDidatico)
+        .where(
+            MaterialDidatico.docturma_id.in_(
+                select(DocTurma.id).where(DocTurma.cod_tur == cod_tur)
+            )
+        )
+    ) or 0
+    if tem_materiais:
+        raise HTTPException(
+            400,
+            f"Turma possui {tem_materiais} material(is) didático(s); remova-os antes.",
+        )
+    tem_comunicados = db.scalar(
+        select(func.count())
+        .select_from(ComunicadoTurma)
+        .where(
+            ComunicadoTurma.docturma_id.in_(
+                select(DocTurma.id).where(DocTurma.cod_tur == cod_tur)
+            )
+        )
+    ) or 0
+    if tem_comunicados:
+        raise HTTPException(
+            400,
+            f"Turma possui {tem_comunicados} comunicado(s); remova-os antes.",
+        )
+    ids_vinculos = select(DocTurma.id).where(DocTurma.cod_tur == cod_tur)
+    ids_atividades = select(AtividadeAvaliativa.id).where(
+        AtividadeAvaliativa.docturma_id.in_(ids_vinculos)
+    )
+    db.execute(
+        NotaAtividade.__table__.delete().where(
+            NotaAtividade.atividade_id.in_(ids_atividades)
+        )
+    )
+    db.execute(
+        AtividadeAvaliativa.__table__.delete().where(
+            AtividadeAvaliativa.docturma_id.in_(ids_vinculos)
+        )
+    )
     db.execute(DocTurma.__table__.delete().where(DocTurma.cod_tur == cod_tur))
     db.delete(turma)
     db.commit()
@@ -331,6 +377,39 @@ def remover_materia(cod_tur: int, docturma_id: int, db: Session = Depends(get_db
             400,
             f"Este vínculo possui {tem_notas} nota(s) lançada(s); não pode ser removido.",
         )
+    tem_materiais = db.scalar(
+        select(func.count())
+        .select_from(MaterialDidatico)
+        .where(MaterialDidatico.docturma_id == docturma_id)
+    ) or 0
+    if tem_materiais:
+        raise HTTPException(
+            400,
+            f"Este vínculo possui {tem_materiais} material(is) didático(s); remova-os antes.",
+        )
+    tem_comunicados = db.scalar(
+        select(func.count())
+        .select_from(ComunicadoTurma)
+        .where(ComunicadoTurma.docturma_id == docturma_id)
+    ) or 0
+    if tem_comunicados:
+        raise HTTPException(
+            400,
+            f"Este vínculo possui {tem_comunicados} comunicado(s); remova-os antes.",
+        )
+    ids_atividades = select(AtividadeAvaliativa.id).where(
+        AtividadeAvaliativa.docturma_id == docturma_id
+    )
+    db.execute(
+        NotaAtividade.__table__.delete().where(
+            NotaAtividade.atividade_id.in_(ids_atividades)
+        )
+    )
+    db.execute(
+        AtividadeAvaliativa.__table__.delete().where(
+            AtividadeAvaliativa.docturma_id == docturma_id
+        )
+    )
     db.delete(dt)
     db.commit()
     return {"ok": True}

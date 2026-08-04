@@ -554,7 +554,7 @@ export default function PresencaTotem() {
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, mt: 2.5, px: 1.6, py: 0.9, borderRadius: 999, bgcolor: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.72)', fontSize: 13.5, fontWeight: 700 }}>
               Chegada registrada às {sucesso.horario}
             </Box>
-            <Typography sx={{ color: 'rgba(255,255,255,.52)', fontSize: 13, mt: 3 }}>Toque em qualquer lugar para continuar.</Typography>
+            <Typography sx={{ color: 'rgba(255,255,255,.62)', fontSize: 13, mt: 3 }}>Toque em qualquer lugar para continuar.</Typography>
           </Box>
           <Box aria-hidden="true" sx={{ position: 'absolute', inset: 'auto 0 0', height: 5, bgcolor: 'rgba(255,255,255,.12)', overflow: 'hidden' }}>
             <Box sx={{ height: '100%', bgcolor: '#62C596', transformOrigin: 'left', animation: 'tempoSucesso 1700ms linear both', '@keyframes tempoSucesso': { from: { transform: 'scaleX(1)' }, to: { transform: 'scaleX(0)' } } }} />

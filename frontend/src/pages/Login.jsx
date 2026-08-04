@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Alert, Box, Button, IconButton, InputAdornment, TextField, Typography } from '@mui/material'
 import Visibility from '@mui/icons-material/Visibility'
 import VisibilityOff from '@mui/icons-material/VisibilityOff'
@@ -14,6 +14,8 @@ export default function Login() {
   const [carregando, setCarregando] = useState(false)
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+  const sessaoExpirada = new URLSearchParams(location.search).get('sessao') === 'expirada'
 
   async function entrar(e) {
     e.preventDefault()
@@ -22,7 +24,12 @@ export default function Login() {
     try {
       const r = await api.post('/auth/login', { user, senha })
       setSession(r.token, r.user, r.perfil)
-      navigate(r.perfil === 'PROFESSOR' ? '/notas' : r.perfil === 'MARKETING' ? '/leads' : '/')
+      const retornoSalvo = sessionStorage.getItem('tov_retorno_login') || location.state?.retorno
+      sessionStorage.removeItem('tov_retorno_login')
+      const retornoSeguro = typeof retornoSalvo === 'string' && retornoSalvo.startsWith('/') && !retornoSalvo.startsWith('//') && !retornoSalvo.startsWith('/login')
+        ? retornoSalvo
+        : null
+      navigate(retornoSeguro || (r.perfil === 'PROFESSOR' ? '/professor' : r.perfil === 'MARKETING' ? '/leads' : '/'), { replace: true })
     } catch (err) {
       setErro(err.message)
     } finally {
@@ -31,7 +38,7 @@ export default function Login() {
   }
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: TOV.canvas }}>
+    <Box component="main" sx={{ display: 'flex', minHeight: '100vh', bgcolor: TOV.canvas }}>
       {/* Painel institucional (esconde no mobile) */}
       <Box
         sx={{
@@ -58,7 +65,7 @@ export default function Login() {
         </Box>
         <Typography sx={{ position: 'relative', fontSize: 14, color: 'rgba(255,255,255,.7)', lineHeight: 1.6 }}>
           “Ensina a criança no caminho em que deve andar.”<br />
-          <Box component="span" sx={{ fontSize: 12, color: 'rgba(255,255,255,.45)' }}>Provérbios 22.6</Box>
+          <Box component="span" sx={{ fontSize: 12, color: 'rgba(255,255,255,.62)' }}>Provérbios 22.6</Box>
         </Typography>
       </Box>
 
@@ -79,9 +86,10 @@ export default function Login() {
           <Typography component="h1" variant="h2">Entrar</Typography>
           <Typography sx={{ mt: 1.25, fontSize: 14.5, color: TOV.caption }}>Use suas credenciais de acesso.</Typography>
 
+          {sessaoExpirada && !erro && <Alert severity="warning" sx={{ mt: 3 }}>Sua sessão expirou. Entre novamente para continuar de onde parou.</Alert>}
           {erro && <Alert severity="error" sx={{ mt: 3 }}>{erro}</Alert>}
 
-          <Typography component="label" htmlFor="campo-usuario" sx={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOV.slate, mt: erro ? 2 : 4, mb: 1 }}>Usuário</Typography>
+          <Typography component="label" htmlFor="campo-usuario" sx={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOV.slate, mt: erro || sessaoExpirada ? 2 : 4, mb: 1 }}>Usuário</Typography>
           <TextField
             fullWidth value={user} autoFocus placeholder="ADMIN"
             id="campo-usuario"

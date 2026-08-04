@@ -12,7 +12,7 @@ import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
   AvatarIniciais, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus,
-  Regua, SkeletonCards, Superficie, cardSx, resetBotao, useTelaDesktop,
+  EstadoErro, Regua, SkeletonCards, Superficie, cardSx, resetBotao, useTelaDesktop,
 } from '../ui'
 import AlunoForm from './AlunoForm'
 
@@ -56,11 +56,18 @@ export default function AlunoDetalhe() {
   const [excluindo, setExcluindo] = useState(false)
   const [documentosAnchor, setDocumentosAnchor] = useState(null)
   const [msg, setMsg] = useState('')
+  const [erroCarga, setErroCarga] = useState('')
+  const [carregando, setCarregando] = useState(true)
   const navigate = useNavigate()
   const telaDesktop = useTelaDesktop()
 
   const carregar = useCallback(() => {
-    api.get(`/alunos/${codAlu}`).then(setAluno).catch((e) => setMsg(e.message))
+    setCarregando(true)
+    setErroCarga('')
+    api.get(`/alunos/${codAlu}`)
+      .then(setAluno)
+      .catch((e) => setErroCarga(e.message))
+      .finally(() => setCarregando(false))
     api.get(`/notas/aluno/${codAlu}`).then((r) => setNotas(r.notas)).catch(() => setNotas([]))
   }, [codAlu])
 
@@ -89,7 +96,13 @@ export default function AlunoDetalhe() {
     }
   }
 
-  if (!aluno) return <SkeletonCards quantidade={3} altura={150} />
+  if (carregando && !aluno) return <SkeletonCards quantidade={3} altura={150} />
+  if (erroCarga && !aluno) return (
+    <Box>
+      <Box component="button" type="button" onClick={() => navigate('/alunos')} sx={{ ...resetBotao, px: 0.5, color: TOV.caption, fontWeight: 600, mb: 1.5 }}>‹ Voltar para Alunos</Box>
+      <EstadoErro titulo="Não foi possível abrir este aluno" descricao={erroCarga} onTentarNovamente={carregar} />
+    </Box>
+  )
 
   const situacao = { P: 'Pré-cadastro', A: 'Em curso', I: 'Inativo', F: 'Formado', T: 'Trancado' }[aluno.status] || '—'
   const whatsapp = numeroWhatsApp(aluno.celular)

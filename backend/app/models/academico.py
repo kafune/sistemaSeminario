@@ -94,3 +94,37 @@ class AluNota(Base):
     ano: Mapped[str | None] = mapped_column(String(10))
     semestre: Mapped[str | None] = mapped_column(String(5))
     cursou: Mapped[str | None] = mapped_column(String(10))
+
+
+class AtividadeAvaliativa(Base):
+    """Parte configurável da nota de um vínculo entre turma e matéria."""
+
+    __tablename__ = "atividades_avaliativas"
+    __table_args__ = (
+        Index("ix_atividades_avaliativas_docturma_ordem", "docturma_id", "ordem"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    docturma_id: Mapped[int] = mapped_column(Integer)
+    tipo: Mapped[str] = mapped_column(String(20))
+    nome: Mapped[str] = mapped_column(String(100))
+    valor_maximo: Mapped[Decimal] = mapped_column(DECIMAL(4, 2))
+    ordem: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class NotaAtividade(Base):
+    """Nota de um aluno em uma atividade avaliativa."""
+
+    __tablename__ = "notas_atividades"
+    __table_args__ = (
+        UniqueConstraint(
+            "atividade_id",
+            "cod_alu",
+            name="uq_notas_atividades_atividade_aluno",
+        ),
+        Index("ix_notas_atividades_atividade_aluno", "atividade_id", "cod_alu"),
+        Index("ix_notas_atividades_cod_alu", "cod_alu"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    atividade_id: Mapped[int] = mapped_column(Integer)
+    cod_alu: Mapped[int] = mapped_column(Integer)
+    nota: Mapped[Decimal] = mapped_column(DECIMAL(4, 2))

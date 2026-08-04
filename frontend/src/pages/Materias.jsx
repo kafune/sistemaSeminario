@@ -8,6 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
+import { useDirtyForm } from '../UnsavedChanges'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, LinhaCartao,
   resetBotao, useDialogoTelaCheia, useTelaDesktop,
@@ -28,12 +29,24 @@ export default function Materias() {
   const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(true)
   const [form, setForm] = useState(null)
+  const [confirmarFecharForm, setConfirmarFecharForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [paraExcluir, setParaExcluir] = useState(null)
   const [excluindo, setExcluindo] = useState(false)
   const [msg, setMsg] = useState('')
   const telaCheia = useDialogoTelaCheia()
   const telaDesktop = useTelaDesktop()
+  const formAlterado = useDirtyForm(!!form, form, 'Há dados da matéria que ainda não foram salvos.')
+
+  function abrirForm(dados) {
+    setForm({ ...dados })
+    setConfirmarFecharForm(false)
+  }
+
+  function fecharForm() {
+    if (formAlterado) setConfirmarFecharForm(true)
+    else setForm(null)
+  }
 
   function carregar() {
     setCarregando(true)
@@ -92,7 +105,7 @@ export default function Materias() {
           }}
         />
       </Box>
-      <Button variant="contained" startIcon={<AddIcon />} onClick={() => setForm({ ...VAZIA })}>
+      <Button variant="contained" startIcon={<AddIcon />} onClick={() => abrirForm(VAZIA)}>
         Nova matéria
       </Button>
     </>
@@ -125,7 +138,7 @@ export default function Materias() {
             </Box>
             <LinhaCartao rotulo="Apelido" valor={m.APELIDO?.trim()} />
             <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
-              <Button size="small" variant="outlined" fullWidth onClick={() => setForm({ ...m })}>Editar</Button>
+              <Button size="small" variant="outlined" fullWidth onClick={() => abrirForm(m)}>Editar</Button>
               <Button size="small" variant="outlined" color="error" fullWidth onClick={() => setParaExcluir(m)}>Excluir</Button>
             </Box>
           </CartaoLista>
@@ -159,7 +172,7 @@ export default function Materias() {
                 <TableCell><PilulaArea area={m.area?.trim()} /></TableCell>
                 <TableCell align="right">
                   <Box sx={{ display: 'inline-flex', gap: 1.25, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
-                    <Box component="button" type="button" onClick={() => setForm({ ...m })}
+                    <Box component="button" type="button" onClick={() => abrirForm(m)}
                       sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
                       Editar
                     </Box>
@@ -176,7 +189,7 @@ export default function Materias() {
         </Table>
       </TableContainer>}
 
-      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
+      <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.cod_mat ? 'Editar matéria' : 'Nova matéria'}</DialogTitle>
         <DialogContent>
           {form && (
@@ -201,12 +214,22 @@ export default function Materias() {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button variant="outlined" onClick={() => setForm(null)} disabled={salvando}>Cancelar</Button>
+          <Button variant="outlined" onClick={fecharForm} disabled={salvando}>Cancelar</Button>
           <Button variant="contained" onClick={salvar} disabled={!form?.NOME?.trim() || salvando}>
             {salvando ? 'Salvando…' : 'Salvar'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacao
+        aberto={confirmarFecharForm}
+        titulo="Descartar alterações?"
+        descricao="As informações preenchidas sobre a matéria serão perdidas."
+        rotuloConfirmar="Descartar"
+        processando={false}
+        onConfirmar={() => { setConfirmarFecharForm(false); setForm(null) }}
+        onFechar={() => setConfirmarFecharForm(false)}
+      />
 
       <DialogoConfirmacao
         aberto={!!paraExcluir}

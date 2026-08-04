@@ -20,7 +20,9 @@ from ..models import (
     Presenca,
     Professor,
     Turma,
+    Usuario,
 )
+from ..security import usuario_atual
 from ..services.faltas import faltas_do_vinculo
 
 router = APIRouter(prefix="/turmas", tags=["presenças"])
@@ -41,6 +43,37 @@ def _agora_utc() -> datetime:
 
 def _hoje_local():
     return datetime.now(ZoneInfo(settings.timezone)).date()
+
+
+def _cod_professor_usuario(db: Session, user) -> int | None:
+    if not isinstance(user, str):
+        return None
+    usuario = db.get(Usuario, user)
+    if usuario and (usuario.perfil or "").upper() == "PROFESSOR":
+        if usuario.cod_pro is None:
+            raise HTTPException(403, "Professor sem cadastro vinculado")
+        return usuario.cod_pro
+    return None
+
+
+def _validar_acesso_chamada(
+    db: Session,
+    user,
+    chamada: Chamada,
+) -> None:
+    cod_pro = _cod_professor_usuario(db, user)
+    if cod_pro is None:
+        return
+    if chamada.aula_id is None:
+        raise HTTPException(403, "A chamada não está vinculada a uma aula sua")
+    permitido = db.scalar(
+        select(func.count())
+        .select_from(Aula)
+        .join(DocTurma, DocTurma.id == Aula.docturma_id)
+        .where(Aula.id == chamada.aula_id, DocTurma.cod_pro == cod_pro)
+    ) or 0
+    if not permitido:
+        raise HTTPException(403, "Você não possui acesso a esta chamada")
 
 
 def _data_hora_publica(valor: datetime | None) -> str | None:
@@ -156,6 +189,7 @@ def listar_chamadas(
     cod_tur: int,
     limite: int = Query(default=30, ge=1, le=120),
     db: Session = Depends(get_db),
+    user: str = Depends(usuario_atual),
 ):
     if not db.get(Turma, cod_tur):
         raise HTTPException(404, "Turma não encontrada")
@@ -179,6 +213,15 @@ def listar_chamadas(
         .order_by(Chamada.data.desc(), Chamada.id.desc())
         .limit(limite)
     )
+    cod_pro = _cod_professor_usuario(db, user)
+    if cod_pro is not None:
+        consulta = consulta.where(
+            Chamada.aula_id.in_(
+                select(Aula.id)
+                .join(DocTurma, DocTurma.id == Aula.docturma_id)
+                .where(DocTurma.cod_pro == cod_pro)
+            )
+        )
     return [
         _resumo_chamada(
             chamada,
@@ -195,6 +238,7 @@ def aulas_disponiveis(
     cod_tur: int,
     data: date | None = Query(default=None),
     db: Session = Depends(get_db),
+    user: str = Depends(usuario_atual),
 ):
     if not db.get(Turma, cod_tur):
         raise HTTPException(404, "Turma não encontrada")
@@ -212,6 +256,9 @@ def aulas_disponiveis(
         )
         .order_by(Aula.hora_inicio, Materia.NOME)
     )
+    cod_pro = _cod_professor_usuario(db, user)
+    if cod_pro is not None:
+        consulta = consulta.where(DocTurma.cod_pro == cod_pro)
     return [
         {
             "aula_id": aula.id,
@@ -228,10 +275,16 @@ def aulas_disponiveis(
 
 
 @router.get("/{cod_tur}/chamadas/{chamada_id}")
-def obter_chamada(cod_tur: int, chamada_id: int, db: Session = Depends(get_db)):
+def obter_chamada(
+    cod_tur: int,
+    chamada_id: int,
+    db: Session = Depends(get_db),
+    user: str = Depends(usuario_atual),
+):
     chamada = db.get(Chamada, chamada_id)
     if not chamada or chamada.cod_tur != cod_tur:
         raise HTTPException(404, "Chamada não encontrada")
+    _validar_acesso_chamada(db, user, chamada)
     return _detalhe_chamada(db, chamada)
 
 
@@ -240,6 +293,7 @@ def abrir_chamada(
     cod_tur: int,
     dados: AbrirChamadaInput | None = None,
     db: Session = Depends(get_db),
+    user: str = Depends(usuario_atual),
 ):
     turma = db.get(Turma, cod_tur)
     if not turma:
@@ -248,6 +302,9 @@ def abrir_chamada(
     hoje = _hoje_local()
     agora = _agora_utc()
     aula = None
+    cod_pro = _cod_professor_usuario(db, user)
+    if cod_pro is not None and (not dados or dados.aula_id is None):
+        raise HTTPException(400, "Selecione uma das suas aulas para abrir a chamada")
     if dados and dados.aula_id is not None:
         aula = db.get(Aula, dados.aula_id)
         if not aula:
@@ -255,18 +312,27 @@ def abrir_chamada(
         vinculo = db.get(DocTurma, aula.docturma_id)
         if not vinculo or vinculo.cod_tur != cod_tur:
             raise HTTPException(400, "Aula não pertence a esta turma")
+        if cod_pro is not None and vinculo.cod_pro != cod_pro:
+            raise HTTPException(403, "Você não possui acesso a esta aula")
         if aula.data != hoje:
             raise HTTPException(400, "A chamada só pode ser aberta na data da aula")
         if aula.status == "CANCELADA":
             raise HTTPException(400, "Não é possível abrir chamada de aula cancelada")
     # Chamadas esquecidas abertas em dias anteriores deixam de ser utilizáveis.
-    for antiga in db.scalars(
-        select(Chamada).where(
+    consulta_antigas = select(Chamada).where(
             Chamada.cod_tur == cod_tur,
             Chamada.status == "ABERTA",
             Chamada.data != hoje,
         )
-    ):
+    if cod_pro is not None:
+        consulta_antigas = consulta_antigas.where(
+            Chamada.aula_id.in_(
+                select(Aula.id)
+                .join(DocTurma, DocTurma.id == Aula.docturma_id)
+                .where(DocTurma.cod_pro == cod_pro)
+            )
+        )
+    for antiga in db.scalars(consulta_antigas):
         antiga.status = "ENCERRADA"
         antiga.encerrada_em = agora
 
@@ -304,10 +370,16 @@ def abrir_chamada(
 
 
 @router.post("/{cod_tur}/chamadas/{chamada_id}/encerrar")
-def encerrar_chamada(cod_tur: int, chamada_id: int, db: Session = Depends(get_db)):
+def encerrar_chamada(
+    cod_tur: int,
+    chamada_id: int,
+    db: Session = Depends(get_db),
+    user: str = Depends(usuario_atual),
+):
     chamada = db.get(Chamada, chamada_id)
     if not chamada or chamada.cod_tur != cod_tur:
         raise HTTPException(404, "Chamada não encontrada")
+    _validar_acesso_chamada(db, user, chamada)
     chamada.status = "ENCERRADA"
     chamada.encerrada_em = _agora_utc()
     db.commit()

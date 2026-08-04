@@ -11,9 +11,11 @@ import { api } from '../api'
 import { TOV } from '../theme'
 import {
   AvatarIniciais, BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio,
-  LinhaCartao, StatusBadge, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  DialogoConfirmacao, LinhaCartao, StatusBadge, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import ImportarLeadsDialog from './ImportarLeadsDialog'
+import { emailValido, formatarTelefoneInput } from '../formatters'
+import { useDirtyForm } from '../UnsavedChanges'
 
 const FUNIL = {
   NOVO: 'Novo',
@@ -51,17 +53,18 @@ function PilulaConsentimento({ status }) {
 }
 
 function FormLead({ form, setForm }) {
-  const atualizar = (campo) => (e) => setForm({ ...form, [campo]: e.target.value })
+  const atualizar = (campo) => (e) => setForm({ ...form, [campo]: campo === 'telefone' ? formatarTelefoneInput(e.target.value) : e.target.value })
+  const emailInvalido = !emailValido(form.e_mail)
   return (
     <Grid container spacing={1.5} sx={{ mt: 0 }}>
       <Grid item xs={12} sm={7}>
         <TextField fullWidth required autoFocus label="Nome" value={form.nome} onChange={atualizar('nome')} />
       </Grid>
       <Grid item xs={12} sm={5}>
-        <TextField fullWidth required label="WhatsApp" value={form.telefone} onChange={atualizar('telefone')} />
+        <TextField fullWidth required type="tel" label="WhatsApp" value={form.telefone} onChange={atualizar('telefone')} inputProps={{ inputMode: 'tel', maxLength: 15 }} />
       </Grid>
       <Grid item xs={12}>
-        <TextField fullWidth label="E-mail" value={form.e_mail || ''} onChange={atualizar('e_mail')} />
+        <TextField fullWidth type="email" label="E-mail" value={form.e_mail || ''} onChange={atualizar('e_mail')} error={emailInvalido} helperText={emailInvalido ? 'Informe um e-mail válido.' : ' '} />
       </Grid>
       <Grid item xs={12} sm={6}>
         <TextField fullWidth label="Origem" value={form.origem || ''} onChange={atualizar('origem')} />
@@ -110,6 +113,7 @@ export default function Leads() {
   const [carregando, setCarregando] = useState(true)
   const [importacaoAberta, setImportacaoAberta] = useState(false)
   const [form, setForm] = useState(null)
+  const [confirmarFecharForm, setConfirmarFecharForm] = useState(false)
   const [leadEditando, setLeadEditando] = useState(null)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
@@ -117,6 +121,12 @@ export default function Leads() {
   const telaCheia = useDialogoTelaCheia()
   const telaDesktop = useTelaDesktop()
   const porPagina = 50
+  const formAlterado = useDirtyForm(!!form, form, 'Há dados do lead que ainda não foram salvos.')
+
+  function fecharForm() {
+    if (formAlterado) setConfirmarFecharForm(true)
+    else setForm(null)
+  }
 
   const carregar = useCallback((signal) => {
     setCarregando(true)
@@ -154,6 +164,7 @@ export default function Leads() {
   function novo() {
     setLeadEditando(null)
     setForm({ ...FORM_INICIAL })
+    setConfirmarFecharForm(false)
   }
 
   function editar(lead) {
@@ -164,6 +175,7 @@ export default function Leads() {
       tags: lead.tags || '',
       captado_em: lead.captado_em || '',
     })
+    setConfirmarFecharForm(false)
   }
 
   async function salvar() {
@@ -308,16 +320,26 @@ export default function Leads() {
         aoImportar={() => { carregar(); carregarOpcoes() }}
       />
 
-      <Dialog open={!!form} onClose={salvando ? undefined : () => setForm(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
+      <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{leadEditando ? 'Editar lead' : 'Novo lead'}</DialogTitle>
         <DialogContent>{form && <FormLead form={form} setForm={setForm} />}</DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button variant="outlined" onClick={() => setForm(null)} disabled={salvando}>Cancelar</Button>
-          <Button variant="contained" onClick={salvar} disabled={salvando || !form?.nome.trim() || !form?.telefone.trim()}>
+          <Button variant="outlined" onClick={fecharForm} disabled={salvando}>Cancelar</Button>
+          <Button variant="contained" onClick={salvar} disabled={salvando || !form?.nome.trim() || !form?.telefone.trim() || !emailValido(form?.e_mail)}>
             {salvando ? 'Salvando…' : 'Salvar'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacao
+        aberto={confirmarFecharForm}
+        titulo="Descartar alterações?"
+        descricao="As informações preenchidas sobre o lead serão perdidas."
+        rotuloConfirmar="Descartar"
+        processando={false}
+        onConfirmar={() => { setConfirmarFecharForm(false); setForm(null) }}
+        onFechar={() => setConfirmarFecharForm(false)}
+      />
 
       <Snackbar open={!!erro} autoHideDuration={6000} onClose={() => setErro('')}>
         <Alert severity="error" onClose={() => setErro('')}>{erro}</Alert>

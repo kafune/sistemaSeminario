@@ -10,6 +10,8 @@ import LinkIcon from '@mui/icons-material/Link'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
+import { emailValido, formatarCepInput, formatarCpfInput, formatarTelefoneInput } from '../formatters'
+import { useDirtyForm } from '../UnsavedChanges'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, LinhaCartao,
   PilulaStatus, resetBotao, useDialogoTelaCheia, useTelaDesktop,
@@ -25,6 +27,7 @@ export default function Professores() {
   const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(true)
   const [form, setForm] = useState(null)
+  const [confirmarFecharForm, setConfirmarFecharForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [paraExcluir, setParaExcluir] = useState(null)
   const [excluindo, setExcluindo] = useState(false)
@@ -34,6 +37,18 @@ export default function Professores() {
   const [criandoConvite, setCriandoConvite] = useState(false)
   const telaCheia = useDialogoTelaCheia()
   const telaDesktop = useTelaDesktop()
+  const formAlterado = useDirtyForm(!!form, form, 'Há dados do professor que ainda não foram salvos.')
+  const emailInvalido = !!form && !emailValido(form.e_mail)
+
+  function abrirForm(dados) {
+    setForm({ ...dados })
+    setConfirmarFecharForm(false)
+  }
+
+  function fecharForm() {
+    if (formAlterado) setConfirmarFecharForm(true)
+    else setForm(null)
+  }
 
   function carregar() {
     setCarregando(true)
@@ -148,7 +163,7 @@ export default function Professores() {
       <Button variant="outlined" startIcon={<LinkIcon />} onClick={criarConvite} disabled={criandoConvite}>
         {criandoConvite ? 'Gerando…' : 'Link de autocadastro'}
       </Button>
-      <Button variant="contained" startIcon={<AddIcon />} onClick={() => setForm({ ...VAZIO })}>
+      <Button variant="contained" startIcon={<AddIcon />} onClick={() => abrirForm(VAZIO)}>
         Novo professor
       </Button>
     </>
@@ -187,7 +202,7 @@ export default function Professores() {
             <LinhaCartao rotulo="Áreas indicadas" valor={p.materias_atuacao} />
             <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
               <Button size="small" variant="outlined" fullWidth disabled={!!p.usuario_acesso || criandoConvite} onClick={() => criarConviteAcesso(p)}>{p.usuario_acesso ? 'Acesso criado' : 'Criar acesso'}</Button>
-              <Button size="small" variant="outlined" fullWidth onClick={() => setForm({ ...p })}>Editar</Button>
+              <Button size="small" variant="outlined" fullWidth onClick={() => abrirForm(p)}>Editar</Button>
               <Button size="small" variant="outlined" color="error" fullWidth onClick={() => setParaExcluir(p)}>Excluir</Button>
             </Box>
           </CartaoLista>
@@ -240,7 +255,7 @@ export default function Professores() {
                       </Box>
                       <Box component="span" sx={{ color: TOV.border }}>·</Box>
                     </>}
-                    <Box component="button" type="button" onClick={() => setForm({ ...p })}
+                    <Box component="button" type="button" onClick={() => abrirForm(p)}
                       sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
                       Editar
                     </Box>
@@ -257,7 +272,7 @@ export default function Professores() {
         </Table>
       </TableContainer>}
 
-      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="md" fullWidth fullScreen={telaCheia}>
+      <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="md" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.cod_pro ? 'Editar professor' : 'Novo professor'}</DialogTitle>
         <DialogContent>
           {form && (
@@ -271,16 +286,16 @@ export default function Professores() {
                   onChange={(e) => setForm({ ...form, sigla: e.target.value })} />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField fullWidth label="Telefone" value={form.fone1 ?? ''}
-                  onChange={(e) => setForm({ ...form, fone1: e.target.value })} />
+                <TextField fullWidth type="tel" label="Telefone" value={form.fone1 ?? ''}
+                  onChange={(e) => setForm({ ...form, fone1: formatarTelefoneInput(e.target.value) })} inputProps={{ inputMode: 'tel', maxLength: 15 }} />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField fullWidth label="Celular" value={form.celular ?? ''}
-                  onChange={(e) => setForm({ ...form, celular: e.target.value })} />
+                <TextField fullWidth type="tel" label="Celular" value={form.celular ?? ''}
+                  onChange={(e) => setForm({ ...form, celular: formatarTelefoneInput(e.target.value) })} inputProps={{ inputMode: 'tel', maxLength: 15 }} />
               </Grid>
               <Grid item xs={12} sm={8}>
-                <TextField fullWidth label="E-mail" value={form.e_mail ?? ''}
-                  onChange={(e) => setForm({ ...form, e_mail: e.target.value })} />
+                <TextField fullWidth type="email" label="E-mail" value={form.e_mail ?? ''}
+                  onChange={(e) => setForm({ ...form, e_mail: e.target.value })} error={emailInvalido} helperText={emailInvalido ? 'Informe um e-mail válido.' : ' '} />
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField select fullWidth label="Status" value={form.status ?? 'A'}
@@ -317,7 +332,7 @@ export default function Professores() {
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField fullWidth label="CPF" value={form.cpf ?? ''}
-                  onChange={(e) => setForm({ ...form, cpf: e.target.value })} inputProps={{ maxLength: 20 }} />
+                  onChange={(e) => setForm({ ...form, cpf: formatarCpfInput(e.target.value) })} inputProps={{ inputMode: 'numeric', maxLength: 14 }} />
               </Grid>
               <Grid item xs={12} sm={4}>
                 <TextField fullWidth label="RG" value={form.rg ?? ''}
@@ -349,18 +364,28 @@ export default function Professores() {
               </Grid>
               <Grid item xs={6} sm={2}>
                 <TextField fullWidth label="CEP" value={form.cep ?? ''}
-                  onChange={(e) => setForm({ ...form, cep: e.target.value })} inputProps={{ maxLength: 10 }} />
+                  onChange={(e) => setForm({ ...form, cep: formatarCepInput(e.target.value) })} inputProps={{ inputMode: 'numeric', maxLength: 9 }} />
               </Grid>
             </Grid>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button variant="outlined" onClick={() => setForm(null)} disabled={salvando}>Cancelar</Button>
-          <Button variant="contained" onClick={salvar} disabled={!form?.nome || salvando}>
+          <Button variant="outlined" onClick={fecharForm} disabled={salvando}>Cancelar</Button>
+          <Button variant="contained" onClick={salvar} disabled={!form?.nome?.trim() || emailInvalido || salvando}>
             {salvando ? 'Salvando…' : 'Salvar'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacao
+        aberto={confirmarFecharForm}
+        titulo="Descartar alterações?"
+        descricao="As informações preenchidas sobre o professor serão perdidas."
+        rotuloConfirmar="Descartar"
+        processando={false}
+        onConfirmar={() => { setConfirmarFecharForm(false); setForm(null) }}
+        onFechar={() => setConfirmarFecharForm(false)}
+      />
 
       <Dialog open={!!convite} onClose={() => setConvite(null)} maxWidth="sm" fullWidth>
         <DialogTitle>{convite?.tipo === 'acesso' ? 'Link de acesso às notas' : 'Link de autocadastro'}</DialogTitle>

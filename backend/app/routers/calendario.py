@@ -13,6 +13,8 @@ from ..models import (
     CalendarioPublico,
     DocTurma,
     Materia,
+    MaterialDidatico,
+    PlanejamentoAula,
     Professor,
     Turma,
 )
@@ -174,6 +176,12 @@ def atualizar_aula(
         raise HTTPException(404, "Aula não encontrada")
     if not db.get(DocTurma, dados.docturma_id):
         raise HTTPException(404, "Matéria da turma não encontrada")
+    if aula.docturma_id != dados.docturma_id:
+        db.execute(
+            MaterialDidatico.__table__.update()
+            .where(MaterialDidatico.aula_id == aula_id)
+            .values(docturma_id=dados.docturma_id)
+        )
     for campo, valor in dados.model_dump(exclude={"repetir_ate"}).items():
         setattr(aula, campo, valor)
     db.commit()
@@ -185,6 +193,16 @@ def excluir_aula(aula_id: int, db: Session = Depends(get_db)):
     aula = db.get(Aula, aula_id)
     if not aula:
         raise HTTPException(404, "Aula não encontrada")
+    db.execute(
+        MaterialDidatico.__table__.update()
+        .where(MaterialDidatico.aula_id == aula_id)
+        .values(aula_id=None)
+    )
+    db.execute(
+        PlanejamentoAula.__table__.delete().where(
+            PlanejamentoAula.aula_id == aula_id
+        )
+    )
     db.delete(aula)
     db.commit()
     return {"ok": True}

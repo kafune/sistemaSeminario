@@ -35,6 +35,21 @@ export function getPerfil() {
   return localStorage.getItem('tov_perfil') || 'ADMIN'
 }
 
+function redirecionarSessaoExpirada() {
+  const retorno = `${window.location.pathname}${window.location.search}${window.location.hash}`
+  if (retorno.startsWith('/') && !retorno.startsWith('//') && retorno !== '/login') {
+    sessionStorage.setItem('tov_retorno_login', retorno)
+  }
+  clearSession()
+  window.location.assign('/login?sessao=expirada')
+}
+
+function verificarSessao(res) {
+  if (res.status !== 401) return
+  redirecionarSessaoExpirada()
+  throw new Error('Sessão expirada')
+}
+
 async function request(method, path, body, options = {}) {
   const headers = { 'Content-Type': 'application/json' }
   const token = getToken()
@@ -46,9 +61,7 @@ async function request(method, path, body, options = {}) {
     signal: options.signal,
   })
   if (res.status === 401 && !path.startsWith('/auth/login')) {
-    clearSession()
-    window.location.href = '/login'
-    throw new Error('Sessão expirada')
+    verificarSessao(res)
   }
   if (!res.ok) {
     let msg = `Erro ${res.status}`
@@ -102,6 +115,7 @@ export async function enviarArquivoEBaixar(path, arquivo, nomeDownload) {
     headers: { Authorization: `Bearer ${getToken()}` },
     body: fd,
   })
+  verificarSessao(res)
   if (!res.ok) {
     let msg = `Erro ${res.status}`
     try { msg = (await res.json()).detail || msg } catch { /* ignora */ }
@@ -118,17 +132,38 @@ export async function enviarArquivoEBaixar(path, arquivo, nomeDownload) {
 
 /** Abre um PDF/ZIP autenticado em nova aba (baixa como blob para levar o token). */
 export async function abrirArquivo(path) {
-  const res = await fetch(BASE + path, {
-    headers: { Authorization: `Bearer ${getToken()}` },
-  })
-  if (!res.ok) {
-    let msg = `Erro ${res.status}`
-    try { msg = (await res.json()).detail || msg } catch { /* ignora */ }
-    throw new Error(msg)
+  // A aba é criada durante o clique; abri-la somente depois do fetch pode ser
+  // interpretado pelo navegador como popup assíncrono e ser bloqueado.
+  const novaAba = window.open('about:blank', '_blank')
+  if (novaAba) {
+    novaAba.opener = null
+    novaAba.document.title = 'Preparando documento…'
   }
-  const blob = await res.blob()
-  const url = URL.createObjectURL(blob)
-  window.open(url, '_blank')
+  try {
+    const res = await fetch(BASE + path, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    })
+    verificarSessao(res)
+    if (!res.ok) {
+      let msg = `Erro ${res.status}`
+      try { msg = (await res.json()).detail || msg } catch { /* ignora */ }
+      throw new Error(msg)
+    }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    if (novaAba) novaAba.location.replace(url)
+    else {
+      const a = document.createElement('a')
+      a.href = url
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      a.click()
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  } catch (erro) {
+    novaAba?.close()
+    throw erro
+  }
 }
 
 /** Baixa um arquivo autenticado preservando o nome sugerido pela API. */
@@ -136,6 +171,7 @@ export async function baixarArquivo(path, nomePadrao = 'arquivo') {
   const res = await fetch(BASE + path, {
     headers: { Authorization: `Bearer ${getToken()}` },
   })
+  verificarSessao(res)
   if (!res.ok) {
     let msg = `Erro ${res.status}`
     try { msg = (await res.json()).detail || msg } catch { /* ignora */ }
@@ -183,14 +219,18 @@ export async function postPublico(path, body) {
 }
 
 /** Envia um arquivo autenticado e devolve a resposta JSON. */
-export async function enviarArquivoJson(path, arquivo) {
+export async function enviarArquivoJson(path, arquivo, campos = {}) {
   const fd = new FormData()
   fd.append('arquivo', arquivo)
+  Object.entries(campos).forEach(([campo, valor]) => {
+    if (valor !== undefined && valor !== null && valor !== '') fd.append(campo, String(valor))
+  })
   const res = await fetch(BASE + path, {
     method: 'POST',
     headers: { Authorization: `Bearer ${getToken()}` },
     body: fd,
   })
+  if (res.status === 401) verificarSessao(res)
   if (!res.ok) {
     let msg = `Erro ${res.status}`
     try { msg = (await res.json()).detail || msg } catch { /* ignora */ }

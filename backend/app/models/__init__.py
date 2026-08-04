@@ -1,4 +1,12 @@
-from .academico import Materia, Turma, AluTurma, DocTurma, AluNota
+from .academico import (
+    AluNota,
+    AluTurma,
+    AtividadeAvaliativa,
+    DocTurma,
+    Materia,
+    NotaAtividade,
+    Turma,
+)
 from .pessoas import Aluno, Professor, MatProf, TitProf
 from .auth import Usuario
 from .integracoes import (
@@ -17,6 +25,8 @@ from .whatsapp import (
     WhatsappTemplate,
 )
 from .notificacoes import Notificacao, NotificacaoPreferencia, PushInscricao
+from .materiais import MaterialDidatico
+from .portal_professor import ComunicadoTurma, PlanejamentoAula
 from .leads import (
     Lead,
     LeadConsentimentoEvento,
@@ -27,6 +37,7 @@ from .leads import (
 
 __all__ = [
     "Materia", "Turma", "AluTurma", "DocTurma", "AluNota",
+    "AtividadeAvaliativa", "NotaAtividade",
     "Aluno", "Professor", "MatProf", "TitProf",
     "Usuario", "ImportacaoGoogleForms", "ItemImportacaoGoogleForms",
     "ConviteProfessor", "ConviteAcessoProfessor",
@@ -34,6 +45,8 @@ __all__ = [
     "WhatsappConfiguracao", "WhatsappDisparo", "WhatsappDestinatario",
     "WhatsappArquivo", "WhatsappTemplate",
     "Notificacao", "NotificacaoPreferencia", "PushInscricao",
+    "MaterialDidatico",
+    "ComunicadoTurma", "PlanejamentoAula",
     "Lead", "LeadConsentimentoEvento", "LeadImportacao",
     "LeadImportacaoItem", "LeadInteracao",
 ]

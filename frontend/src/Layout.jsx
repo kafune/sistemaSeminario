@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useBlocker, useLocation, useNavigate } from 'react-router-dom'
 import {
   AppBar, BottomNavigation, BottomNavigationAction, Box, Drawer, IconButton,
   ListItemIcon, ListItemText, Menu, MenuItem, Paper, Toolbar, Typography,
@@ -13,6 +13,7 @@ import MenuBookIcon from '@mui/icons-material/MenuBook'
 import GroupsIcon from '@mui/icons-material/Groups'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import EditNoteIcon from '@mui/icons-material/EditNote'
+import FolderCopyOutlinedIcon from '@mui/icons-material/FolderCopyOutlined'
 import DescriptionIcon from '@mui/icons-material/Description'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
@@ -31,12 +32,15 @@ const STG_URL = (import.meta.env.VITE_STG_URL?.trim() || 'https://stg.kafune.xyz
 
 const MENU = [
   { rotulo: 'Dashboard', rota: '/', icone: SpaceDashboardIcon, exato: true, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Início', rota: '/professor', icone: SpaceDashboardIcon, exato: true, perfis: ['PROFESSOR'] },
+  { rotulo: 'Minhas turmas', rota: '/professor/turmas', icone: SchoolIcon, perfis: ['PROFESSOR'] },
   { rotulo: 'Alunos', rota: '/alunos', icone: SchoolIcon, perfis: ['ADMIN', 'SECRETARIA'] },
   { rotulo: 'Professores', rota: '/professores', icone: PersonIcon, perfis: ['ADMIN', 'SECRETARIA'] },
   { rotulo: 'Matérias', rota: '/materias', icone: MenuBookIcon, perfis: ['ADMIN', 'SECRETARIA'] },
   { rotulo: 'Turmas', rota: '/turmas', icone: GroupsIcon, perfis: ['ADMIN', 'SECRETARIA'] },
   { rotulo: 'Calendário', rota: '/calendario', icone: CalendarMonthIcon, perfis: ['ADMIN', 'SECRETARIA'] },
   { rotulo: 'Notas e Faltas', rota: '/notas', icone: EditNoteIcon, perfis: ['ADMIN', 'SECRETARIA', 'PROFESSOR'] },
+  { rotulo: 'Materiais', rota: '/materiais', icone: FolderCopyOutlinedIcon, perfis: ['ADMIN', 'SECRETARIA', 'PROFESSOR'] },
   { rotulo: 'Relatórios', rota: '/relatorios', icone: DescriptionIcon, perfis: ['ADMIN', 'SECRETARIA'] },
   { rotulo: 'Leads', rota: '/leads', icone: CampaignIcon, perfis: ['ADMIN', 'MARKETING'] },
   { rotulo: 'WhatsApp', rota: '/whatsapp', icone: WhatsAppIcon, perfis: ['ADMIN', 'SECRETARIA', 'MARKETING'] },
@@ -158,9 +162,23 @@ export default function Layout({ children }) {
   const [menuAberto, setMenuAberto] = useState(false)
   const [notificacoesAbertas, setNotificacoesAbertas] = useState(false)
   const [alteracoesPendentes, setAlteracoesPendentes] = useState(null)
+  const alteracoesPendentesRef = useRef(null)
   const [destinoPendente, setDestinoPendente] = useState(null)
   const acaoAposFecharMenu = useRef(null)
+  const conteudoPrincipalRef = useRef(null)
   const estadoNotificacoes = useNotificacoes()
+  const registrarAlteracoesPendentes = useCallback((mensagem) => {
+    alteracoesPendentesRef.current = mensagem
+    setAlteracoesPendentes(mensagem)
+  }, [])
+  const bloqueador = useBlocker(({ currentLocation, nextLocation }) => (
+    Boolean(alteracoesPendentesRef.current)
+    && `${currentLocation.pathname}${currentLocation.search}${currentLocation.hash}` !== `${nextLocation.pathname}${nextLocation.search}${nextLocation.hash}`
+  ))
+
+  useEffect(() => {
+    if (bloqueador.state === 'blocked') setDestinoPendente({ tipo: 'rota-bloqueada' })
+  }, [bloqueador.state])
 
   function executarComMenuFechado(acao) {
     if (!menuAberto) {
@@ -210,10 +228,6 @@ export default function Layout({ children }) {
   function irPara(rota) {
     executarComMenuFechado(() => {
       if (rota === location.pathname) return
-      if (alteracoesPendentes) {
-        setDestinoPendente({ tipo: 'rota', rota })
-        return
-      }
       navigate(rota)
     })
   }
@@ -231,10 +245,16 @@ export default function Layout({ children }) {
   function confirmarNavegacao() {
     const destino = destinoPendente
     setDestinoPendente(null)
-    setAlteracoesPendentes(null)
-    if (destino?.tipo === 'sair') executarSaida()
+    registrarAlteracoesPendentes(null)
+    if (destino?.tipo === 'rota-bloqueada' && bloqueador.state === 'blocked') bloqueador.proceed()
+    else if (destino?.tipo === 'sair') executarSaida()
     else if (destino?.tipo === 'sistema' && destino.url) window.location.assign(destino.url)
     else if (destino?.rota) navigate(destino.rota)
+  }
+
+  function cancelarNavegacao() {
+    if (bloqueador.state === 'blocked') bloqueador.reset()
+    setDestinoPendente(null)
   }
 
   const estaAtivo = (item) =>
@@ -243,6 +263,12 @@ export default function Layout({ children }) {
   const tituloAtual = menuVisivel.find(estaAtivo)?.rotulo || 'TOV'
   const valorNavegacao = location.pathname === '/'
     ? '/'
+    : location.pathname === '/professor'
+      ? '/professor'
+    : location.pathname.startsWith('/professor/turmas')
+      ? '/professor/turmas'
+    : location.pathname.startsWith('/materiais')
+      ? '/materiais'
     : location.pathname.startsWith('/notas')
       ? '/notas'
     : location.pathname.startsWith('/alunos')
@@ -257,6 +283,10 @@ export default function Layout({ children }) {
   useEffect(() => {
     document.title = `${tituloAtual} · TOV Acadêmico`
     window.scrollTo(0, 0)
+    const quadro = window.requestAnimationFrame(() => {
+      conteudoPrincipalRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(quadro)
   }, [location.pathname, tituloAtual])
 
   const conteudoMenu = (
@@ -270,7 +300,7 @@ export default function Layout({ children }) {
 
       {perfil !== 'PROFESSOR' && <SeletorSistema onTrocar={trocarSistema} />}
 
-      <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.42)', px: 1.25, mb: 0.75 }}>
+      <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.62)', px: 1.25, mb: 0.75 }}>
         {perfil === 'MARKETING' ? 'Marketing' : perfil === 'PROFESSOR' ? 'Portal do professor' : 'Secretaria'}
       </Box>
 
@@ -286,12 +316,12 @@ export default function Layout({ children }) {
 
       <Box
         sx={{
-          mt: 'auto', display: 'grid', gridTemplateColumns: perfil === 'PROFESSOR' ? '36px minmax(0,1fr) 44px' : '44px 36px minmax(0,1fr) 44px',
+          mt: 'auto', display: 'grid', gridTemplateColumns: '44px 36px minmax(0,1fr) 44px',
           alignItems: 'center', gap: 1, pt: 2, px: 0.25,
           borderTop: '1px solid rgba(255,255,255,.1)',
         }}
       >
-        {perfil !== 'PROFESSOR' && <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />}
+        <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
         <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
           {iniciais(usuario)}
         </Box>
@@ -322,7 +352,7 @@ export default function Layout({ children }) {
   }
 
   return (
-    <UnsavedChangesContext.Provider value={setAlteracoesPendentes}>
+    <UnsavedChangesContext.Provider value={registrarAlteracoesPendentes}>
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: TOV.canvas }}>
       <Box
         component="a"
@@ -362,9 +392,9 @@ export default function Layout({ children }) {
             <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 19, letterSpacing: '-.025em' }}>TOV</Typography>
             <Typography noWrap sx={{ fontSize: 12, color: TOV.caption }}>{tituloAtual}</Typography>
           </Box>
-          {perfil !== 'PROFESSOR' && <Box sx={{ ml: 'auto' }}>
+          <Box sx={{ ml: 'auto' }}>
             <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
-          </Box>}
+          </Box>
         </Toolbar>
       </AppBar>
 
@@ -393,6 +423,7 @@ export default function Layout({ children }) {
       {/* Sidebar fixa — desktop */}
       <Box
         component="aside"
+        aria-label="Navegação lateral"
         sx={{
           ...estiloPainel,
           display: { xs: 'none', md: 'flex' },
@@ -407,6 +438,7 @@ export default function Layout({ children }) {
         component="main"
         id="conteudo-principal"
         tabIndex={-1}
+        ref={conteudoPrincipalRef}
         sx={{
           flexGrow: 1, minWidth: 0, bgcolor: TOV.canvas,
           pt: { xs: 'calc(82px + env(safe-area-inset-top))', sm: 'calc(88px + env(safe-area-inset-top))', md: '42px' },
@@ -418,12 +450,12 @@ export default function Layout({ children }) {
       >
         {children}
       </Box>
-      {perfil !== 'PROFESSOR' && <NotificationCenter
+      <NotificationCenter
         aberto={notificacoesAbertas}
         onFechar={() => setNotificacoesAbertas(false)}
         onNavigate={irPara}
         estado={estadoNotificacoes}
-      />}
+      />
 
       {/* Atalhos de uso frequente — somente em celulares. */}
       <Paper
@@ -454,7 +486,12 @@ export default function Layout({ children }) {
           }}
         >
           {perfil === 'PROFESSOR' ? (
-            <BottomNavigationAction label="Notas e faltas" value="/notas" icon={<EditNoteIcon />} />
+            <>
+              <BottomNavigationAction label="Início" value="/professor" icon={<SpaceDashboardIcon />} />
+              <BottomNavigationAction label="Turmas" value="/professor/turmas" icon={<SchoolIcon />} />
+              <BottomNavigationAction label="Notas" value="/notas" icon={<EditNoteIcon />} />
+              <BottomNavigationAction label="Materiais" value="/materiais" icon={<FolderCopyOutlinedIcon />} />
+            </>
           ) : <>
             {perfil === 'MARKETING' ? (
               <BottomNavigationAction label="Leads" value="/leads" icon={<CampaignIcon />} />
@@ -479,7 +516,7 @@ export default function Layout({ children }) {
       rotuloConfirmar="Descartar e continuar"
       processando={false}
       onConfirmar={confirmarNavegacao}
-      onFechar={() => setDestinoPendente(null)}
+      onFechar={cancelarNavegacao}
     />
     </UnsavedChangesContext.Provider>
   )

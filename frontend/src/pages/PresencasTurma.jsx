@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress, IconButton, MenuItem, Snackbar, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
@@ -12,7 +12,7 @@ import HowToRegRoundedIcon from '@mui/icons-material/HowToRegRounded'
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined'
-import { api } from '../api'
+import { api, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
   CabecalhoPagina, CardMetrica, CartaoLista, DialogoConfirmacao, EstadoVazio,
@@ -51,6 +51,9 @@ function hojeLocal() {
 
 export default function PresencasTurma() {
   const { codTur } = useParams()
+  const [searchParams] = useSearchParams()
+  const vinculoId = searchParams.get('vinculo')
+  const ehProfessor = getPerfil() === 'PROFESSOR'
   const navigate = useNavigate()
   const telaDesktop = useTelaDesktop()
   const [turma, setTurma] = useState(null)
@@ -66,38 +69,51 @@ export default function PresencasTurma() {
   const [mensagem, setMensagem] = useState('')
 
   const carregarLista = useCallback(async () => {
-    const resposta = await api.get(`/turmas/${codTur}/chamadas`)
+    const dados = await api.get(`/turmas/${codTur}/chamadas`)
+    const resposta = vinculoId ? dados.filter((item) => String(item.aula?.docturma_id) === String(vinculoId)) : dados
     setChamadas(resposta)
     setSelecionadaId((atual) => atual || resposta[0]?.id || null)
     return resposta
-  }, [codTur])
+  }, [codTur, vinculoId])
 
   const carregarAulas = useCallback(async () => {
-    const resposta = await api.get(`/turmas/${codTur}/chamadas/aulas-disponiveis?data=${hojeLocal()}`)
+    const dados = await api.get(`/turmas/${codTur}/chamadas/aulas-disponiveis?data=${hojeLocal()}`)
+    const resposta = vinculoId ? dados.filter((item) => String(item.docturma_id) === String(vinculoId)) : dados
     setAulas(resposta)
     setAulaSelecionada((atual) => atual || (resposta.length === 1 ? String(resposta[0].aula_id) : ''))
     return resposta
-  }, [codTur])
+  }, [codTur, vinculoId])
 
   useEffect(() => {
     let ativo = true
+    const requisicaoTurma = ehProfessor
+      ? (vinculoId
+          ? api.get(`/portal-professor/turmas/${vinculoId}`).then((resposta) => ({ ...resposta.vinculo, nome: resposta.vinculo.turma_nome }))
+          : api.get('/portal-professor/turmas').then((itens) => {
+              const item = itens.find((vinculo) => String(vinculo.cod_tur) === String(codTur))
+              if (!item) throw new Error('Turma não encontrada')
+              return { ...item, nome: item.turma_nome }
+            }))
+      : api.get(`/turmas/${codTur}`)
     Promise.all([
-      api.get(`/turmas/${codTur}`),
+      requisicaoTurma,
       api.get(`/turmas/${codTur}/chamadas`),
       api.get(`/turmas/${codTur}/chamadas/aulas-disponiveis?data=${hojeLocal()}`),
     ])
       .then(([dadosTurma, dadosChamadas, dadosAulas]) => {
         if (!ativo) return
         setTurma(dadosTurma)
-        setChamadas(dadosChamadas)
-        setAulas(dadosAulas)
-        if (dadosAulas.length === 1) setAulaSelecionada(String(dadosAulas[0].aula_id))
-        setSelecionadaId(dadosChamadas[0]?.id || null)
+        const chamadasVisiveis = vinculoId ? dadosChamadas.filter((item) => String(item.aula?.docturma_id) === String(vinculoId)) : dadosChamadas
+        const aulasVisiveis = vinculoId ? dadosAulas.filter((item) => String(item.docturma_id) === String(vinculoId)) : dadosAulas
+        setChamadas(chamadasVisiveis)
+        setAulas(aulasVisiveis)
+        if (aulasVisiveis.length === 1) setAulaSelecionada(String(aulasVisiveis[0].aula_id))
+        setSelecionadaId(chamadasVisiveis[0]?.id || null)
       })
       .catch((e) => { if (ativo) setErro(e.message) })
       .finally(() => { if (ativo) setCarregando(false) })
     return () => { ativo = false }
-  }, [codTur])
+  }, [codTur, ehProfessor, vinculoId])
 
   const carregarDetalhe = useCallback(async (silencioso = false) => {
     if (!selecionadaId) {
@@ -173,7 +189,7 @@ export default function PresencasTurma() {
 
   return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate(`/turmas/${codTur}`)} sx={{ ...resetBotao, px: 0.5, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 14, color: TOV.caption, fontWeight: 700, mb: 1.5, '&:hover': { color: TOV.coral } }}>
+      <Box component="button" type="button" onClick={() => navigate(ehProfessor && vinculoId ? `/professor/turmas/${vinculoId}?aba=aulas` : `/turmas/${codTur}`)} sx={{ ...resetBotao, px: 0.5, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 14, color: TOV.caption, fontWeight: 700, mb: 1.5, '&:hover': { color: TOV.coral } }}>
         <ArrowBackRoundedIcon sx={{ fontSize: 18 }} /> Voltar para a turma
       </Box>
 
@@ -232,7 +248,7 @@ export default function PresencasTurma() {
 
       {chamadas.length > 0 && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '280px minmax(0,1fr)' }, gap: 2.5, alignItems: 'start' }}>
-          <Box component="aside" sx={{ ...cardSx, overflow: 'hidden' }}>
+          <Box component="aside" aria-label="Histórico de chamadas" sx={{ ...cardSx, overflow: 'hidden' }}>
             <Box sx={{ px: 2, py: 1.75, borderBottom: `1px solid ${TOV.divider}`, display: 'flex', alignItems: 'center', gap: 1 }}>
               <HistoryRoundedIcon sx={{ color: TOV.coral, fontSize: 21 }} />
               <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700 }}>Histórico de chamadas</Typography>

@@ -158,7 +158,8 @@ export default function Alunos() {
           aria-label="Filtrar alunos por status"
           sx={{
             display: 'flex', gap: 1.25, overflowX: 'auto', pb: 0.5,
-            mx: { xs: -1.5, sm: 0 }, px: { xs: 1.5, sm: 0 },
+            width: '100%', maxWidth: '100%', minWidth: 0,
+            overscrollBehaviorInline: 'contain',
             scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
           }}
         >

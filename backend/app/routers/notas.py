@@ -1,5 +1,7 @@
 """Lançamento de notas e faltas (tabela alunota, o histórico oficial)."""
 
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
@@ -10,8 +12,10 @@ from ..models import (
     Aluno,
     AluNota,
     AluTurma,
+    AtividadeAvaliativa,
     DocTurma,
     Materia,
+    NotaAtividade,
     Professor,
     Turma,
     Usuario,
@@ -20,6 +24,8 @@ from ..security import usuario_atual
 from ..services.faltas import faltas_do_vinculo, subconsulta_faltas
 
 router = APIRouter(prefix="/notas", tags=["notas"])
+
+TIPOS_ATIVIDADE = {"LEITURA", "TRABALHO", "PROVA"}
 
 
 class NotaInput(BaseModel):
@@ -42,6 +48,23 @@ class LancamentoAluno(BaseModel):
     falta: int | None = None
     dispensa: str | None = None
     cursou: str | None = "S"
+    notas_atividades: list["NotaAtividadeInput"] | None = None
+
+
+class NotaAtividadeInput(BaseModel):
+    atividade_id: int
+    nota: Decimal | None = None
+
+
+class AtividadeInput(BaseModel):
+    id: int | None = None
+    tipo: str
+    nome: str
+    valor_maximo: Decimal
+
+
+class ConfiguracaoAtividadesInput(BaseModel):
+    atividades: list[AtividadeInput]
 
 
 class LancamentoInput(BaseModel):
@@ -88,6 +111,49 @@ def _resolver_vinculo(db: Session, dados: LancamentoInput) -> DocTurma:
     return vinculo
 
 
+def _atividades_do_vinculo(
+    db: Session,
+    docturma_id: int,
+) -> list[AtividadeAvaliativa]:
+    return list(
+        db.scalars(
+            select(AtividadeAvaliativa)
+            .where(AtividadeAvaliativa.docturma_id == docturma_id)
+            .order_by(AtividadeAvaliativa.ordem, AtividadeAvaliativa.id)
+        )
+    )
+
+
+def _validar_decimal(
+    valor: Decimal,
+    *,
+    minimo: Decimal,
+    maximo: Decimal,
+    mensagem: str,
+) -> None:
+    if not valor.is_finite() or valor < minimo or valor > maximo:
+        raise HTTPException(400, mensagem)
+
+
+def _recalcular_notas_finais(db: Session, docturma_id: int) -> None:
+    """Sincroniza o histórico oficial depois da remoção de uma atividade."""
+    ids_atividades = select(AtividadeAvaliativa.id).where(
+        AtividadeAvaliativa.docturma_id == docturma_id
+    )
+    totais = {
+        cod_alu: total
+        for cod_alu, total in db.execute(
+            select(NotaAtividade.cod_alu, func.sum(NotaAtividade.nota))
+            .where(NotaAtividade.atividade_id.in_(ids_atividades))
+            .group_by(NotaAtividade.cod_alu)
+        )
+    }
+    for registro in db.scalars(
+        select(AluNota).where(AluNota.docturma_id == docturma_id)
+    ):
+        registro.nota = totais.get(registro.cod_alu)
+
+
 def _grade_vinculo(db: Session, vinculo: DocTurma) -> dict:
     alunos = list(
         db.execute(
@@ -113,6 +179,21 @@ def _grade_vinculo(db: Session, vinculo: DocTurma) -> dict:
         )
     }
     faltas = faltas_do_vinculo(db, vinculo.id)
+    atividades = _atividades_do_vinculo(db, vinculo.id)
+    ids_atividades = [atividade.id for atividade in atividades]
+    notas_atividades: dict[int, list[dict]] = {}
+    if ids_atividades:
+        for nota_atividade in db.scalars(
+            select(NotaAtividade).where(
+                NotaAtividade.atividade_id.in_(ids_atividades)
+            )
+        ):
+            notas_atividades.setdefault(nota_atividade.cod_alu, []).append(
+                {
+                    "atividade_id": nota_atividade.atividade_id,
+                    "nota": float(nota_atividade.nota),
+                }
+            )
     linhas = []
     for cod_alu, nome in alunos:
         n = notas.get(cod_alu)
@@ -125,12 +206,24 @@ def _grade_vinculo(db: Session, vinculo: DocTurma) -> dict:
                 "dispensa": n.dispensa if n else None,
                 "cursou": n.cursou if n else None,
                 "ja_lancado": n is not None,
+                "notas_atividades": notas_atividades.get(cod_alu, []),
             }
         )
-    return {"docturma": row_to_dict(vinculo), "alunos": linhas}
+    return {
+        "docturma": row_to_dict(vinculo),
+        "atividades": [row_to_dict(atividade) for atividade in atividades],
+        "alunos": linhas,
+    }
 
 
 def _validar_referencias_nota(db: Session, dados: NotaInput) -> None:
+    if dados.nota is not None:
+        _validar_decimal(
+            Decimal(str(dados.nota)),
+            minimo=Decimal("0"),
+            maximo=Decimal("10"),
+            mensagem="A nota deve ficar entre 0 e 10",
+        )
     if not db.get(Materia, dados.cod_mat):
         raise HTTPException(404, "Matéria não encontrada")
     if dados.cod_tur is not None and not db.get(Turma, dados.cod_tur):
@@ -201,6 +294,115 @@ def grade_por_vinculo(
     return _grade_vinculo(db, vinculo)
 
 
+@router.put("/vinculo/{docturma_id}/atividades")
+def configurar_atividades(
+    docturma_id: int,
+    dados: ConfiguracaoAtividadesInput,
+    db: Session = Depends(get_db),
+    user: str = Depends(usuario_atual),
+):
+    """Substitui a composição da nota, limitada a dez pontos no total."""
+    vinculo = db.get(DocTurma, docturma_id)
+    if not vinculo:
+        raise HTTPException(404, "Matéria da turma não encontrada")
+    _validar_acesso_vinculo(db, user, vinculo)
+
+    ids_informados = [item.id for item in dados.atividades if item.id is not None]
+    if len(ids_informados) != len(set(ids_informados)):
+        raise HTTPException(400, "A lista contém atividades repetidas")
+
+    total = Decimal("0")
+    for item in dados.atividades:
+        item.tipo = item.tipo.strip().upper()
+        item.nome = item.nome.strip()
+        if item.tipo not in TIPOS_ATIVIDADE:
+            raise HTTPException(
+                400,
+                "O tipo da atividade deve ser leitura, trabalho ou prova",
+            )
+        if not item.nome:
+            raise HTTPException(400, "Informe o nome de todas as atividades")
+        if len(item.nome) > 100:
+            raise HTTPException(400, "O nome da atividade deve ter até 100 caracteres")
+        _validar_decimal(
+            item.valor_maximo,
+            minimo=Decimal("0.01"),
+            maximo=Decimal("10"),
+            mensagem="O valor de cada atividade deve ficar entre 0,01 e 10",
+        )
+        total += item.valor_maximo
+    if total > Decimal("10"):
+        raise HTTPException(
+            400,
+            "A soma dos valores das atividades não pode ultrapassar 10 pontos",
+        )
+
+    existentes = {
+        atividade.id: atividade
+        for atividade in _atividades_do_vinculo(db, docturma_id)
+    }
+    ids_invalidos = sorted(set(ids_informados) - set(existentes))
+    if ids_invalidos:
+        raise HTTPException(
+            400,
+            "Uma ou mais atividades não pertencem a esta turma e matéria",
+        )
+    maiores_notas = {
+        atividade_id: maior_nota
+        for atividade_id, maior_nota in db.execute(
+            select(
+                NotaAtividade.atividade_id,
+                func.max(NotaAtividade.nota),
+            )
+            .where(NotaAtividade.atividade_id.in_(ids_informados))
+            .group_by(NotaAtividade.atividade_id)
+        )
+    } if ids_informados else {}
+    for item in dados.atividades:
+        maior_nota = maiores_notas.get(item.id)
+        if maior_nota is not None and maior_nota > item.valor_maximo:
+            raise HTTPException(
+                400,
+                f'A atividade "{item.nome}" possui nota lançada acima do novo valor máximo',
+            )
+
+    preservados: set[int] = set()
+    for ordem, item in enumerate(dados.atividades):
+        atividade = existentes.get(item.id) if item.id is not None else None
+        if atividade is None:
+            atividade = AtividadeAvaliativa(docturma_id=docturma_id)
+            db.add(atividade)
+        else:
+            preservados.add(atividade.id)
+        atividade.tipo = item.tipo
+        atividade.nome = item.nome
+        atividade.valor_maximo = item.valor_maximo
+        atividade.ordem = ordem
+
+    removidos = set(existentes) - preservados
+    if removidos:
+        db.execute(
+            NotaAtividade.__table__.delete().where(
+                NotaAtividade.atividade_id.in_(removidos)
+            )
+        )
+        db.execute(
+            AtividadeAvaliativa.__table__.delete().where(
+                AtividadeAvaliativa.id.in_(removidos)
+            )
+        )
+        _recalcular_notas_finais(db, docturma_id)
+    db.commit()
+    return {
+        "ok": True,
+        "total": float(total),
+        "atividades": [
+            row_to_dict(atividade)
+            for atividade in _atividades_do_vinculo(db, docturma_id)
+        ],
+    }
+
+
 @router.post("/lancar")
 def lancar(
     dados: LancamentoInput,
@@ -246,6 +448,56 @@ def lancar(
             )
         )
     } if codigos_alunos else {}
+    tem_notas_parciais = any(
+        lanc.notas_atividades is not None for lanc in dados.alunos
+    )
+    atividades = (
+        _atividades_do_vinculo(db, vinculo.id) if tem_notas_parciais else []
+    )
+    atividades_por_id = {atividade.id: atividade for atividade in atividades}
+    ids_atividades = list(atividades_por_id)
+    notas_parciais = {
+        (registro.atividade_id, registro.cod_alu): registro
+        for registro in db.scalars(
+            select(NotaAtividade).where(
+                NotaAtividade.atividade_id.in_(ids_atividades),
+                NotaAtividade.cod_alu.in_(codigos_alunos),
+            )
+        )
+    } if ids_atividades and codigos_alunos else {}
+
+    for lanc in dados.alunos:
+        if lanc.nota is not None:
+            _validar_decimal(
+                Decimal(str(lanc.nota)),
+                minimo=Decimal("0"),
+                maximo=Decimal("10"),
+                mensagem="A nota final deve ficar entre 0 e 10",
+            )
+        if lanc.notas_atividades is None:
+            continue
+        ids_lancados = [item.atividade_id for item in lanc.notas_atividades]
+        if len(ids_lancados) != len(set(ids_lancados)):
+            raise HTTPException(400, "O aluno possui uma atividade repetida")
+        if set(ids_lancados) - set(atividades_por_id):
+            raise HTTPException(
+                400,
+                "Uma ou mais atividades não pertencem a esta turma e matéria",
+            )
+        for nota_atividade in lanc.notas_atividades:
+            if nota_atividade.nota is None:
+                continue
+            atividade = atividades_por_id[nota_atividade.atividade_id]
+            _validar_decimal(
+                nota_atividade.nota,
+                minimo=Decimal("0"),
+                maximo=atividade.valor_maximo,
+                mensagem=(
+                    f'A nota de "{atividade.nome}" deve ficar entre 0 e '
+                    f"{atividade.valor_maximo}"
+                ),
+            )
+
     faltas = faltas_do_vinculo(db, vinculo.id)
     atualizados = criados = 0
     for lanc in dados.alunos:
@@ -256,7 +508,33 @@ def lancar(
             registro = AluNota(cod_alu=lanc.cod_alu)
             db.add(registro)
             criados += 1
-        registro.nota = lanc.nota
+        if lanc.notas_atividades is None:
+            registro.nota = lanc.nota
+        else:
+            for item in lanc.notas_atividades:
+                chave = (item.atividade_id, lanc.cod_alu)
+                nota_parcial = notas_parciais.get(chave)
+                if item.nota is None:
+                    if nota_parcial is not None:
+                        db.delete(nota_parcial)
+                        notas_parciais.pop(chave)
+                    continue
+                if nota_parcial is None:
+                    nota_parcial = NotaAtividade(
+                        atividade_id=item.atividade_id,
+                        cod_alu=lanc.cod_alu,
+                        nota=item.nota,
+                    )
+                    db.add(nota_parcial)
+                    notas_parciais[chave] = nota_parcial
+                else:
+                    nota_parcial.nota = item.nota
+            valores = [
+                nota_parcial.nota
+                for (atividade_id, cod_alu), nota_parcial in notas_parciais.items()
+                if cod_alu == lanc.cod_alu and atividade_id in atividades_por_id
+            ]
+            registro.nota = sum(valores, Decimal("0")) if valores else None
         registro.docturma_id = vinculo.id
         registro.cod_tur = vinculo.cod_tur
         registro.cod_mat = vinculo.cod_mat
@@ -388,6 +666,16 @@ def excluir_lancamento(
     usuario = _usuario_logado(db, user)
     if usuario and (usuario.perfil or "").upper() == "PROFESSOR":
         raise HTTPException(403, "Use a grade da sua turma para lançar notas")
+    if registro.docturma_id is not None:
+        ids_atividades = select(AtividadeAvaliativa.id).where(
+            AtividadeAvaliativa.docturma_id == registro.docturma_id
+        )
+        db.execute(
+            NotaAtividade.__table__.delete().where(
+                NotaAtividade.atividade_id.in_(ids_atividades),
+                NotaAtividade.cod_alu == registro.cod_alu,
+            )
+        )
     db.delete(registro)
     db.commit()
     return {"ok": True}

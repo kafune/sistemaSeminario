@@ -6,7 +6,8 @@ import {
 } from '@mui/material'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { CabecalhoPagina, SkeletonCards, resetBotao, useDialogoTelaCheia } from '../ui'
+import { CabecalhoPagina, DialogoConfirmacao, EstadoErro, SkeletonCards, resetBotao, useDialogoTelaCheia } from '../ui'
+import { useClearUnsavedChanges, useDirtyForm } from '../UnsavedChanges'
 
 function mesAno(iso) {
   if (!iso) return null
@@ -51,11 +52,25 @@ function CardTurma({ turma, onClick }) {
 export default function Turmas() {
   const [turmas, setTurmas] = useState(null)
   const [form, setForm] = useState(null)
+  const [confirmarFecharForm, setConfirmarFecharForm] = useState(false)
   const [msg, setMsg] = useState('')
   const navigate = useNavigate()
   const telaCheia = useDialogoTelaCheia()
+  const formAlterado = useDirtyForm(!!form, form, 'Há dados da turma que ainda não foram salvos.')
+  const liberarProtecao = useClearUnsavedChanges()
+
+  function abrirForm() {
+    setForm({ nome: '' })
+    setConfirmarFecharForm(false)
+  }
+
+  function fecharForm() {
+    if (formAlterado) setConfirmarFecharForm(true)
+    else setForm(null)
+  }
 
   function carregar() {
+    setMsg('')
     api.getCached('/turmas').then(setTurmas).catch((e) => setMsg(e.message))
   }
   useEffect(() => { carregar() }, [])
@@ -66,6 +81,7 @@ export default function Turmas() {
     setSalvando(true)
     try {
       const criada = await api.post('/turmas', form)
+      liberarProtecao()
       setForm(null)
       navigate(`/turmas/${criada.cod_tur}`)
     } catch (e) {
@@ -82,11 +98,12 @@ export default function Turmas() {
       <CabecalhoPagina
         titulo="Turmas"
         subtitulo={turmas ? `${turmas.length} ${turmas.length === 1 ? 'turma' : 'turmas'} · ${cursos} ${cursos === 1 ? 'curso' : 'cursos'}` : ' '}
-        acoes={<Button variant="contained" onClick={() => setForm({ nome: '' })} sx={{ height: 46 }}>+ Nova turma</Button>}
+        acoes={<Button variant="contained" onClick={abrirForm} sx={{ height: 46 }}>+ Nova turma</Button>}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', lg: 'repeat(3,1fr)' }, gap: '18px' }}>
-        {!turmas && <SkeletonCards quantidade={3} altura={200} sx={{ display: 'contents' }} />}
+        {!turmas && msg && <EstadoErro titulo="Não foi possível carregar as turmas" descricao={msg} onTentarNovamente={carregar} sx={{ gridColumn: '1 / -1' }} />}
+        {!turmas && !msg && <SkeletonCards quantidade={3} altura={200} sx={{ display: 'contents' }} />}
         {turmas && turmas.map((t) => (
           <CardTurma key={t.cod_tur} turma={t} onClick={() => navigate(`/turmas/${t.cod_tur}`)} />
         ))}
@@ -94,7 +111,7 @@ export default function Turmas() {
           <Box
             component="button"
             type="button"
-            onClick={() => setForm({ nome: '' })}
+            onClick={abrirForm}
             sx={{
               ...resetBotao,
               bgcolor: 'transparent', border: `1px dashed #C8BDB4`, borderRadius: `${TOV.radiusMd}px`, p: '26px 28px',
@@ -110,7 +127,7 @@ export default function Turmas() {
         )}
       </Box>
 
-      <Dialog open={!!form} onClose={() => setForm(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
+      <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         <DialogTitle>Nova turma</DialogTitle>
         <DialogContent>
           {form && (
@@ -137,14 +154,24 @@ export default function Turmas() {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
-          <Button onClick={() => setForm(null)} variant="outlined" disabled={salvando}>Cancelar</Button>
-          <Button variant="contained" onClick={salvar} disabled={!form?.nome || salvando}>
+          <Button onClick={fecharForm} variant="outlined" disabled={salvando}>Cancelar</Button>
+          <Button variant="contained" onClick={salvar} disabled={!form?.nome?.trim() || salvando}>
             {salvando ? 'Salvando…' : 'Salvar'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={!!msg} autoHideDuration={6000} onClose={() => setMsg('')}>
+      <DialogoConfirmacao
+        aberto={confirmarFecharForm}
+        titulo="Descartar nova turma?"
+        descricao="As informações preenchidas serão perdidas."
+        rotuloConfirmar="Descartar"
+        processando={false}
+        onConfirmar={() => { setConfirmarFecharForm(false); setForm(null) }}
+        onFechar={() => setConfirmarFecharForm(false)}
+      />
+
+      <Snackbar open={!!msg && !!turmas} autoHideDuration={6000} onClose={() => setMsg('')}>
         <Alert severity="error" onClose={() => setMsg('')}>{msg}</Alert>
       </Snackbar>
     </Box>

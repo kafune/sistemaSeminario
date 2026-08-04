@@ -190,7 +190,7 @@ function PreviewMensagem({ conteudo, texto }) {
         <Box component="audio" controls src={conteudo.arquivo.url} sx={{ width: '100%', maxWidth: 280, mb: 1 }} />
       )}
       {tipo === 'carousel' && (
-        <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', mb: 1, maxWidth: 330 }}>
+        <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', overscrollBehaviorInline: 'contain', width: '100%', maxWidth: 330, minWidth: 0, mb: 1 }}>
           {conteudo.carousel?.map((cartao, indice) => (
             <Box key={indice} sx={{ flex: '0 0 190px', bgcolor: 'rgba(255,255,255,.62)', borderRadius: 1.5, overflow: 'hidden' }}>
               {cartao.arquivo?.url && <Box component="img" src={cartao.arquivo.url} alt="" sx={{ width: '100%', height: 105, objectFit: 'cover' }} />}
@@ -665,7 +665,7 @@ function Compositor({
           : !!mensagem.trim() && cartoes.length >= 2 && cartoes.every((c) => c.texto.trim() && c.arquivo && c.botoes.some((b) => b.texto.trim() && b.valor.trim()))
 
   return (
-    <Box sx={{ ...cardSx, p: { xs: 2.5, md: '28px 30px' } }}>
+    <Box sx={{ ...cardSx, p: { xs: 2.5, md: '28px 30px' }, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2.5 }}>
         <Box>
           <Eyebrow sx={{ color: TOV.coral }}>{disparoEdicao ? `Editar agendamento #${disparoEdicao.id}` : 'Novo disparo'}</Eyebrow>
@@ -884,8 +884,8 @@ function Compositor({
               </>
             )}
           </Box>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1.15fr .85fr' }, gap: 2.5 }}>
-            <Box>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0,1fr)', lg: 'minmax(0,1.15fr) minmax(0,.85fr)' }, gap: 2.5, minWidth: 0 }}>
+            <Box sx={{ minWidth: 0 }}>
               <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
                 {TIPOS.map(([valor, label]) => (
                   <Chip
@@ -924,12 +924,12 @@ function Compositor({
               )}
               {tipoMensagem === 'button' && <EditorBotoes botoes={botoes} onChange={setBotoes} />}
               {tipoMensagem === 'poll' && (
-                <Box sx={{ mt: 2 }}>
+                <Box sx={{ mt: 2, minWidth: 0, maxWidth: '100%' }}>
                   <Typography sx={{ fontWeight: 700, fontSize: 14, mb: 1 }}>Opções da enquete</Typography>
                   {opcoesEnquete.map((opcao, indice) => (
                     <Box key={indice} sx={{ display: 'flex', gap: 1, mb: 1 }}>
                       <TextField fullWidth size="small" label={`Opção ${indice + 1}`} value={opcao} onChange={(e) => setOpcoesEnquete(opcoesEnquete.map((o, i) => i === indice ? e.target.value : o))} />
-                      {opcoesEnquete.length > 2 && <IconButton onClick={() => setOpcoesEnquete(opcoesEnquete.filter((_, i) => i !== indice))}><DeleteIcon /></IconButton>}
+                      {opcoesEnquete.length > 2 && <IconButton aria-label={`Remover opção ${indice + 1}`} onClick={() => setOpcoesEnquete(opcoesEnquete.filter((_, i) => i !== indice))}><DeleteIcon /></IconButton>}
                     </Box>
                   ))}
                   <Button size="small" startIcon={<AddIcon />} disabled={opcoesEnquete.length >= 12} onClick={() => setOpcoesEnquete([...opcoesEnquete, ''])}>Adicionar opção</Button>
@@ -942,19 +942,19 @@ function Compositor({
                 </Box>
               )}
               {tipoMensagem === 'carousel' && (
-                <Box sx={{ mt: 2 }}>
+                <Box sx={{ mt: 2, minWidth: 0, maxWidth: '100%' }}>
                   <Typography sx={{ fontWeight: 700, fontSize: 14, mb: 1 }}>Cartões do carrossel</Typography>
                   {cartoes.map((cartao, indice) => (
-                    <Box key={indice} sx={{ bgcolor: TOV.offwhite, borderRadius: 2, p: 2, mb: 1.5 }}>
+                    <Box key={indice} sx={{ bgcolor: TOV.offwhite, borderRadius: 2, p: 2, mb: 1.5, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                         <Typography sx={{ fontWeight: 700 }}>Cartão {indice + 1}</Typography>
-                        {cartoes.length > 2 && <IconButton size="small" onClick={() => setCartoes(cartoes.filter((_, i) => i !== indice))}><DeleteIcon fontSize="small" /></IconButton>}
+                        {cartoes.length > 2 && <IconButton size="small" aria-label={`Remover cartão ${indice + 1}`} onClick={() => setCartoes(cartoes.filter((_, i) => i !== indice))}><DeleteIcon fontSize="small" /></IconButton>}
                       </Box>
                       <Button component="label" size="small" startIcon={<UploadFileIcon />}>
                         {cartao.arquivo ? 'Trocar imagem' : 'Enviar imagem'}
                         <input hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => subirArquivo(e.target.files?.[0], (item) => setCartoes(cartoes.map((c, i) => i === indice ? { ...c, arquivo: item } : c)))} />
                       </Button>
-                      {cartao.arquivo && <Typography sx={{ display: 'inline', ml: 1, fontSize: 11, color: TOV.caption }}>{cartao.arquivo.nome}</Typography>}
+                      {cartao.arquivo && <Typography sx={{ display: 'block', mt: 0.75, minWidth: 0, fontSize: 11, color: TOV.caption, overflowWrap: 'anywhere' }}>{cartao.arquivo.nome}</Typography>}
                       <TextField fullWidth multiline minRows={2} size="small" label="Texto do cartão" value={cartao.texto} onChange={(e) => setCartoes(cartoes.map((c, i) => i === indice ? { ...c, texto: e.target.value } : c))} sx={{ mt: 1.5 }} />
                       <EditorBotoes botoes={cartao.botoes} onChange={(valor) => setCartoes(cartoes.map((c, i) => i === indice ? { ...c, botoes: valor } : c))} />
                     </Box>

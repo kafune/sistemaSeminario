@@ -17,6 +17,7 @@ import { api, baixarArquivo } from '../api'
 import { TOV } from '../theme'
 import { CabecalhoPagina, DialogoConfirmacao, cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
 import CalendarioGrade, { CalendarioAgenda, intervaloGrade, isoLocal } from './CalendarioGrade'
+import { useDirtyForm } from '../UnsavedChanges'
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
 const FORM_VAZIO = {
@@ -83,6 +84,7 @@ export default function Calendario() {
   const [vinculos, setVinculos] = useState([])
   const [filtros, setFiltros] = useState({ cod_tur: '', cod_mat: '', cod_pro: '' })
   const [dialogo, setDialogo] = useState(false)
+  const [confirmarFecharForm, setConfirmarFecharForm] = useState(false)
   const [editando, setEditando] = useState(null)
   const [form, setForm] = useState(FORM_VAZIO)
   const [salvando, setSalvando] = useState(false)
@@ -99,6 +101,12 @@ export default function Calendario() {
   const [filtrosAbertos, setFiltrosAbertos] = useState(false)
   const telaCheia = useDialogoTelaCheia()
   const telaDesktop = useTelaDesktop()
+  const formAlterado = useDirtyForm(dialogo, form, 'Há dados da aula que ainda não foram salvos.')
+
+  function fecharDialogo() {
+    if (formAlterado) setConfirmarFecharForm(true)
+    else setDialogo(false)
+  }
 
   const carregar = useCallback(() => {
     const periodo = intervaloGrade(mes)
@@ -123,6 +131,7 @@ export default function Calendario() {
     setEditando(null)
     setForm({ ...FORM_VAZIO, data })
     setDialogo(true)
+    setConfirmarFecharForm(false)
   }
 
   function abrirEdicao(aula) {
@@ -134,6 +143,7 @@ export default function Calendario() {
       status: aula.status, repetir_ate: '',
     })
     setDialogo(true)
+    setConfirmarFecharForm(false)
   }
 
   async function salvar() {
@@ -453,7 +463,7 @@ export default function Calendario() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={dialogo} onClose={() => setDialogo(false)} maxWidth="md" fullWidth fullScreen={telaCheia}>
+      <Dialog open={dialogo} onClose={salvando ? undefined : fecharDialogo} maxWidth="md" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{editando ? 'Editar aula' : 'Nova aula'}</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5, mt: 1 }}>
@@ -476,10 +486,20 @@ export default function Calendario() {
         </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
           {editando && <Button color="error" onClick={() => setExcluir(editando)} sx={{ mr: 'auto' }}>Excluir</Button>}
-          <Button variant="outlined" onClick={() => setDialogo(false)} disabled={salvando}>Cancelar</Button>
+          <Button variant="outlined" onClick={fecharDialogo} disabled={salvando}>Cancelar</Button>
           <Button variant="contained" onClick={salvar} disabled={!form.docturma_id || !form.data || salvando}>{salvando ? 'Salvando…' : 'Salvar'}</Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacao
+        aberto={confirmarFecharForm}
+        titulo="Descartar alterações?"
+        descricao="As informações preenchidas sobre a aula serão perdidas."
+        rotuloConfirmar="Descartar"
+        processando={false}
+        onConfirmar={() => { setConfirmarFecharForm(false); setDialogo(false) }}
+        onFechar={() => setConfirmarFecharForm(false)}
+      />
 
       <DialogoConfirmacao aberto={!!excluir} titulo="Excluir aula" descricao="Excluir esta aula do calendário?" processando={false} onConfirmar={confirmarExclusao} onFechar={() => setExcluir(null)} />
       <DialogoConfirmacao

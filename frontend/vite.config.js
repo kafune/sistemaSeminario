@@ -16,6 +16,7 @@ export default defineConfig({
           'index.html',
           'manifest.webmanifest',
           'assets/index-*.{js,css}',
+          'assets/router-*.js',
           'assets/*.woff2',
           '**/*.{svg,png,ico}',
         ],
@@ -45,5 +46,15 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('/node_modules/react-router') || id.includes('/node_modules/@remix-run/router')) return 'router'
+          return undefined
+        },
+      },
+    },
   },
 })

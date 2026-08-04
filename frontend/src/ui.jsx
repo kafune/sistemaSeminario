@@ -3,6 +3,7 @@ import {
   Typography, useMediaQuery, useTheme,
 } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import { TOV } from './theme'
 
 export const resetBotao = {
@@ -296,6 +297,32 @@ export function EstadoVazio({
       {descricao && <Typography sx={{ mt: 0.75, maxWidth: 480, fontSize: 13.5 }}>{descricao}</Typography>}
       {acao && <Box sx={{ mt: 2 }}>{acao}</Box>}
     </Box>
+  )
+}
+
+export function EstadoErro({
+  titulo = 'Não foi possível carregar',
+  descricao = 'Confira sua conexão e tente novamente.',
+  onTentarNovamente,
+  sx,
+}) {
+  return (
+    <Superficie role="alert" sx={{ p: { xs: 2.5, sm: 3.5 }, ...sx }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+        <Box aria-hidden="true" sx={{ width: 44, height: 44, flex: '0 0 44px', display: 'grid', placeItems: 'center', borderRadius: '12px', bgcolor: TOV.dangerTint, color: TOV.danger }}>
+          <ErrorOutlineIcon />
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h3" sx={{ fontSize: 18 }}>{titulo}</Typography>
+          <Typography sx={{ mt: 0.75, color: TOV.caption, fontSize: 14 }}>{descricao}</Typography>
+          {onTentarNovamente && (
+            <Button variant="outlined" size="small" onClick={onTentarNovamente} sx={{ mt: 2 }}>
+              Tentar novamente
+            </Button>
+          )}
+        </Box>
+      </Box>
+    </Superficie>
   )
 }
 

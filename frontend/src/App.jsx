@@ -62,8 +62,8 @@ function Protegida({ children, perfis }) {
 
 export default function App() {
   return (
-    <ErrorBoundary>
-      <OfflineScreen>
+    <OfflineScreen>
+      <ErrorBoundary>
         <Suspense fallback={<CarregandoRota />}>
           <Routes>
           <Route path="/login" element={<Login />} />
@@ -92,7 +92,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
-      </OfflineScreen>
-    </ErrorBoundary>
+      </ErrorBoundary>
+    </OfflineScreen>
   )
 }

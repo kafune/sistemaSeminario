@@ -4,7 +4,7 @@ import {
   TextField, Typography,
 } from '@mui/material'
 import { api, abrirArquivo, enviarArquivoEBaixar } from '../api'
-import { TOV } from '../theme'
+import { TOV, focusRing, focusRingOnDark } from '../theme'
 import { CabecalhoPagina, Eyebrow, Superficie, cardSx, resetBotao } from '../ui'
 
 /** Botão-pílula usado nas ações dos cards (fundo off-white ou escuro). */
@@ -18,14 +18,14 @@ function PillAcao({ children, escuro, disabled, carregando, onClick }) {
       aria-busy={carregando || undefined}
       sx={{
         ...resetBotao,
-        px: 2.25, py: 1.4, borderRadius: '10px', fontWeight: 600, fontSize: 14,
+        px: 2.5, py: 1.5, borderRadius: TOV.radiusSm, fontWeight: 600, fontSize: TOV.type.body,
         textAlign: 'center', flexGrow: { xs: 1, sm: 0 }, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 1,
         opacity: disabled ? 0.45 : 1, userSelect: 'none',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        bgcolor: escuro ? TOV.ink : TOV.offwhite, color: escuro ? '#fff' : TOV.ink,
-        transition: 'background-color .15s, color .15s',
-        '&:hover': disabled ? {} : { bgcolor: escuro ? '#000' : TOV.coralTint, color: escuro ? '#fff' : TOV.coral },
-        '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2, borderRadius: '10px' },
+        bgcolor: escuro ? TOV.ink : TOV.offwhite, color: escuro ? TOV.onDark : TOV.ink,
+        transition: `background-color ${TOV.transitionFast}, color ${TOV.transitionFast}`,
+        '&:hover': disabled ? {} : { bgcolor: escuro ? TOV.graphite : TOV.coralTint, color: escuro ? TOV.onDark : TOV.coral },
+        '&:focus-visible': escuro ? focusRingOnDark : focusRing,
       }}
     >
       {carregando && <CircularProgress size={16} color="inherit" />}
@@ -36,7 +36,7 @@ function PillAcao({ children, escuro, disabled, carregando, onClick }) {
 
 function IconeCard({ letra, cor, bg }) {
   return (
-    <Box sx={{ width: 44, height: 44, borderRadius: '12px', bgcolor: bg, color: cor, fontFamily: TOV.fontHead, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+    <Box sx={{ width: 44, height: 44, borderRadius: TOV.radiusMd, bgcolor: bg, color: cor, fontFamily: TOV.fontHead, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: TOV.type.titleSm }}>
       {letra}
     </Box>
   )
@@ -118,12 +118,12 @@ export default function Relatorios() {
         descricao="Gere boletins, históricos, diários e listas em PDF — individualmente, por turma ou em lote."
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: '18px', mb: '18px' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2.5, mb: 2.5 }}>
         {/* Por aluno */}
-        <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 30px' } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.25 }}>
-            <IconeCard letra="A" cor={TOV.coral} bg={TOV.coralTint} />
-            <Typography variant="h3" sx={{ fontSize: 22 }}>Por aluno</Typography>
+          <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 32px' } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
+            <IconeCard letra="A" cor={TOV.graphite} bg={TOV.slateTint} />
+            <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>Por aluno</Typography>
           </Box>
           <Autocomplete
             size="small" options={opcoes} value={aluno}
@@ -133,9 +133,9 @@ export default function Relatorios() {
             onChange={(_, v) => setAluno(v)}
             renderInput={(p) => <TextField {...p} label="Buscar aluno por nome ou matrícula" />}
             noOptionsText="Digite ao menos 2 letras"
-            sx={{ mb: 2.25 }}
+            sx={{ mb: 2.5 }}
           />
-          <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
             <PillAcao disabled={!aluno || !!abrindo} carregando={abrindo === `/relatorios/boletim/${aluno?.cod_alu}`} onClick={() => abrir(`/relatorios/boletim/${aluno.cod_alu}`)}>Boletim</PillAcao>
             <PillAcao disabled={!aluno || !!abrindo} carregando={abrindo === `/relatorios/historico/${aluno?.cod_alu}`} onClick={() => abrir(`/relatorios/historico/${aluno.cod_alu}`)}>Histórico escolar</PillAcao>
             <PillAcao disabled={!aluno || !!abrindo} carregando={abrindo === `/relatorios/ficha-aluno/${aluno?.cod_alu}`} onClick={() => abrir(`/relatorios/ficha-aluno/${aluno.cod_alu}`)}>Ficha cadastral</PillAcao>
@@ -143,18 +143,18 @@ export default function Relatorios() {
         </Box>
 
         {/* Por turma */}
-        <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 30px' } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.25 }}>
+          <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 32px' } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
             <IconeCard letra="T" cor={TOV.slate} bg={TOV.slateTint} />
-            <Typography variant="h3" sx={{ fontSize: 22 }}>Por turma</Typography>
+            <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>Por turma</Typography>
           </Box>
           <TextField select fullWidth size="small" label="Turma" value={codTur}
-            onChange={(e) => setCodTur(e.target.value)} sx={{ mb: 2.25 }}>
+            onChange={(e) => setCodTur(e.target.value)} sx={{ mb: 2.5 }}>
             {turmas.map((t) => (
               <MenuItem key={t.cod_tur} value={t.cod_tur}>{t.nome} ({t.qtd_alunos} alunos)</MenuItem>
             ))}
           </TextField>
-          <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
             <PillAcao disabled={!codTur || !!abrindo} carregando={abrindo === `/relatorios/lista-turma/${codTur}`} onClick={() => abrir(`/relatorios/lista-turma/${codTur}`)}>Lista de alunos</PillAcao>
             <PillAcao disabled={!codTur || !!abrindo} carregando={abrindo === `/relatorios/diario/${codTur}`} onClick={() => abrir(`/relatorios/diario/${codTur}`)}>Diário de classe</PillAcao>
             <PillAcao escuro disabled={!codTur || !!abrindo} carregando={abrindo === `/relatorios/boletim-turma/${codTur}`} onClick={() => abrir(`/relatorios/boletim-turma/${codTur}`)}>Boletins da turma (ZIP)</PillAcao>
@@ -164,21 +164,21 @@ export default function Relatorios() {
 
       {/* Geração em lote */}
       <Superficie variante="inverse" sx={{ p: { xs: 2.5, md: 4 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 3.75, flexWrap: 'wrap' }}>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 4, flexWrap: 'wrap' }}>
           <Box sx={{ maxWidth: 520 }}>
-            <Eyebrow sx={{ color: TOV.coralOnDark, mb: 1.25 }}>Geração em lote</Eyebrow>
-            <Typography variant="h3" sx={{ fontSize: 26, color: '#fff', mb: 1.5 }}>Vários PDFs de uma vez</Typography>
-            <Typography sx={{ fontSize: 15, lineHeight: 1.5, color: 'rgba(255,255,255,.75)' }}>
-              Envie um arquivo <b style={{ color: '#fff' }}>.csv</b>, <b style={{ color: '#fff' }}>.xlsx</b> ou <b style={{ color: '#fff' }}>.xls</b> com
+            <Eyebrow sx={{ color: TOV.onDarkMuted, mb: 1.5 }}>Geração em lote</Eyebrow>
+            <Typography variant="h3" sx={{ fontSize: TOV.type.title, color: TOV.onDark, mb: 1.5 }}>Vários PDFs de uma vez</Typography>
+            <Typography sx={{ fontSize: TOV.type.bodyLg, lineHeight: 1.5, color: TOV.onDarkBody }}>
+              Envie um arquivo <b style={{ color: TOV.onDark }}>.csv</b>, <b style={{ color: TOV.onDark }}>.xlsx</b> ou <b style={{ color: TOV.onDark }}>.xls</b> com
               as matrículas ou nomes na primeira coluna. Geramos um ZIP com um PDF por aluno.
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, mt: 2.25 }}>
+            <Box sx={{ display: 'flex', gap: 1, mt: 2.5 }}>
               {[['boletim', 'Boletins'], ['historico', 'Históricos']].map(([v, label]) => (
                 <Box component="button" type="button" key={v} onClick={() => setTipoLote(v)}
                   aria-pressed={tipoLote === v}
-                  sx={{ ...resetBotao, px: 2, py: 1.1, borderRadius: 999, fontWeight: tipoLote === v ? 700 : 600, fontSize: 13,
-                    bgcolor: tipoLote === v ? TOV.coral : 'rgba(255,255,255,.12)', color: tipoLote === v ? '#fff' : 'rgba(255,255,255,.85)',
-                    '&:focus-visible': { outline: '2px solid #fff', outlineOffset: 2, borderRadius: 999 } }}>
+                  sx={{ ...resetBotao, px: 2, py: 1, borderRadius: TOV.radiusFull, fontWeight: tipoLote === v ? 700 : 600, fontSize: TOV.type.bodySm,
+                    bgcolor: tipoLote === v ? TOV.coral : TOV.onDarkSurfaceHover, color: tipoLote === v ? TOV.onDark : TOV.onDarkStrong,
+                    '&:focus-visible': focusRingOnDark }}>
                   {label}
                 </Box>
               ))}
@@ -197,15 +197,15 @@ export default function Relatorios() {
               onDrop={soltarArquivo}
               aria-describedby="ajuda-arquivo-relatorios"
               sx={{
-                ...resetBotao, width: '100%', flex: 1, border: `2px dashed ${arrastando ? TOV.coralOnDark : 'rgba(255,255,255,.45)'}`,
-                borderRadius: '14px', p: { xs: '24px 16px', sm: '34px' }, display: 'flex', flexDirection: 'column', alignItems: 'center',
-                justifyContent: 'center', textAlign: 'center', cursor: 'pointer', transition: 'border-color .15s',
-                bgcolor: arrastando ? 'rgba(241,73,73,.08)' : 'transparent', color: '#fff',
+                ...resetBotao, width: '100%', flex: 1, border: `2px dashed ${arrastando ? TOV.coralOnDark : TOV.onDarkBorderStrong}`,
+                borderRadius: TOV.radiusMd, p: { xs: '24px 16px', sm: '32px' }, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', textAlign: 'center', cursor: 'pointer', transition: `border-color ${TOV.transitionFast}`,
+                bgcolor: arrastando ? TOV.coralTint : 'transparent', color: TOV.onDark,
               }}
             >
-              <Box aria-hidden="true" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 40, color: TOV.coralOnDark }}>↑</Box>
-              <Box sx={{ fontWeight: 700, fontSize: 16, mt: 1 }}>Selecionar ou arrastar arquivo</Box>
-              <Box id="ajuda-arquivo-relatorios" sx={{ fontSize: 13, color: arquivoLote ? '#fff' : 'rgba(255,255,255,.78)', mt: 0.75, overflowWrap: 'anywhere' }}>
+              <Box aria-hidden="true" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.display, color: TOV.onDarkStrong }}>↑</Box>
+              <Box sx={{ fontWeight: 700, fontSize: TOV.type.bodyLg, mt: 1 }}>Selecionar ou arrastar arquivo</Box>
+              <Box id="ajuda-arquivo-relatorios" sx={{ fontSize: TOV.type.bodySm, color: arquivoLote ? TOV.onDark : TOV.onDarkBody, mt: 1, overflowWrap: 'anywhere' }}>
                 {arquivoLote ? arquivoLote.name : 'CSV ou planilha; use Enter para escolher'}
               </Box>
             </Box>

@@ -19,16 +19,16 @@ import AlunoForm from './AlunoForm'
 function Campo({ rotulo, valor }) {
   return (
     <Box>
-      <Box sx={{ fontSize: 12, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: '5px' }}>{rotulo}</Box>
-      <Box sx={{ fontSize: 15, fontWeight: 600, overflowWrap: 'anywhere' }}>{valor || '—'}</Box>
+      <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: 0.5 }}>{rotulo}</Box>
+      <Box sx={{ fontSize: TOV.type.body, fontWeight: 600, overflowWrap: 'anywhere' }}>{valor || '—'}</Box>
     </Box>
   )
 }
 
 function CardResumo({ rotulo, valor, escuro, offwhite, corValor }) {
   return (
-    <Superficie variante={escuro ? 'inverse' : 'base'} sx={{ bgcolor: offwhite ? TOV.canvas : undefined, p: '22px 24px' }}>
-      <Box sx={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.2em', color: escuro ? 'rgba(255,255,255,.55)' : TOV.caption, fontFamily: TOV.fontHead, fontWeight: 600 }}>{rotulo}</Box>
+    <Superficie variante={escuro ? 'inverse' : 'base'} sx={{ bgcolor: offwhite ? TOV.canvas : undefined, p: '24px' }}>
+      <Box sx={{ fontSize: TOV.type.overline, textTransform: 'uppercase', letterSpacing: '.2em', color: escuro ? TOV.onDarkMuted : TOV.caption, fontFamily: TOV.fontHead, fontWeight: 600 }}>{rotulo}</Box>
       <Box sx={{ fontFamily: escuro ? TOV.fontHead : TOV.fontBody, fontWeight: 700, fontSize: escuro ? 44 : 17, mt: 1, color: corValor }}>{valor}</Box>
     </Superficie>
   )
@@ -113,33 +113,33 @@ export default function AlunoDetalhe() {
 
   return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate('/alunos')} sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}>
+      <Box component="button" type="button" onClick={() => navigate('/alunos')} sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: TOV.type.body, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}>
         ‹ Voltar para Alunos
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 3.25 }}>
-        <Box sx={{ display: 'flex', gap: { xs: 2, md: 2.75 }, alignItems: 'center', minWidth: 0 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 3.5 }}>
+        <Box sx={{ display: 'flex', gap: { xs: 2, md: 3 }, alignItems: 'center', minWidth: 0 }}>
           <AvatarIniciais
             nome={aluno.nome}
             sx={{
               width: { xs: 56, md: 76 }, height: { xs: 56, md: 76 },
-              flex: { xs: '0 0 56px', md: '0 0 76px' }, fontSize: { xs: 22, md: 30 },
-              borderRadius: { xs: '14px', md: '20px' },
+              flex: { xs: '0 0 56px', md: '0 0 76px' }, fontSize: { xs: TOV.type.titleSm, md: TOV.type.displaySm },
+              borderRadius: { xs: TOV.radiusMd, md: TOV.radiusXl },
             }}
           />
           <Box>
             <Regua sx={{ mb: 1.5 }} />
-            <Typography variant="h1" sx={{ fontSize: { xs: 24, sm: 30, md: 40 }, overflowWrap: 'anywhere' }}>{aluno.nome}</Typography>
-            <Box sx={{ mt: 1.25, display: 'flex', gap: 1.25, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Box component="span" sx={{ px: 1.75, py: '5px', bgcolor: TOV.ink, color: '#fff', borderRadius: 999, fontSize: 13, fontWeight: 600 }}>Matrícula {aluno.cod_alu}</Box>
-              <PilulaStatus status={aluno.status} sx={{ fontSize: 13 }} />
-              {aluno.turma_nome && <Typography component="span" sx={{ fontSize: 14, color: TOV.caption }}>{aluno.turma_nome}</Typography>}
+            <Typography variant="h1" sx={{ fontSize: { xs: TOV.type.title, sm: TOV.type.displaySm, md: TOV.type.display }, overflowWrap: 'anywhere' }}>{aluno.nome}</Typography>
+            <Box sx={{ mt: 1.5, display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Box component="span" sx={{ px: 2, py: 0.5, bgcolor: TOV.ink, color: TOV.onDark, borderRadius: TOV.radiusFull, fontSize: TOV.type.bodySm, fontWeight: 600 }}>Matrícula {aluno.cod_alu}</Box>
+              <PilulaStatus status={aluno.status} sx={{ fontSize: TOV.type.bodySm }} />
+              {aluno.turma_nome && <Typography component="span" sx={{ fontSize: TOV.type.body, color: TOV.caption }}>{aluno.turma_nome}</Typography>}
             </Box>
           </Box>
         </Box>
         <Box
           sx={{
-            display: 'flex', gap: 1.25, flexWrap: 'wrap', justifyContent: 'flex-end',
+            display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'flex-end',
             width: { xs: '100%', md: 'auto' },
             '& > button': { flex: { xs: '1 1 42%', sm: '0 0 auto' } },
           }}
@@ -158,7 +158,7 @@ export default function AlunoDetalhe() {
             disabled={!whatsapp}
             startIcon={<WhatsAppIcon />}
             onClick={() => window.open(`https://wa.me/${whatsapp}`, '_blank', 'noopener,noreferrer')}
-            sx={{ height: 46, color: '#17613A', borderColor: '#17613A' }}
+            sx={{ height: 48, color: TOV.success, borderColor: TOV.success }}
           >
             WhatsApp
           </Button>
@@ -180,10 +180,10 @@ export default function AlunoDetalhe() {
         </Box>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 300px' }, gap: '18px', mb: 2.5 }}>
-        <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 30px' } }}>
-          <Typography variant="h3" sx={{ fontSize: 20, mb: 2.75 }}>Dados cadastrais</Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)' }, gap: { xs: '18px 16px', md: '22px 26px' } }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 300px' }, gap: 2.5, mb: 2.5 }}>
+      <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 32px' } }}>
+          <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 3 }}>Dados cadastrais</Typography>
+        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)' }, gap: { xs: '16px', md: '24px' } }}>
             <Campo rotulo="Nascimento" valor={aluno.dat_nas} />
             <Campo rotulo="CPF" valor={aluno.cpf} />
             <Campo rotulo="RG" valor={aluno.rg} />
@@ -203,19 +203,19 @@ export default function AlunoDetalhe() {
             <Campo rotulo="Cônjuge participante" valor={aluno.nome_conjuge} />
           </Box>
         </Box>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.75 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <CardResumo escuro rotulo="Média geral" valor={media != null ? media.toFixed(1).replace('.', ',') : '—'} />
           <CardResumo rotulo="Faltas acumuladas" valor={faltas} />
-          <CardResumo offwhite rotulo="Situação" valor={situacao} corValor={TOV.coral} />
+          <CardResumo offwhite rotulo="Situação" valor={situacao} corValor={TOV.graphite} />
         </Box>
       </Box>
 
       {/* Notas em cards — celular/tablet */}
       {!telaDesktop && <Box>
-        <Typography variant="h3" sx={{ fontSize: 20, mb: 1.5 }}>
-          Notas <Box component="span" sx={{ color: TOV.caption, fontSize: 15, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
+        <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 1.5 }}>
+          Notas <Box component="span" sx={{ color: TOV.caption, fontSize: TOV.type.body, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
         </Typography>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {notas.length === 0 && (
             <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhuma nota lançada.</CartaoLista>
           )}
@@ -223,16 +223,16 @@ export default function AlunoDetalhe() {
             <CartaoLista key={n.id}>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
                 <Box sx={{ minWidth: 0 }}>
-                  <Box sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3 }}>{n.materia_nome}</Box>
-                  <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>
+                  <Box sx={{ fontWeight: 700, fontSize: TOV.type.body, lineHeight: 1.3 }}>{n.materia_nome}</Box>
+                  <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>
                     {n.ano || '—'}{n.semestre ? ` · ${n.semestre}º semestre` : ''}
                   </Box>
                 </Box>
                 <Box sx={{ textAlign: 'center', flexShrink: 0 }}>
-                  <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 24, color: n.nota != null ? TOV.coral : TOV.caption }}>
+                  <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.title, color: n.nota != null ? TOV.ink : TOV.caption }}>
                     {n.nota != null ? String(n.nota).replace('.', ',') : 'N/C'}
                   </Box>
-                  <Box sx={{ fontSize: 11, color: TOV.caption, textTransform: 'uppercase', letterSpacing: '.08em' }}>nota</Box>
+                  <Box sx={{ fontSize: TOV.type.overline, color: TOV.caption, textTransform: 'uppercase', letterSpacing: '.08em' }}>nota</Box>
                 </Box>
               </Box>
               <LinhaCartao rotulo="Faltas" valor={n.falta != null ? String(n.falta) : '—'} />
@@ -245,9 +245,9 @@ export default function AlunoDetalhe() {
 
       {/* Tabela — desktop */}
       {telaDesktop && <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto' }}>
-        <Box sx={{ p: '22px 28px 4px' }}>
-          <Typography variant="h3" sx={{ fontSize: 20 }}>
-            Notas <Box component="span" sx={{ color: TOV.caption, fontSize: 15, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
+        <Box sx={{ p: '24px 28px 4px' }}>
+          <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>
+            Notas <Box component="span" sx={{ color: TOV.caption, fontSize: TOV.type.body, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
           </Typography>
         </Box>
         <Table sx={{ mt: 1, minWidth: 760 }}>
@@ -268,7 +268,7 @@ export default function AlunoDetalhe() {
             {notas.map((n) => (
               <TableRow key={n.id} hover>
                 <TableCell sx={{ fontWeight: 600 }}>{n.materia_nome}</TableCell>
-                <TableCell><Box component="span" sx={{ fontWeight: 700, color: n.nota != null ? TOV.coral : TOV.caption }}>{n.nota != null ? String(n.nota).replace('.', ',') : 'N/C'}</Box></TableCell>
+                <TableCell><Box component="span" sx={{ fontWeight: 700, color: n.nota != null ? TOV.ink : TOV.caption }}>{n.nota != null ? String(n.nota).replace('.', ',') : 'N/C'}</Box></TableCell>
                 <TableCell sx={{ color: TOV.slate }}>{n.falta ?? '—'}</TableCell>
                 <TableCell sx={{ color: TOV.slate }}>{n.ano || '—'}{n.semestre ? ` · ${n.semestre}º` : ''}</TableCell>
                 <TableCell sx={{ color: TOV.slate }}>{n.cursou === 'S' ? 'Sim' : n.cursou === 'N' ? 'Não' : (n.cursou || '—')}</TableCell>
@@ -280,7 +280,7 @@ export default function AlunoDetalhe() {
       </TableContainer>}
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-        <Button startIcon={<DeleteIcon />} color="error" onClick={() => setConfirmarExclusao(true)} sx={{ color: TOV.caption, '&:hover': { color: '#d32f2f', bgcolor: 'transparent' } }}>
+        <Button startIcon={<DeleteIcon />} color="error" onClick={() => setConfirmarExclusao(true)} sx={{ color: TOV.caption, '&:hover': { color: TOV.danger, bgcolor: 'transparent' } }}>
           Excluir aluno
         </Button>
       </Box>

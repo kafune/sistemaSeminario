@@ -89,16 +89,16 @@ export default function CalendarioPublico() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: TOV.offwhite }}>
-      <Box component="header" sx={{ bgcolor: TOV.graphite, color: '#fff', px: { xs: 2, md: 5 }, py: 2.25, borderTop: `3px solid ${TOV.coral}` }}>
+      <Box component="header" sx={{ bgcolor: TOV.graphite, color: TOV.onDark, px: { xs: 2, md: 5 }, py: 2.5, borderTop: `4px solid ${TOV.ink}` }}>
         <Box sx={{ maxWidth: 1240, mx: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', borderRadius: '12px', bgcolor: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.1)' }}>
-            <CalendarMonthIcon sx={{ fontSize: 22 }} />
+          <Box sx={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: TOV.onDarkSurface, border: `1px solid ${TOV.onDarkBorder}` }}>
+            <CalendarMonthIcon sx={{ fontSize: TOV.type.titleSm }} />
           </Box>
           <Box>
-            <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 23, lineHeight: 1.1 }}>
+            <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.title, lineHeight: 1.1 }}>
               Calendário de aulas
             </Typography>
-            <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,.64)' }}>Centro TOV de Formação Teológica</Typography>
+            <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.onDarkMuted }}>Centro TOV de Formação Teológica</Typography>
           </Box>
         </Box>
       </Box>
@@ -115,27 +115,27 @@ export default function CalendarioPublico() {
                 sx={{
                   ...cardSx, p: { xs: 2, sm: 2.5 }, mb: 2,
                   display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' },
-                  gap: 1.75, position: 'relative', overflow: 'hidden',
-                  '&::before': { content: '""', position: 'absolute', inset: '0 auto 0 0', width: 3, bgcolor: TOV.coral },
+                  gap: 2, position: 'relative', overflow: 'hidden',
+                  '&::before': { content: '""', position: 'absolute', inset: '0 auto 0 0', width: 3, bgcolor: TOV.graphite },
                 }}
               >
-                <Box sx={{ width: 50, height: 50, flex: '0 0 50px', display: 'grid', placeItems: 'center', borderRadius: '14px', bgcolor: TOV.coralTint, color: TOV.coral }}>
+                <Box sx={{ width: 52, height: 52, flex: '0 0 52px', display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: TOV.slateTint, color: TOV.graphite }}>
                   <SchoolOutlinedIcon />
                 </Box>
                 <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography variant="overline" sx={{ display: 'block', color: TOV.caption, mb: 0.25 }}>Agenda da sua turma</Typography>
-                  <Typography id="titulo-turma" component="h2" variant="h2" sx={{ fontSize: { xs: 24, sm: 29 }, overflowWrap: 'anywhere' }}>{turmaCompartilhada.nome}</Typography>
-                  <Typography sx={{ color: TOV.caption, fontSize: 13.5, mt: 0.5 }}>Datas, horários e conteúdos atualizados pela secretaria.</Typography>
+                  <Typography variant="overline" sx={{ display: 'block', color: TOV.caption, mb: 0.5 }}>Agenda da sua turma</Typography>
+                  <Typography id="titulo-turma" component="h2" variant="h2" sx={{ fontSize: { xs: TOV.type.title, sm: TOV.type.titleLg }, overflowWrap: 'anywhere' }}>{turmaCompartilhada.nome}</Typography>
+                  <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>Datas, horários e conteúdos atualizados pela secretaria.</Typography>
                 </Box>
-                <Box sx={{ display: { xs: 'none', sm: 'inline-flex' }, alignItems: 'center', gap: 0.75, px: 1.25, py: 0.75, borderRadius: 999, bgcolor: TOV.successTint, color: TOV.success, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                  <Box aria-hidden="true" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: TOV.success }} />
+                <Box sx={{ display: { xs: 'none', sm: 'inline-flex' }, alignItems: 'center', gap: 1, px: 1.5, py: 1, borderRadius: TOV.radiusFull, bgcolor: TOV.successTint, color: TOV.success, fontSize: TOV.type.caption, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  <Box aria-hidden="true" sx={{ width: 8, height: 8, borderRadius: TOV.radiusFull, bgcolor: TOV.success }} />
                   Agenda oficial
                 </Box>
               </Box>
             )}
 
             <Box sx={{ ...cardSx, p: 2, mb: 2 }}>
-              <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Button
                   variant="outlined"
                   startIcon={<FilterListIcon />}
@@ -169,7 +169,7 @@ export default function CalendarioPublico() {
 
             {!telaDesktop && <Box sx={{ position: 'relative', minHeight: 220 }}>
               {carregando && (
-                <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,.72)', borderRadius: '16px' }}>
+                <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: TOV.glassOverlay, borderRadius: TOV.radiusLg }}>
                   <CircularProgress size={34} />
                 </Box>
               )}
@@ -177,13 +177,13 @@ export default function CalendarioPublico() {
             </Box>}
             {telaDesktop && <Box sx={{ ...cardSx, overflowX: 'auto', position: 'relative', minHeight: 300 }}>
               {carregando && (
-                <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(255,255,255,.72)' }}>
+                <Box sx={{ position: 'absolute', inset: 0, zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: TOV.glassOverlay }}>
                   <CircularProgress size={34} />
                 </Box>
               )}
               <CalendarioGrade mes={mes} aulas={filtradas} onSelecionar={setSelecionada} />
             </Box>}
-            <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 1.5 }}>
+            <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 1.5 }}>
               Toque ou clique em uma aula para ver professor, horário, local e conteúdo.
             </Typography>
           </>

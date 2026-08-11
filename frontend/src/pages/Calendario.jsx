@@ -14,7 +14,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined'
 import { api, baixarArquivo } from '../api'
-import { TOV } from '../theme'
+import { TOV, focusRing } from '../theme'
 import { CabecalhoPagina, DialogoConfirmacao, cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
 import CalendarioGrade, { CalendarioAgenda, intervaloGrade, isoLocal } from './CalendarioGrade'
 import { useDirtyForm } from '../UnsavedChanges'
@@ -276,8 +276,8 @@ export default function Calendario() {
     <Box sx={{ minWidth: 0, maxWidth: '100%' }}>
       <CabecalhoPagina titulo="Calendário de aulas" subtitulo="Turmas, matérias e professores em uma única agenda" acoes={acoes} />
 
-      <Box sx={{ ...cardSx, p: 2.25, mb: 2 }}>
-        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', alignItems: 'center' }}>
+      <Box sx={{ ...cardSx, p: 2.5, mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
           <Button
             variant="outlined"
             startIcon={<FilterListIcon />}
@@ -313,15 +313,15 @@ export default function Calendario() {
       {telaDesktop && <Box sx={{ ...cardSx, overflowX: 'auto', mb: 2.5 }}>
         <CalendarioGrade mes={mes} aulas={aulas} onSelecionar={abrirEdicao} onNovo={abrirNovo} />
       </Box>}
-      {telaDesktop && <Typography sx={{ color: TOV.caption, fontSize: 13, mb: 3 }}>
+      {telaDesktop && <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mb: 3 }}>
         Dica: dê dois cliques em um dia vazio para cadastrar uma aula naquela data.
       </Typography>}
 
-      <Box sx={{ ...cardSx, p: { xs: 2.25, md: 3 }, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 3 }}>
+      <Box sx={{ ...cardSx, p: { xs: 2.5, md: 3 }, display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 3 }}>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="h3" sx={{ fontSize: 20, mb: 1 }}>Diário de classe em Excel</Typography>
-          <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2 }}>Selecione a turma e depois a matéria. As datas vêm das aulas cadastradas acima.</Typography>
-          <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', width: '100%', minWidth: 0 }}>
+          <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 1 }}>Diário de classe em Excel</Typography>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2 }}>Selecione a turma e depois a matéria. As datas vêm das aulas cadastradas acima.</Typography>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', width: '100%', minWidth: 0 }}>
             <TextField
               select
               size="small"
@@ -351,9 +351,9 @@ export default function Calendario() {
           </Box>
         </Box>
         <Box sx={{ minWidth: 0 }}>
-          <Typography variant="h3" sx={{ fontSize: 20, mb: 1 }}>Visualização para alunos</Typography>
-          <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2 }}>Escolha uma turma e envie ao grupo um link que abre somente as aulas dela.</Typography>
-          <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap' }}>
+          <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 1 }}>Visualização para alunos</Typography>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2 }}>Escolha uma turma e envie ao grupo um link que abre somente as aulas dela.</Typography>
+          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
             <Button variant="contained" startIcon={<ShareOutlinedIcon />} onClick={abrirCompartilhamento}>Escolher turma</Button>
             <Button variant="text" onClick={() => setConfirmarRenovacao(true)} disabled={preparandoLink || !tokenPublico}>Renovar acesso</Button>
           </Box>
@@ -361,9 +361,9 @@ export default function Calendario() {
       </Box>
 
       <Dialog open={compartilharAberto} onClose={() => setCompartilharAberto(false)} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle sx={{ pb: 0.75 }}>Compartilhar calendário</DialogTitle>
+        <DialogTitle sx={{ pb: 1 }}>Compartilhar calendário</DialogTitle>
         <DialogContent>
-          <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2.5 }}>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2.5 }}>
             Escolha a turma do grupo. O link abrirá uma agenda limpa, sem acesso a notas ou dados dos alunos.
           </Typography>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '280px minmax(0, 1fr)' }, gap: { xs: 2.5, md: 3 }, alignItems: 'start' }}>
@@ -372,8 +372,8 @@ export default function Calendario() {
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {!turmasCompartilhamento.length && (
                   <Box sx={{ p: 2, border: `1px dashed ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.offwhite }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: 14 }}>Nenhuma turma disponível</Typography>
-                    <Typography sx={{ color: TOV.caption, fontSize: 12.5, mt: 0.5 }}>Vincule uma matéria a uma turma para criar a agenda dela.</Typography>
+                    <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>Nenhuma turma disponível</Typography>
+                    <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5 }}>Vincule uma matéria a uma turma para criar a agenda dela.</Typography>
                   </Box>
                 )}
                 {turmasCompartilhamento.map((turma) => {
@@ -386,28 +386,28 @@ export default function Calendario() {
                       aria-pressed={selecionada}
                       onClick={() => setTurmaCompartilhamento(turma)}
                       sx={{
-                        appearance: 'none', width: '100%', minHeight: 72, p: 1.25,
+                        appearance: 'none', width: '100%', minHeight: 72, p: 1.5,
                         display: 'grid', gridTemplateColumns: '42px minmax(0, 1fr) 24px',
-                        alignItems: 'center', gap: 1.25, textAlign: 'left', cursor: 'pointer',
+                        alignItems: 'center', gap: 1.5, textAlign: 'left', cursor: 'pointer',
                         borderRadius: `${TOV.radiusSm}px`,
                         border: `1px solid ${selecionada ? TOV.coral : TOV.border}`,
                         bgcolor: selecionada ? TOV.coralTint : TOV.surface,
                         color: TOV.ink, font: 'inherit',
                         transition: `border-color ${TOV.durationFast} ${TOV.ease}, background-color ${TOV.durationFast} ${TOV.ease}`,
                         '&:hover': { borderColor: selecionada ? TOV.coral : TOV.caption, bgcolor: selecionada ? TOV.coralTint : TOV.offwhite },
-                        '&:focus-visible': { outline: `3px solid ${TOV.coralTintStrong}`, outlineOffset: 2 },
+                        '&:focus-visible': focusRing,
                       }}
                     >
-                      <Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', borderRadius: '12px', bgcolor: selecionada ? TOV.coral : TOV.slateTint, color: selecionada ? '#fff' : TOV.graphite }}>
+                      <Box sx={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: selecionada ? TOV.coral : TOV.slateTint, color: selecionada ? TOV.onDark : TOV.graphite }}>
                         <SchoolOutlinedIcon fontSize="small" />
                       </Box>
                       <Box sx={{ minWidth: 0 }}>
                         <Typography component="span" sx={{ display: 'block', fontWeight: 700, lineHeight: 1.3, overflowWrap: 'anywhere' }}>{turma.nome}</Typography>
-                        <Typography component="span" sx={{ display: 'block', color: TOV.caption, fontSize: 12.5, mt: 0.25 }}>
+                        <Typography component="span" sx={{ display: 'block', color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5 }}>
                           {turma.qtdMaterias} {turma.qtdMaterias === 1 ? 'matéria' : 'matérias'}
                         </Typography>
                       </Box>
-                      {selecionada ? <CheckCircleOutlineIcon sx={{ color: TOV.coral, fontSize: 21 }} /> : <ChevronRightIcon sx={{ color: TOV.caption, fontSize: 21 }} />}
+                      {selecionada ? <CheckCircleOutlineIcon sx={{ color: TOV.coral, fontSize: TOV.type.titleSm }} /> : <ChevronRightIcon sx={{ color: TOV.caption, fontSize: TOV.type.titleSm }} />}
                     </Box>
                   )
                 })}
@@ -418,11 +418,11 @@ export default function Calendario() {
               <Typography variant="overline" sx={{ color: TOV.caption, display: 'block', mb: 1 }}>2. Compartilhe o link</Typography>
               {turmaCompartilhamento ? (
                 <Box sx={{ border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, overflow: 'hidden', bgcolor: TOV.surface }}>
-                  <Box sx={{ p: { xs: 2, sm: 2.5 }, bgcolor: TOV.graphite, color: '#fff', position: 'relative', overflow: 'hidden' }}>
-                    <Box aria-hidden="true" sx={{ position: 'absolute', width: 150, height: 150, borderRadius: '50%', bgcolor: 'rgba(255,255,255,.045)', right: -45, top: -75 }} />
-                    <Typography sx={{ color: 'rgba(255,255,255,.62)', fontSize: 12, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Agenda da turma</Typography>
-                    <Typography variant="h3" sx={{ fontSize: { xs: 23, sm: 27 }, mt: 0.5, color: '#fff', overflowWrap: 'anywhere' }}>{turmaCompartilhamento.nome}</Typography>
-                    <Typography sx={{ color: 'rgba(255,255,255,.68)', fontSize: 13.5, mt: 0.75 }}>Atualiza automaticamente quando as aulas forem alteradas.</Typography>
+                  <Box sx={{ p: { xs: 2, sm: 2.5 }, bgcolor: TOV.graphite, color: TOV.onDark, position: 'relative', overflow: 'hidden' }}>
+                    <Box aria-hidden="true" sx={{ position: 'absolute', width: 152, height: 152, borderRadius: TOV.radiusFull, bgcolor: TOV.onDarkDecoration, right: -48, top: -76 }} />
+                    <Typography sx={{ color: TOV.onDarkMuted, fontSize: TOV.type.caption, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Agenda da turma</Typography>
+                    <Typography variant="h3" sx={{ fontSize: { xs: TOV.type.title, sm: TOV.type.titleLg }, mt: 0.5, color: TOV.onDark, overflowWrap: 'anywhere' }}>{turmaCompartilhamento.nome}</Typography>
+                    <Typography sx={{ color: TOV.onDarkMuted, fontSize: TOV.type.body, mt: 1 }}>Atualiza automaticamente quando as aulas forem alteradas.</Typography>
                   </Box>
                   <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
                     <TextField
@@ -439,19 +439,19 @@ export default function Calendario() {
                       <Button variant="text" startIcon={<OpenInNewIcon />} onClick={abrirPreviaTurma} disabled={!linkTurma || preparandoLink}>Abrir prévia</Button>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, mt: 2, pt: 2, borderTop: `1px solid ${TOV.divider}` }}>
-                      <LinkIcon sx={{ color: TOV.success, fontSize: 19, mt: '1px' }} />
-                      <Typography sx={{ color: TOV.caption, fontSize: 12.5 }}>Você pode enviar este mesmo link no WhatsApp. Ele continuará mostrando a agenda atualizada da turma.</Typography>
+                      <LinkIcon sx={{ color: TOV.success, fontSize: TOV.type.titleSm, mt: 0.5 }} />
+                      <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>Você pode enviar este mesmo link no WhatsApp. Ele continuará mostrando a agenda atualizada da turma.</Typography>
                     </Box>
                   </Box>
                 </Box>
               ) : (
                 <Box sx={{ minHeight: 250, display: 'grid', placeItems: 'center', textAlign: 'center', border: `1px dashed ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, p: 3, bgcolor: TOV.offwhite }}>
                   <Box>
-                    <Box sx={{ width: 52, height: 52, display: 'grid', placeItems: 'center', mx: 'auto', mb: 1.5, borderRadius: '50%', bgcolor: TOV.surface, color: TOV.coral, border: `1px solid ${TOV.border}` }}>
+                    <Box sx={{ width: 52, height: 52, display: 'grid', placeItems: 'center', mx: 'auto', mb: 1.5, borderRadius: TOV.radiusFull, bgcolor: TOV.surface, color: TOV.graphite, border: `1px solid ${TOV.border}` }}>
                       <SchoolOutlinedIcon />
                     </Box>
-                    <Typography variant="h3" sx={{ fontSize: 18 }}>Selecione uma turma</Typography>
-                    <Typography sx={{ color: TOV.caption, fontSize: 13.5, mt: 0.75, maxWidth: 310 }}>O link específico aparecerá aqui, pronto para enviar ao grupo.</Typography>
+                    <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Selecione uma turma</Typography>
+                    <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 1, maxWidth: 310 }}>O link específico aparecerá aqui, pronto para enviar ao grupo.</Typography>
                   </Box>
                 </Box>
               )}

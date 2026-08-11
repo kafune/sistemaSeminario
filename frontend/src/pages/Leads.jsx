@@ -249,17 +249,17 @@ export default function Leads() {
         </TextField>
       </BarraFiltros>
 
-      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {!carregando && dados.itens.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhum lead encontrado" descricao="Revise os filtros ou adicione um novo contato." /></CartaoLista>
         )}
         {dados.itens.map((lead) => (
           <CartaoLista key={lead.id} onClick={() => editar(lead)}>
-            <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'center' }}>
-              <AvatarIniciais nome={lead.nome} tamanho={42} radius={12} fontSize={15} />
+            <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+              <AvatarIniciais nome={lead.nome} tamanho={40} radius={TOV.radiusMd} fontSize={TOV.type.body} />
               <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography sx={{ fontWeight: 700 }}>{lead.nome}</Typography>
-                <Typography sx={{ color: TOV.caption, fontSize: 12 }}>{lead.telefone}</Typography>
+                <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>{lead.telefone}</Typography>
               </Box>
               <PilulaConsentimento status={lead.consentimento_status} />
             </Box>
@@ -288,18 +288,18 @@ export default function Leads() {
             {dados.itens.map((lead) => (
               <TableRow key={lead.id} hover>
                 <TableCell>
-                  <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{lead.nome}</Typography>
-                  <Typography sx={{ color: TOV.caption, fontSize: 12 }}>{lead.telefone}{lead.e_mail ? ` · ${lead.e_mail}` : ''}</Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>{lead.nome}</Typography>
+                  <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>{lead.telefone}{lead.e_mail ? ` · ${lead.e_mail}` : ''}</Typography>
                 </TableCell>
                 <TableCell>
-                  <Typography sx={{ fontSize: 14 }}>{lead.campanha || '—'}</Typography>
-                  <Typography sx={{ color: TOV.caption, fontSize: 12 }}>{lead.origem || 'Origem não informada'}</Typography>
+                  <Typography sx={{ fontSize: TOV.type.body }}>{lead.campanha || '—'}</Typography>
+                  <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>{lead.origem || 'Origem não informada'}</Typography>
                 </TableCell>
                 <TableCell sx={{ color: TOV.slate, maxWidth: 200 }}>{lead.tags || '—'}</TableCell>
                 <TableCell><Chip size="small" variant="outlined" label={FUNIL[lead.status_funil] || lead.status_funil} /></TableCell>
                 <TableCell><PilulaConsentimento status={lead.consentimento_status} /></TableCell>
                 <TableCell align="right">
-                  <Box component="button" type="button" onClick={() => editar(lead)} sx={{ ...resetBotao, fontSize: 13, fontWeight: 700, color: TOV.caption, '&:hover': { color: TOV.coral } }}>Editar</Box>
+                  <Box component="button" type="button" onClick={() => editar(lead)} sx={{ ...resetBotao, fontSize: TOV.type.bodySm, fontWeight: 700, color: TOV.caption, '&:hover': { color: TOV.coral } }}>Editar</Box>
                 </TableCell>
               </TableRow>
             ))}
@@ -307,8 +307,8 @@ export default function Leads() {
         </Table>
       </TableContainer>}
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2.25, gap: 1, flexWrap: 'wrap' }}>
-        <Typography sx={{ color: TOV.caption, fontSize: 14 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2.5, gap: 1, flexWrap: 'wrap' }}>
+        <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body }}>
           {dados.total ? `Mostrando ${intervalo[0]}–${intervalo[1]} de ${dados.total}` : 'Nenhum registro'}
         </Typography>
         <Pagination count={totalPaginas} page={pagina} onChange={(_, valor) => setPagina(valor)} shape="rounded" siblingCount={0} />

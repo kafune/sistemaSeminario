@@ -59,14 +59,14 @@ export default function AutocadastroProfessor() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: TOV.offwhite }}>
-      <Box component="header" sx={{ bgcolor: TOV.graphite, color: '#fff', px: 2, py: 2.25, borderTop: `3px solid ${TOV.coral}` }}>
+      <Box component="header" sx={{ bgcolor: TOV.graphite, color: TOV.onDark, px: 2, py: 2.5, borderTop: `4px solid ${TOV.ink}` }}>
         <Box sx={{ maxWidth: 900, mx: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <SchoolIcon />
           <Box>
-            <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 23, lineHeight: 1.1 }}>
+            <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.title, lineHeight: 1.1 }}>
               Cadastro de professor
             </Typography>
-            <Typography sx={{ fontSize: 13, color: 'rgba(255,255,255,.64)' }}>Centro TOV de Formação Teológica</Typography>
+            <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.onDarkMuted }}>Centro TOV de Formação Teológica</Typography>
           </Box>
         </Box>
       </Box>
@@ -84,8 +84,8 @@ export default function AutocadastroProfessor() {
 
         {!validando && concluido && (
           <Box sx={{ ...cardSx, p: { xs: 3, md: 5 }, textAlign: 'center' }}>
-            <CheckCircleIcon sx={{ color: TOV.coral, fontSize: 58, mb: 1.5 }} />
-            <Typography component="h2" variant="h1" sx={{ fontSize: { xs: 28, md: 36 }, mb: 1.5 }}>
+            <CheckCircleIcon sx={{ color: TOV.success, fontSize: TOV.type.heroLg, mb: 1.5 }} />
+            <Typography component="h2" variant="h1" sx={{ fontSize: { xs: TOV.type.titleLg, md: TOV.type.displaySm }, mb: 1.5 }}>
               Cadastro enviado
             </Typography>
             <Typography sx={{ color: TOV.caption, maxWidth: 560, mx: 'auto' }}>
@@ -96,14 +96,14 @@ export default function AutocadastroProfessor() {
 
         {!validando && conviteValido && !concluido && (
           <Box component="form" onSubmit={enviar} sx={{ ...cardSx, p: { xs: 2, sm: 3, md: 4 } }}>
-            <Typography component="h2" variant="h1" sx={{ fontSize: { xs: 27, md: 34 }, mb: 1 }}>
+            <Typography component="h2" variant="h1" sx={{ fontSize: { xs: TOV.type.titleLg, md: TOV.type.displaySm }, mb: 1 }}>
               Complete seus dados
             </Typography>
             <Typography sx={{ color: TOV.caption, mb: 3 }}>
               As matérias oficiais serão atribuídas depois pela secretaria.
             </Typography>
 
-            <Typography variant="h3" sx={{ fontSize: 18, mb: 1.5 }}>Contato</Typography>
+            <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>Contato</Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5, mb: 3 }}>
               <TextField required label="Nome completo" value={form.nome} onChange={(e) => alterar('nome', e.target.value)} sx={{ gridColumn: { sm: '1 / -1' } }} inputProps={{ maxLength: 100 }} />
               <TextField required type="email" label="E-mail" value={form.e_mail} onChange={(e) => alterar('e_mail', e.target.value)} inputProps={{ maxLength: 100 }} />
@@ -111,7 +111,7 @@ export default function AutocadastroProfessor() {
               <TextField label="Outro telefone" value={form.fone1} onChange={(e) => alterar('fone1', e.target.value)} inputProps={{ maxLength: 20 }} />
             </Box>
 
-            <Typography variant="h3" sx={{ fontSize: 18, mb: 1.5 }}>Áreas de atuação</Typography>
+            <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>Áreas de atuação</Typography>
             <TextField
               required fullWidth multiline minRows={4}
               label="Quais matérias ou áreas você está apto(a) a lecionar?"
@@ -123,7 +123,7 @@ export default function AutocadastroProfessor() {
               sx={{ mb: 3 }}
             />
 
-            <Typography variant="h3" sx={{ fontSize: 18, mb: 1.5 }}>Dados pessoais</Typography>
+            <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>Dados pessoais</Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 1.5, mb: 3 }}>
               <TextField type="date" label="Data de nascimento" value={form.dat_nas} onChange={(e) => alterar('dat_nas', e.target.value)} InputLabelProps={{ shrink: true }} />
               <TextField select label="Sexo" value={form.sexo} onChange={(e) => alterar('sexo', e.target.value)}>
@@ -137,7 +137,7 @@ export default function AutocadastroProfessor() {
               <TextField label="Nacionalidade" value={form.nacionalidade} onChange={(e) => alterar('nacionalidade', e.target.value)} inputProps={{ maxLength: 30 }} />
             </Box>
 
-            <Typography variant="h3" sx={{ fontSize: 18, mb: 1.5 }}>Endereço</Typography>
+            <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>Endereço</Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(6, 1fr)' }, gap: 1.5, mb: 3 }}>
               <TextField label="Endereço" value={form.endereco} onChange={(e) => alterar('endereco', e.target.value)} inputProps={{ maxLength: 100 }} sx={{ gridColumn: { sm: 'span 4' } }} />
               <TextField label="Complemento" value={form.complemento} onChange={(e) => alterar('complemento', e.target.value)} inputProps={{ maxLength: 60 }} sx={{ gridColumn: { sm: 'span 2' } }} />

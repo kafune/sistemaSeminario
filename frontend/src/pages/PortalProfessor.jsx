@@ -8,7 +8,7 @@ import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlined'
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import { api } from '../api'
-import { TOV } from '../theme'
+import { TOV, focusRing } from '../theme'
 import { CabecalhoPagina, CardMetrica, EstadoVazio, StatusBadge, cardSx } from '../ui'
 
 function dataLonga(data) {
@@ -25,23 +25,23 @@ function CartaoTurma({ turma, onAbrir }) {
   return (
     <Box component="article" sx={{ ...cardSx, p: 2.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-        <Box aria-hidden="true" sx={{ width: 46, height: 46, display: 'grid', placeItems: 'center', borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.coralTint, color: TOV.coral, flexShrink: 0 }}><MenuBookOutlinedIcon /></Box>
+        <Box aria-hidden="true" sx={{ width: 46, height: 46, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusSm, bgcolor: TOV.slateTint, color: TOV.graphite, flexShrink: 0 }}><MenuBookOutlinedIcon /></Box>
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-          <Typography component="h2" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 19, overflowWrap: 'anywhere' }}>{turma.materia_nome}</Typography>
-          <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 0.25 }}>{[turma.turma_nome, periodo].filter(Boolean).join(' · ')}</Typography>
+          <Typography component="h2" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.section, overflowWrap: 'anywhere' }}>{turma.materia_nome}</Typography>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>{[turma.turma_nome, periodo].filter(Boolean).join(' · ')}</Typography>
         </Box>
         {turma.notas_pendentes > 0
           ? <StatusBadge tom="warning">{turma.notas_pendentes} pendente(s)</StatusBadge>
           : <StatusBadge tom="success">Notas completas</StatusBadge>}
       </Box>
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1, py: 1.25, borderTop: `1px solid ${TOV.divider}`, borderBottom: `1px solid ${TOV.divider}` }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1, py: 1.5, borderTop: `1px solid ${TOV.divider}`, borderBottom: `1px solid ${TOV.divider}` }}>
         {[['Alunos', turma.total_alunos], ['Aulas', turma.total_aulas], ['Materiais', turma.total_materiais]].map(([rotulo, valor]) => (
-          <Box key={rotulo} sx={{ textAlign: 'center' }}><Typography sx={{ fontWeight: 800 }}>{valor}</Typography><Typography sx={{ color: TOV.caption, fontSize: 11 }}>{rotulo}</Typography></Box>
+          <Box key={rotulo} sx={{ textAlign: 'center' }}><Typography sx={{ fontWeight: 700 }}>{valor}</Typography><Typography sx={{ color: TOV.caption, fontSize: TOV.type.overline }}>{rotulo}</Typography></Box>
         ))}
       </Box>
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', color: TOV.caption, fontSize: 12, mb: 0.75 }}><span>Notas lançadas</span><span>{progresso}%</span></Box>
-        <Box sx={{ height: 6, bgcolor: TOV.slateTint, borderRadius: 99, overflow: 'hidden' }}><Box sx={{ width: `${progresso}%`, height: '100%', bgcolor: progresso === 100 ? TOV.success : TOV.coral, borderRadius: 99 }} /></Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', color: TOV.caption, fontSize: TOV.type.caption, mb: 1 }}><span>Notas lançadas</span><span>{progresso}%</span></Box>
+        <Box sx={{ height: 8, bgcolor: TOV.slateTint, borderRadius: TOV.radiusFull, overflow: 'hidden' }}><Box sx={{ width: `${progresso}%`, height: '100%', bgcolor: progresso === 100 ? TOV.success : TOV.graphite, borderRadius: TOV.radiusFull }} /></Box>
       </Box>
       <Button variant="outlined" endIcon={<ArrowForwardRoundedIcon />} onClick={onAbrir} sx={{ mt: 'auto', alignSelf: 'flex-start' }}>Abrir turma</Button>
     </Box>
@@ -77,17 +77,17 @@ export default function PortalProfessor({ somenteTurmas = false }) {
           </Box>
 
           <Box sx={{ ...cardSx, p: { xs: 2, sm: 2.5 }, mb: 3 }}>
-            <Typography variant="h2" sx={{ fontSize: 22, mb: 2 }}>Próximas aulas</Typography>
+            <Typography variant="h2" sx={{ fontSize: TOV.type.titleSm, mb: 2 }}>Próximas aulas</Typography>
             {dados.proximas_aulas.length === 0 ? (
               <EstadoVazio compacto titulo="Nenhuma aula próxima" descricao="As aulas cadastradas no calendário aparecerão aqui." />
             ) : (
-              <Box sx={{ display: 'flex', gap: 1.25, overflowX: 'auto', pb: 0.5 }}>
+              <Box sx={{ display: 'flex', gap: 1.5, overflowX: 'auto', pb: 0.5 }}>
                 {dados.proximas_aulas.map((aula) => (
-                  <Box key={aula.id} component="button" type="button" onClick={() => navigate(`/professor/turmas/${aula.docturma_id}?aba=aulas`)} sx={{ appearance: 'none', font: 'inherit', color: 'inherit', textAlign: 'left', cursor: 'pointer', minWidth: { xs: 240, sm: 280 }, p: 2, border: `1px solid ${TOV.border}`, bgcolor: aula.data === new Date().toISOString().slice(0, 10) ? TOV.coralTint : TOV.surface, borderRadius: `${TOV.radiusSm}px`, '&:hover': { borderColor: TOV.coral }, '&:focus-visible': { outline: `3px solid ${TOV.coralTintStrong}`, outlineOffset: 2 } }}>
-                    <Typography sx={{ color: TOV.coral, fontWeight: 800, fontSize: 12, textTransform: 'uppercase' }}>{dataLonga(aula.data)}{aula.hora_inicio ? ` · ${aula.hora_inicio}` : ''}</Typography>
-                    <Typography sx={{ fontWeight: 800, mt: 0.75 }}>{aula.materia_nome}</Typography>
-                    <Typography sx={{ color: TOV.caption, fontSize: 13 }}>{aula.turma_nome}</Typography>
-                    <Typography sx={{ color: TOV.slate, fontSize: 13, mt: 1 }}>{aula.tema || 'Tema ainda não informado'}</Typography>
+                  <Box key={aula.id} component="button" type="button" onClick={() => navigate(`/professor/turmas/${aula.docturma_id}?aba=aulas`)} sx={{ appearance: 'none', font: 'inherit', color: 'inherit', textAlign: 'left', cursor: 'pointer', minWidth: { xs: 240, sm: 280 }, p: 2, border: `1px solid ${TOV.border}`, bgcolor: aula.data === new Date().toISOString().slice(0, 10) ? TOV.coralTint : TOV.surface, borderRadius: TOV.radiusSm, '&:hover': { borderColor: TOV.coral }, '&:focus-visible': focusRing }}>
+                    <Typography sx={{ color: aula.data === new Date().toISOString().slice(0, 10) ? TOV.coral : TOV.caption, fontWeight: 700, fontSize: TOV.type.caption, textTransform: 'uppercase' }}>{dataLonga(aula.data)}{aula.hora_inicio ? ` · ${aula.hora_inicio}` : ''}</Typography>
+                    <Typography sx={{ fontWeight: 700, mt: 1 }}>{aula.materia_nome}</Typography>
+                    <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>{aula.turma_nome}</Typography>
+                    <Typography sx={{ color: TOV.slate, fontSize: TOV.type.bodySm, mt: 1 }}>{aula.tema || 'Tema ainda não informado'}</Typography>
                   </Box>
                 ))}
               </Box>
@@ -97,7 +97,7 @@ export default function PortalProfessor({ somenteTurmas = false }) {
       )}
 
       <Box sx={{ display: 'flex', alignItems: 'end', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
-        <Box><Typography variant="h2" sx={{ fontSize: 23 }}>{somenteTurmas ? 'Turmas e matérias' : 'Minhas turmas'}</Typography>{!somenteTurmas && <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 0.5 }}>Entre em uma turma para trabalhar com aulas, notas e materiais.</Typography>}</Box>
+        <Box><Typography variant="h2" sx={{ fontSize: TOV.type.title }}>{somenteTurmas ? 'Turmas e matérias' : 'Minhas turmas'}</Typography>{!somenteTurmas && <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>Entre em uma turma para trabalhar com aulas, notas e materiais.</Typography>}</Box>
         {!somenteTurmas && <Button onClick={() => navigate('/professor/turmas')}>Ver todas</Button>}
       </Box>
       {dados.turmas.length === 0 ? (

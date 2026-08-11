@@ -18,7 +18,7 @@ const VAZIA = { NOME: '', APELIDO: '', area: '', observa: '' }
 
 function PilulaArea({ area }) {
   return (
-    <Box component="span" sx={{ display: 'inline-block', px: 1.5, py: '5px', bgcolor: TOV.offwhite, color: TOV.slate, borderRadius: 999, fontSize: 12, fontWeight: 600 }}>
+    <Box component="span" sx={{ display: 'inline-block', px: 1.5, py: 0.5, bgcolor: TOV.offwhite, color: TOV.slate, borderRadius: TOV.radiusFull, fontSize: TOV.type.caption, fontWeight: 600 }}>
       {area || 'Sem área'}
     </Box>
   )
@@ -99,7 +99,7 @@ export default function Materias() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ color: TOV.caption, fontSize: 20 }} />
+                <SearchIcon sx={{ color: TOV.caption, fontSize: TOV.type.titleSm }} />
               </InputAdornment>
             ),
           }}
@@ -120,7 +120,7 @@ export default function Materias() {
       />
 
       {/* Lista em cards — celular/tablet */}
-      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {carregando && materias.length === 0 && (
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
@@ -131,8 +131,8 @@ export default function Materias() {
           <CartaoLista key={m.cod_mat}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
               <Box sx={{ minWidth: 0 }}>
-                <Box sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3 }}>{m.NOME?.trim()}</Box>
-                <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>MT-{String(m.cod_mat).padStart(2, '0')}</Box>
+                <Box sx={{ fontWeight: 700, fontSize: TOV.type.bodyLg, lineHeight: 1.3 }}>{m.NOME?.trim()}</Box>
+                <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>MT-{String(m.cod_mat).padStart(2, '0')}</Box>
               </Box>
               <PilulaArea area={m.area?.trim()} />
             </Box>
@@ -171,14 +171,14 @@ export default function Materias() {
                 <TableCell sx={{ color: TOV.slate }}>{m.APELIDO?.trim() || '—'}</TableCell>
                 <TableCell><PilulaArea area={m.area?.trim()} /></TableCell>
                 <TableCell align="right">
-                  <Box sx={{ display: 'inline-flex', gap: 1.25, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
+                  <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption }}>
                     <Box component="button" type="button" onClick={() => abrirForm(m)}
                       sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
                       Editar
                     </Box>
                     <Box component="span" sx={{ color: TOV.border }}>·</Box>
                     <Box component="button" type="button" onClick={() => setParaExcluir(m)}
-                      sx={{ ...resetBotao, '&:hover': { color: '#d32f2f' } }}>
+                      sx={{ ...resetBotao, '&:hover': { color: TOV.danger } }}>
                       Excluir
                     </Box>
                   </Box>

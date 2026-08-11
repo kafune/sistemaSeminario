@@ -42,30 +42,30 @@ export default function Login() {
       {/* Painel institucional (esconde no mobile) */}
       <Box
         sx={{
-          flex: '0 0 min(46vw, 640px)', maxWidth: 640, bgcolor: TOV.graphite, color: '#fff',
+          flex: '0 0 min(46vw, 640px)', maxWidth: 640, bgcolor: TOV.graphite, color: TOV.onDark,
           p: { md: '52px 48px', lg: '64px 60px' }, display: { xs: 'none', md: 'flex' }, flexDirection: 'column',
           justifyContent: 'space-between', position: 'relative', overflow: 'hidden',
-          borderRight: '1px solid rgba(25,27,29,.18)',
+          borderRight: `1px solid ${TOV.darkHairline}`,
         }}
       >
-        <Box aria-hidden="true" sx={{ position: 'absolute', inset: 0, opacity: 0.26, backgroundImage: 'linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
-        <Box aria-hidden="true" sx={{ position: 'absolute', top: 0, left: 0, width: 4, height: '38%', bgcolor: TOV.coralBright }} />
+        <Box aria-hidden="true" sx={{ position: 'absolute', inset: 0, opacity: 0.26, backgroundImage: TOV.loginGrid, backgroundSize: '44px 44px' }} />
+        <Box aria-hidden="true" sx={{ position: 'absolute', top: 0, left: 0, width: 4, height: '38%', bgcolor: TOV.onDarkBorderHover }} />
         <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, position: 'relative' }}>
-          <Typography component="span" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 32, letterSpacing: '-.035em' }}>TOV</Typography>
-          <Typography component="span" sx={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>acadêmico</Typography>
+          <Typography component="span" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.displaySm, letterSpacing: '-.035em' }}>TOV</Typography>
+          <Typography component="span" sx={{ fontSize: TOV.type.bodySm, color: TOV.onDarkMuted }}>acadêmico</Typography>
         </Box>
         <Box sx={{ position: 'relative' }}>
-          <Regua sx={{ bgcolor: TOV.coralBright, mb: 3 }} />
-          <Typography component="h2" variant="h1" sx={{ fontSize: { md: 44, lg: 54 }, color: '#fff', maxWidth: 500 }}>
+          <Regua sx={{ bgcolor: TOV.onDarkBorderHover, mb: 3 }} />
+          <Typography component="h2" variant="h1" sx={{ fontSize: { md: TOV.type.display, lg: TOV.type.heroLg }, color: TOV.onDark, maxWidth: 500 }}>
             Centro TOV de Formação Teológica
           </Typography>
-          <Typography sx={{ mt: 2.5, fontSize: { md: 16, lg: 17 }, lineHeight: 1.65, color: 'rgba(255,255,255,.72)', maxWidth: 440 }}>
+          <Typography sx={{ mt: 2.5, fontSize: TOV.type.bodyLg, lineHeight: 1.65, color: TOV.onDarkBody, maxWidth: 440 }}>
             Secretaria acadêmica — alunos, turmas, notas e relatórios em um só lugar.
           </Typography>
         </Box>
-        <Typography sx={{ position: 'relative', fontSize: 14, color: 'rgba(255,255,255,.7)', lineHeight: 1.6 }}>
+        <Typography sx={{ position: 'relative', fontSize: TOV.type.body, color: TOV.onDarkBody, lineHeight: 1.6 }}>
           “Ensina a criança no caminho em que deve andar.”<br />
-          <Box component="span" sx={{ fontSize: 12, color: 'rgba(255,255,255,.62)' }}>Provérbios 22.6</Box>
+          <Box component="span" sx={{ fontSize: TOV.type.caption, color: TOV.onDarkMuted }}>Provérbios 22.6</Box>
         </Typography>
       </Box>
 
@@ -78,18 +78,18 @@ export default function Login() {
           sx={{ width: '100%', maxWidth: 440, p: { xs: 3, sm: 4.5 } }}
         >
           <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', gap: 1, mb: 4 }}>
-            <Box aria-hidden="true" sx={{ width: 3, height: 24, bgcolor: TOV.coral, borderRadius: 99 }} />
-            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 20 }}>TOV</Typography>
-            <Typography sx={{ fontSize: 12, color: TOV.caption }}>acadêmico</Typography>
+            <Box aria-hidden="true" sx={{ width: 4, height: 24, bgcolor: TOV.graphite, borderRadius: TOV.radiusFull }} />
+            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm }}>TOV</Typography>
+            <Typography sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>acadêmico</Typography>
           </Box>
-          <Eyebrow sx={{ mb: 1.25 }}>Acesso restrito</Eyebrow>
+          <Eyebrow sx={{ mb: 1.5 }}>Acesso restrito</Eyebrow>
           <Typography component="h1" variant="h2">Entrar</Typography>
-          <Typography sx={{ mt: 1.25, fontSize: 14.5, color: TOV.caption }}>Use suas credenciais de acesso.</Typography>
+          <Typography sx={{ mt: 1.5, fontSize: TOV.type.body, color: TOV.caption }}>Use suas credenciais de acesso.</Typography>
 
           {sessaoExpirada && !erro && <Alert severity="warning" sx={{ mt: 3 }}>Sua sessão expirou. Entre novamente para continuar de onde parou.</Alert>}
           {erro && <Alert severity="error" sx={{ mt: 3 }}>{erro}</Alert>}
 
-          <Typography component="label" htmlFor="campo-usuario" sx={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOV.slate, mt: erro || sessaoExpirada ? 2 : 4, mb: 1 }}>Usuário</Typography>
+          <Typography component="label" htmlFor="campo-usuario" sx={{ display: 'block', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.slate, mt: erro || sessaoExpirada ? 2 : 4, mb: 1 }}>Usuário</Typography>
           <TextField
             fullWidth value={user} autoFocus placeholder="ADMIN"
             id="campo-usuario"
@@ -97,7 +97,7 @@ export default function Login() {
             onChange={(e) => setUser(e.target.value.toUpperCase())}
           />
 
-          <Typography component="label" htmlFor="campo-senha" sx={{ display: 'block', fontSize: 13, fontWeight: 600, color: TOV.slate, mt: 2.5, mb: 1 }}>Senha</Typography>
+          <Typography component="label" htmlFor="campo-senha" sx={{ display: 'block', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.slate, mt: 2.5, mb: 1 }}>Senha</Typography>
           <TextField
             fullWidth type={mostrarSenha ? 'text' : 'password'} value={senha} placeholder="••••••••"
             id="campo-senha"
@@ -118,10 +118,10 @@ export default function Login() {
             onChange={(e) => setSenha(e.target.value)}
           />
 
-          <Button type="submit" variant="contained" fullWidth disabled={carregando} sx={{ mt: 3.75, height: 52, fontSize: 16 }}>
+          <Button type="submit" variant="contained" fullWidth disabled={carregando} sx={{ mt: 4, height: 52, fontSize: TOV.type.bodyLg }}>
             {carregando ? 'Entrando…' : 'Entrar'}
           </Button>
-          <Typography sx={{ mt: 2.5, textAlign: 'center', fontSize: 13, color: TOV.caption }}>
+          <Typography sx={{ mt: 2.5, textAlign: 'center', fontSize: TOV.type.bodySm, color: TOV.caption }}>
             Problemas com o acesso? Fale com a coordenação.
           </Typography>
         </Superficie>

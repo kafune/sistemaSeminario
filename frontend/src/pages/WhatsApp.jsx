@@ -14,7 +14,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import SaveIcon from '@mui/icons-material/Save'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, enviarArquivoJson, getPerfil } from '../api'
-import { TOV } from '../theme'
+import { TOV, focusRing } from '../theme'
 import {
   CabecalhoPagina, DialogoConfirmacao, EstadoVazio, Eyebrow, StatusBadge,
   cardSx, useDialogoTelaCheia,
@@ -102,34 +102,34 @@ function CardInstancia({
   const conectada = instancia?.conectada
   const configurada = instancia?.configurada
   return (
-    <Box sx={{ ...cardSx, p: { xs: 2.5, md: '26px 30px' }, mb: '18px' }}>
+    <Box sx={{ ...cardSx, p: { xs: 2.5, md: '24px 32px' }, mb: 2.5 }}>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
         <Box sx={{
-          width: 48, height: 48, borderRadius: '14px', flexShrink: 0,
-          bgcolor: conectada ? '#E8F7EE' : TOV.captionTint,
-          color: conectada ? '#247A49' : TOV.caption,
+          width: 48, height: 48, borderRadius: TOV.radiusMd, flexShrink: 0,
+          bgcolor: conectada ? TOV.whatsappSuccessTint : TOV.captionTint,
+          color: conectada ? TOV.whatsappSuccess : TOV.caption,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <WhatsAppIcon />
         </Box>
         <Box sx={{ flex: 1, minWidth: 220 }}>
           <Eyebrow>Instância UazAPI</Eyebrow>
-          <Typography variant="h3" sx={{ fontSize: 22, mt: 0.5 }}>
+          <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm, mt: 0.5 }}>
             {configurada ? (instancia.nome || 'WhatsApp TOV') : 'Nenhuma instância criada'}
           </Typography>
-          <Typography sx={{ color: TOV.caption, fontSize: 14, mt: 0.75 }}>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mt: 1 }}>
             {carregando ? 'Consultando conexão…' : conectada
               ? `${instancia.perfil_nome || 'WhatsApp conectado'}${instancia.numero ? ` · +${instancia.numero}` : ''}`
               : configurada ? 'Desconectada — leia um QR Code para enviar mensagens.'
                 : 'Crie a instância que será usada nos disparos do sistema.'}
           </Typography>
           {instancia?.motivo_desconexao && !conectada && (
-            <Typography sx={{ color: TOV.caption, fontSize: 12, mt: 0.5 }}>
+            <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5 }}>
               Última desconexão: {instancia.motivo_desconexao}
             </Typography>
           )}
           {!podeAdministrar && !conectada && (
-            <Typography sx={{ color: TOV.caption, fontSize: 12, mt: 0.5 }}>
+            <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5 }}>
               Solicite a um administrador para configurar ou reconectar a instância.
             </Typography>
           )}
@@ -174,15 +174,15 @@ function PreviewMensagem({ conteudo, texto }) {
   const tipo = conteudo?.tipo || 'text'
   return (
     <Box sx={{
-      maxWidth: '92%', bgcolor: '#D8F7C8', borderRadius: '12px 2px 12px 12px',
-      px: 1.5, py: 1.25, boxShadow: '0 2px 5px rgba(0,0,0,.12)',
+      maxWidth: '92%', bgcolor: TOV.whatsappBubble, borderRadius: TOV.radiusMessage,
+      px: 1.5, py: 1.5, boxShadow: TOV.shadowMessage,
       whiteSpace: 'pre-wrap', overflowWrap: 'anywhere',
     }}>
       {tipo === 'image' && conteudo.arquivo?.url && (
-        <Box component="img" src={conteudo.arquivo.url} alt="" sx={{ width: '100%', maxHeight: 210, objectFit: 'cover', borderRadius: 1, mb: 1 }} />
+        <Box component="img" src={conteudo.arquivo.url} alt="" sx={{ width: '100%', maxHeight: 210, objectFit: 'cover', borderRadius: TOV.radiusSm, mb: 1 }} />
       )}
       {tipo === 'document' && (
-        <Box sx={{ bgcolor: 'rgba(255,255,255,.6)', p: 1.25, borderRadius: 1, mb: 1, fontSize: 13 }}>
+        <Box sx={{ bgcolor: TOV.whatsappPanel, p: 1.5, borderRadius: TOV.radiusSm, mb: 1, fontSize: TOV.type.bodySm }}>
           📄 {conteudo.nome_arquivo || conteudo.arquivo?.nome || 'Documento'}
         </Box>
       )}
@@ -192,11 +192,11 @@ function PreviewMensagem({ conteudo, texto }) {
       {tipo === 'carousel' && (
         <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto', overscrollBehaviorInline: 'contain', width: '100%', maxWidth: 330, minWidth: 0, mb: 1 }}>
           {conteudo.carousel?.map((cartao, indice) => (
-            <Box key={indice} sx={{ flex: '0 0 190px', bgcolor: 'rgba(255,255,255,.62)', borderRadius: 1.5, overflow: 'hidden' }}>
+            <Box key={indice} sx={{ flex: '0 0 190px', bgcolor: TOV.whatsappPanel, borderRadius: TOV.radiusMd, overflow: 'hidden' }}>
               {cartao.arquivo?.url && <Box component="img" src={cartao.arquivo.url} alt="" sx={{ width: '100%', height: 105, objectFit: 'cover' }} />}
-              <Typography sx={{ p: 1, fontSize: 12, whiteSpace: 'pre-wrap' }}>{cartao.texto}</Typography>
+              <Typography sx={{ p: 1, fontSize: TOV.type.caption, whiteSpace: 'pre-wrap' }}>{cartao.texto}</Typography>
               {cartao.botoes?.map((botao, i) => (
-                <Box key={i} sx={{ textAlign: 'center', borderTop: '1px solid rgba(0,0,0,.08)', py: 0.6, color: '#176B61', fontSize: 11, fontWeight: 700 }}>
+                <Box key={i} sx={{ textAlign: 'center', borderTop: `1px solid ${TOV.darkDivider}`, py: 0.5, color: TOV.whatsappGreen, fontSize: TOV.type.overline, fontWeight: 700 }}>
                   {botao.texto}
                 </Box>
               ))}
@@ -204,20 +204,20 @@ function PreviewMensagem({ conteudo, texto }) {
           ))}
         </Box>
       )}
-      <Typography sx={{ fontSize: 14, lineHeight: 1.45 }}>
+      <Typography sx={{ fontSize: TOV.type.body, lineHeight: 1.45 }}>
         {texto || (tipo === 'audio' ? '' : 'Sua mensagem aparecerá aqui.')}
       </Typography>
       {tipo === 'button' && conteudo.botoes?.map((botao, indice) => (
-        <Box key={indice} sx={{ textAlign: 'center', borderTop: '1px solid rgba(0,0,0,.09)', pt: 0.75, mt: 0.75, color: '#176B61', fontSize: 12, fontWeight: 700 }}>
+        <Box key={indice} sx={{ textAlign: 'center', borderTop: `1px solid ${TOV.darkDividerStrong}`, pt: 1, mt: 1, color: TOV.whatsappGreen, fontSize: TOV.type.caption, fontWeight: 700 }}>
           {botao.texto}
         </Box>
       ))}
       {tipo === 'poll' && conteudo.enquete_opcoes?.map((opcao, indice) => (
-        <Box key={indice} sx={{ display: 'flex', gap: 0.75, borderTop: '1px solid rgba(0,0,0,.08)', pt: 0.75, mt: 0.75, fontSize: 12 }}>
+        <Box key={indice} sx={{ display: 'flex', gap: 1, borderTop: `1px solid ${TOV.darkDivider}`, pt: 1, mt: 1, fontSize: TOV.type.caption }}>
           ◯ {opcao}
         </Box>
       ))}
-      <Typography sx={{ fontSize: 10, color: '#60806A', textAlign: 'right', mt: 0.5 }}>
+      <Typography sx={{ fontSize: TOV.type.micro, color: TOV.whatsappMeta, textAlign: 'right', mt: 0.5 }}>
         agora ✓✓
       </Typography>
     </Box>
@@ -239,7 +239,7 @@ function PreviewSequencia({ conteudo, nome = null }) {
         return <PreviewMensagem key={indice} conteudo={item} texto={texto} />
       })}
       {itens.length > 1 && (
-        <Typography sx={{ fontSize: 10, color: '#6A5C52' }}>
+        <Typography sx={{ fontSize: TOV.type.micro, color: TOV.whatsappMuted }}>
           Intervalo de {conteudo.intervalo_segundos || 8}s entre as mensagens
         </Typography>
       )}
@@ -253,7 +253,7 @@ function EditorBotoes({ botoes, onChange }) {
   }
   return (
     <Box sx={{ mt: 2 }}>
-      <Typography sx={{ fontWeight: 700, fontSize: 14, mb: 1 }}>Botões</Typography>
+      <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body, mb: 1 }}>Botões</Typography>
       {botoes.map((botao, indice) => (
         <Box key={indice} sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 130px 1fr auto' }, gap: 1, mb: 1 }}>
           <TextField size="small" label="Texto" value={botao.texto} onChange={(e) => atualizar(indice, 'texto', e.target.value)} />
@@ -665,19 +665,19 @@ function Compositor({
           : !!mensagem.trim() && cartoes.length >= 2 && cartoes.every((c) => c.texto.trim() && c.arquivo && c.botoes.some((b) => b.texto.trim() && b.valor.trim()))
 
   return (
-    <Box sx={{ ...cardSx, p: { xs: 2.5, md: '28px 30px' }, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+    <Box sx={{ ...cardSx, p: { xs: 2.5, md: '28px 32px' }, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
       <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2.5 }}>
         <Box>
-          <Eyebrow sx={{ color: TOV.coral }}>{disparoEdicao ? `Editar agendamento #${disparoEdicao.id}` : 'Novo disparo'}</Eyebrow>
-          <Typography variant="h2" sx={{ fontSize: 28, mt: 0.75 }}>
+          <Eyebrow>{disparoEdicao ? `Editar agendamento #${disparoEdicao.id}` : 'Novo disparo'}</Eyebrow>
+          <Typography variant="h2" sx={{ fontSize: TOV.type.titleLg, mt: 1 }}>
             {disparoEdicao ? 'Editar composição agendada' : 'Preparar mensagem'}
           </Typography>
         </Box>
-        <Typography sx={{ fontSize: 13, color: TOV.caption }}>{resumoPublico}</Typography>
+        <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>{resumoPublico}</Typography>
       </Box>
       <Box sx={{
         display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 1,
-        bgcolor: TOV.canvas, border: `1px solid ${TOV.divider}`, borderRadius: '12px', p: 0.75, mb: 2.5,
+        bgcolor: TOV.canvas, border: `1px solid ${TOV.divider}`, borderRadius: TOV.radiusMd, p: 1, mb: 2.5,
       }}>
         {[
           [1, 'Público'],
@@ -690,19 +690,19 @@ function Compositor({
             <Box
               key={numero}
               sx={{
-                py: 1, px: 1.5, borderRadius: '9px', textAlign: 'center',
-                bgcolor: ativo ? '#fff' : 'transparent',
+                py: 1, px: 1.5, borderRadius: TOV.radiusSm, textAlign: 'center',
+                bgcolor: ativo ? TOV.surfaceElevated : 'transparent',
                 color: ativo || concluido ? TOV.coral : TOV.caption,
-                fontWeight: ativo ? 700 : 600, fontSize: 13,
+                fontWeight: ativo ? 700 : 600, fontSize: TOV.type.bodySm,
                 border: `1px solid ${ativo ? TOV.border : 'transparent'}`,
                 boxShadow: 'none',
               }}
             >
               <Box component="span" sx={{
-                display: 'inline-flex', width: 22, height: 22, borderRadius: '50%',
-                alignItems: 'center', justifyContent: 'center', mr: 0.75,
+                display: 'inline-flex', width: 24, height: 24, borderRadius: TOV.radiusFull,
+                alignItems: 'center', justifyContent: 'center', mr: 1,
                 bgcolor: ativo || concluido ? TOV.coral : TOV.captionTint,
-                color: ativo || concluido ? '#fff' : TOV.caption, fontSize: 11,
+                color: ativo || concluido ? TOV.onDark : TOV.caption, fontSize: TOV.type.overline,
               }}>
                 {concluido ? '✓' : numero}
               </Box>
@@ -832,7 +832,7 @@ function Compositor({
       )}
       {etapa === 2 && (
         <>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.25, mb: 2 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5, mb: 2 }}>
             <TextField
               select size="small" label="Categoria da API do WhatsApp"
               value={categoriaApi}
@@ -898,7 +898,7 @@ function Compositor({
                 ))}
               </Box>
               {['image', 'document', 'audio'].includes(tipoMensagem) && (
-                <Box sx={{ border: `2px dashed ${TOV.captionTint}`, borderRadius: 2, p: 2, mb: 2, textAlign: 'center' }}>
+                <Box sx={{ border: `2px dashed ${TOV.captionTint}`, borderRadius: TOV.radiusLg, p: 2, mb: 2, textAlign: 'center' }}>
                   <Button component="label" startIcon={enviandoArquivo ? <CircularProgress size={16} /> : <UploadFileIcon />}>
                     {arquivo ? 'Trocar arquivo' : `Selecionar ${TIPOS.find(([v]) => v === tipoMensagem)?.[1].toLowerCase()}`}
                     <input
@@ -907,7 +907,7 @@ function Compositor({
                       onChange={(e) => subirArquivo(e.target.files?.[0], (item) => { setArquivo(item); setNomeArquivo(item.nome) })}
                     />
                   </Button>
-                  {arquivo && <Typography sx={{ fontSize: 12, color: TOV.caption, mt: 0.5 }}>{arquivo.nome} · {(arquivo.tamanho / 1024 / 1024).toFixed(1)} MB</Typography>}
+                  {arquivo && <Typography sx={{ fontSize: TOV.type.caption, color: TOV.caption, mt: 0.5 }}>{arquivo.nome} · {(arquivo.tamanho / 1024 / 1024).toFixed(1)} MB</Typography>}
                 </Box>
               )}
               <TextField
@@ -925,7 +925,7 @@ function Compositor({
               {tipoMensagem === 'button' && <EditorBotoes botoes={botoes} onChange={setBotoes} />}
               {tipoMensagem === 'poll' && (
                 <Box sx={{ mt: 2, minWidth: 0, maxWidth: '100%' }}>
-                  <Typography sx={{ fontWeight: 700, fontSize: 14, mb: 1 }}>Opções da enquete</Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body, mb: 1 }}>Opções da enquete</Typography>
                   {opcoesEnquete.map((opcao, indice) => (
                     <Box key={indice} sx={{ display: 'flex', gap: 1, mb: 1 }}>
                       <TextField fullWidth size="small" label={`Opção ${indice + 1}`} value={opcao} onChange={(e) => setOpcoesEnquete(opcoesEnquete.map((o, i) => i === indice ? e.target.value : o))} />
@@ -943,9 +943,9 @@ function Compositor({
               )}
               {tipoMensagem === 'carousel' && (
                 <Box sx={{ mt: 2, minWidth: 0, maxWidth: '100%' }}>
-                  <Typography sx={{ fontWeight: 700, fontSize: 14, mb: 1 }}>Cartões do carrossel</Typography>
+                  <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body, mb: 1 }}>Cartões do carrossel</Typography>
                   {cartoes.map((cartao, indice) => (
-                    <Box key={indice} sx={{ bgcolor: TOV.offwhite, borderRadius: 2, p: 2, mb: 1.5, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+                    <Box key={indice} sx={{ bgcolor: TOV.offwhite, borderRadius: TOV.radiusLg, p: 2, mb: 1.5, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                         <Typography sx={{ fontWeight: 700 }}>Cartão {indice + 1}</Typography>
                         {cartoes.length > 2 && <IconButton size="small" aria-label={`Remover cartão ${indice + 1}`} onClick={() => setCartoes(cartoes.filter((_, i) => i !== indice))}><DeleteIcon fontSize="small" /></IconButton>}
@@ -954,7 +954,7 @@ function Compositor({
                         {cartao.arquivo ? 'Trocar imagem' : 'Enviar imagem'}
                         <input hidden type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => subirArquivo(e.target.files?.[0], (item) => setCartoes(cartoes.map((c, i) => i === indice ? { ...c, arquivo: item } : c)))} />
                       </Button>
-                      {cartao.arquivo && <Typography sx={{ display: 'block', mt: 0.75, minWidth: 0, fontSize: 11, color: TOV.caption, overflowWrap: 'anywhere' }}>{cartao.arquivo.nome}</Typography>}
+                      {cartao.arquivo && <Typography sx={{ display: 'block', mt: 1, minWidth: 0, fontSize: TOV.type.overline, color: TOV.caption, overflowWrap: 'anywhere' }}>{cartao.arquivo.nome}</Typography>}
                       <TextField fullWidth multiline minRows={2} size="small" label="Texto do cartão" value={cartao.texto} onChange={(e) => setCartoes(cartoes.map((c, i) => i === indice ? { ...c, texto: e.target.value } : c))} sx={{ mt: 1.5 }} />
                       <EditorBotoes botoes={cartao.botoes} onChange={(valor) => setCartoes(cartoes.map((c, i) => i === indice ? { ...c, botoes: valor } : c))} />
                     </Box>
@@ -965,7 +965,7 @@ function Compositor({
                 </Box>
               )}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
-                <Typography sx={{ fontSize: 13, color: TOV.caption }}>Personalizar:</Typography>
+                <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>Personalizar:</Typography>
                 <Chip size="small" clickable label="{{primeiro_nome}}" onClick={() => inserirVariavel('primeiro_nome')} />
                 <Chip size="small" clickable label="{{nome}}" onClick={() => inserirVariavel('nome')} />
               </Box>
@@ -975,14 +975,14 @@ function Compositor({
                 label="Mostrar preview quando a mensagem contiver um link"
               />
               {sequencia.length > 0 && (
-                <Box sx={{ mt: 2, border: `1px solid ${TOV.captionTint}`, borderRadius: 2, p: 1.5 }}>
-                  <Typography sx={{ fontWeight: 700, fontSize: 14, mb: 1 }}>
+                <Box sx={{ mt: 2, border: `1px solid ${TOV.captionTint}`, borderRadius: TOV.radiusLg, p: 1.5 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body, mb: 1 }}>
                     Sequência montada · {sequencia.length + 1} mensagens
                   </Typography>
                   {sequencia.map((item, indice) => (
-                    <Box key={indice} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 0.75, borderTop: indice ? `1px solid ${TOV.offwhite}` : 0 }}>
+                    <Box key={indice} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1, borderTop: indice ? `1px solid ${TOV.offwhite}` : 0 }}>
                       <Chip size="small" label={indice + 1} />
-                      <Typography sx={{ flex: 1, minWidth: 0, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Typography sx={{ flex: 1, minWidth: 0, fontSize: TOV.type.caption, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {TIPOS.find(([valor]) => valor === item.tipo)?.[1]} · {item.mensagem || item.arquivo?.nome || 'Mídia'}
                       </Typography>
                       <IconButton
@@ -994,7 +994,7 @@ function Compositor({
                       </IconButton>
                     </Box>
                   ))}
-                  <Typography sx={{ fontSize: 12, color: TOV.caption, mt: 0.75 }}>
+                  <Typography sx={{ fontSize: TOV.type.caption, color: TOV.caption, mt: 1 }}>
                     A mensagem que está no editor será a etapa {sequencia.length + 1}.
                   </Typography>
                 </Box>
@@ -1033,20 +1033,20 @@ function Compositor({
             <Box sx={{ position: { lg: 'sticky' }, top: { lg: 24 }, alignSelf: 'start' }}>
               <Eyebrow sx={{ mb: 1 }}>Prévia</Eyebrow>
               <Box sx={{
-                minHeight: 300, borderRadius: '16px', overflow: 'hidden',
-                border: '1px solid #D8CEC6', bgcolor: '#E8DDD4',
-                backgroundImage: 'radial-gradient(rgba(95,74,61,.08) 1px, transparent 1px)',
+                minHeight: 300, borderRadius: TOV.radiusLg, overflow: 'hidden',
+                border: `1px solid ${TOV.whatsappBorder}`, bgcolor: TOV.whatsappCanvas,
+                backgroundImage: `radial-gradient(${TOV.whatsappPattern} 1px, transparent 1px)`,
                 backgroundSize: '16px 16px',
               }}>
-                <Box sx={{ bgcolor: '#176B61', color: '#fff', px: 2, py: 1.5 }}>
-                  <Typography sx={{ fontWeight: 700, fontSize: 14 }}>Centro TOV</Typography>
-                  <Typography sx={{ opacity: 0.78, fontSize: 11 }}>WhatsApp Business</Typography>
+                <Box sx={{ bgcolor: TOV.whatsappGreen, color: TOV.onDark, px: 2, py: 1.5 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>Centro TOV</Typography>
+                  <Typography sx={{ opacity: 0.78, fontSize: TOV.type.overline }}>WhatsApp Business</Typography>
                 </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2.25 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2.5 }}>
                   <PreviewSequencia conteudo={conteudoPrevia} nome={nomePrevia} />
                 </Box>
               </Box>
-              <Typography sx={{ color: TOV.caption, fontSize: 11, mt: 1 }}>
+              <Typography sx={{ color: TOV.caption, fontSize: TOV.type.overline, mt: 1 }}>
                 {nomePrevia
                   ? `Exemplo com ${nomePrevia}; cada contato receberá seu próprio nome.`
                   : 'As variáveis serão substituídas pelo nome de cada destinatário na revisão.'}
@@ -1057,7 +1057,7 @@ function Compositor({
             display: 'flex', justifyContent: 'space-between', gap: 1.5, mt: 2.5, flexWrap: 'wrap',
             position: { lg: 'sticky' }, bottom: { lg: 16 }, zIndex: 2,
             bgcolor: TOV.surface, borderTop: `1px solid ${TOV.divider}`,
-            mx: { lg: -1 }, px: { lg: 1 }, py: { lg: 1.25 },
+            mx: { lg: -1 }, px: { lg: 1 }, py: { lg: 1.5 },
           }}>
             <Button variant="outlined" disabled={!!disparoEdicao} onClick={() => setEtapa(1)}>
               {disparoEdicao ? 'Público não pode ser alterado' : 'Voltar ao público'}
@@ -1102,7 +1102,7 @@ function Compositor({
       <Dialog open={confirmarTeste} onClose={testando ? undefined : () => setConfirmarTeste(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Enviar teste para o número conectado?</DialogTitle>
         <DialogContent>
-          <Typography sx={{ color: TOV.caption, fontSize: 14 }}>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body }}>
             A composição completa será enviada somente para o WhatsApp da secretaria, sem entrar no histórico de disparos.
           </Typography>
         </DialogContent>
@@ -1119,8 +1119,8 @@ function Compositor({
 
 function Historico({ itens, onAbrir }) {
   return (
-    <Box sx={{ ...cardSx, p: { xs: 2.5, md: '28px 30px' }, mt: '18px' }}>
-      <Typography variant="h2" sx={{ fontSize: 26, mb: 2.5 }}>Histórico de disparos</Typography>
+    <Box sx={{ ...cardSx, p: { xs: 2.5, md: '28px 32px' }, mt: 2.5 }}>
+      <Typography variant="h2" sx={{ fontSize: TOV.type.title, mb: 2.5 }}>Histórico de disparos</Typography>
       {!itens && <LinearProgress />}
       {itens?.length === 0 && (
         <EstadoVazio compacto titulo="Nenhum disparo realizado" descricao="As campanhas enviadas ou agendadas aparecerão neste histórico." />
@@ -1138,22 +1138,22 @@ function Historico({ itens, onAbrir }) {
               onClick={() => onAbrir(item.id)}
               sx={{
                 appearance: 'none', border: 0, bgcolor: 'transparent', color: 'inherit',
-                font: 'inherit', textAlign: 'left', cursor: 'pointer', p: '18px 0',
+                font: 'inherit', textAlign: 'left', cursor: 'pointer', p: '20px 0',
                 borderTop: indice ? `1px solid ${TOV.offwhite}` : 0,
                 '&:hover h3': { color: TOV.coral },
-                '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2 },
+                '&:focus-visible': focusRing,
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                <Typography component="h3" sx={{ fontWeight: 700, fontSize: 16, transition: 'color .15s' }}>
+                <Typography component="h3" sx={{ fontWeight: 700, fontSize: TOV.type.bodyLg, transition: `color ${TOV.transitionFast}` }}>
                   #{item.id} · {item.publico_descricao}
                 </Typography>
                 <PilulaDisparo status={item.status} />
-                <Typography sx={{ ml: { sm: 'auto' }, fontSize: 12, color: TOV.caption }}>
+                <Typography sx={{ ml: { sm: 'auto' }, fontSize: TOV.type.caption, color: TOV.caption }}>
                   {dataHora(item.criado_em)}
                 </Typography>
               </Box>
-              <Typography sx={{ fontSize: 13, color: TOV.caption, mt: 0.75 }}>
+              <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, mt: 1 }}>
                 Por {item.usuario} · {item.total_enviados} enviados · {item.total_entregues} entregues · {item.total_lidos} lidos
                 {item.total_reproduzidos ? ` · ${item.total_reproduzidos} reproduzidos` : ''}
                 {item.total_respostas ? ` · ${item.total_respostas} respostas` : ''}
@@ -1161,19 +1161,19 @@ function Historico({ itens, onAbrir }) {
               </Typography>
               <Typography
                 sx={{
-                  fontSize: 13, color: TOV.slate, mt: 0.75, maxWidth: 760,
+                  fontSize: TOV.type.bodySm, color: TOV.slate, mt: 1, maxWidth: 760,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}
               >
                 {TIPOS.find(([valor]) => valor === item.tipo_mensagem)?.[1] || 'Mensagem'}: {item.mensagem_modelo}
               </Typography>
               {item.agendado_para && (
-                <Typography sx={{ fontSize: 12, color: TOV.coral, mt: 0.5 }}>
+                <Typography sx={{ fontSize: TOV.type.caption, color: TOV.info, mt: 0.5 }}>
                   Agendado para {dataHora(item.agendado_para)}
                 </Typography>
               )}
               {!STATUS_FINAL.has(item.status) && (
-                <LinearProgress variant="determinate" value={progresso} sx={{ mt: 1.5, height: 6, borderRadius: 3 }} />
+                <LinearProgress variant="determinate" value={progresso} sx={{ mt: 1.5, height: 8, borderRadius: TOV.radiusFull }} />
               )}
             </Box>
           )
@@ -1505,7 +1505,7 @@ export default function WhatsApp() {
       <Dialog open={criacaoAberta} onClose={() => setCriacaoAberta(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Criar instância do WhatsApp</DialogTitle>
         <DialogContent>
-          <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2 }}>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2 }}>
             Será criada uma única instância na UazAPI para o Centro TOV.
           </Typography>
           <TextField
@@ -1524,13 +1524,13 @@ export default function WhatsApp() {
       <Dialog open={qrAberto} onClose={() => setQrAberto(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Conectar WhatsApp</DialogTitle>
         <DialogContent sx={{ textAlign: 'center' }}>
-          <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2 }}>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2 }}>
             No celular, abra WhatsApp → Aparelhos conectados → Conectar um aparelho.
           </Typography>
           {instancia?.qrcode ? (
             <Box
               component="img" src={qrSrc(instancia.qrcode)} alt="QR Code para conectar o WhatsApp"
-              sx={{ width: '100%', maxWidth: 300, aspectRatio: '1', objectFit: 'contain', bgcolor: '#fff' }}
+              sx={{ width: '100%', maxWidth: 300, aspectRatio: '1', objectFit: 'contain', bgcolor: TOV.surfaceElevated }}
             />
           ) : (
             <Box sx={{ py: 7 }}>
@@ -1538,7 +1538,7 @@ export default function WhatsApp() {
               <Typography sx={{ mt: 2, color: TOV.caption }}>Aguardando QR Code…</Typography>
             </Box>
           )}
-          <Typography sx={{ color: TOV.caption, fontSize: 12, mt: 2 }}>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 2 }}>
             O código é atualizado automaticamente e expira em cerca de 2 minutos.
           </Typography>
         </DialogContent>
@@ -1556,7 +1556,7 @@ export default function WhatsApp() {
               <Alert severity={previa.validos ? 'info' : 'warning'} sx={{ mb: 2 }}>
                 <b>{previa.publico_descricao}</b>: {previa.validos} aptos para envio e {previa.invalidos} ignorados.
               </Alert>
-              <Box sx={{ bgcolor: '#E8DDD4', borderRadius: 2, p: 2, mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+              <Box sx={{ bgcolor: TOV.whatsappCanvas, borderRadius: TOV.radiusLg, p: 2, mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
                 <PreviewSequencia
                   conteudo={previa.conteudo}
                   nome={previa.itens.find((item) => item.valido)?.nome}
@@ -1567,12 +1567,12 @@ export default function WhatsApp() {
                   Este disparo será {dadosDisparo.editar_id ? 'reagendado' : 'agendado'} para <b>{dataHora(dadosDisparo.agendado_para)}</b>.
                 </Alert>
               )}
-              <Box sx={{ maxHeight: 310, overflowY: 'auto', border: `1px solid ${TOV.offwhite}`, borderRadius: 2 }}>
+              <Box sx={{ maxHeight: 310, overflowY: 'auto', border: `1px solid ${TOV.offwhite}`, borderRadius: TOV.radiusLg }}>
                 {previa.itens.map((item, indice) => (
                   <Box key={`${item.cod_alu}-${indice}`} sx={{ p: 1.5, borderTop: indice ? `1px solid ${TOV.offwhite}` : 0, display: 'flex', gap: 2 }}>
                     <Box sx={{ flex: 1 }}>
-                      <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{item.nome}</Typography>
-                      <Typography sx={{ color: TOV.caption, fontSize: 12 }}>{item.celular || 'Sem celular'}</Typography>
+                      <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>{item.nome}</Typography>
+                      <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>{item.celular || 'Sem celular'}</Typography>
                     </Box>
                     <Chip
                       size="small"
@@ -1611,15 +1611,15 @@ export default function WhatsApp() {
           {detalhe && (
             <>
               <Typography sx={{ fontWeight: 700 }}>{detalhe.publico_descricao}</Typography>
-              <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 0.5 }}>
+              <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>
                 Criado por {detalhe.usuario} em {dataHora(detalhe.criado_em)}
               </Typography>
               {detalhe.agendado_para && (
-                <Typography sx={{ color: TOV.coral, fontSize: 13, fontWeight: 700, mt: 0.5 }}>
+                <Typography sx={{ color: TOV.info, fontSize: TOV.type.bodySm, fontWeight: 700, mt: 0.5 }}>
                   Agendado para {dataHora(detalhe.agendado_para)}
                 </Typography>
               )}
-              <Box sx={{ bgcolor: '#E8DDD4', borderRadius: 2, p: 2, mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+              <Box sx={{ bgcolor: TOV.whatsappCanvas, borderRadius: TOV.radiusLg, p: 2, mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
                 <PreviewSequencia
                   conteudo={detalhe.conteudo}
                   nome={detalhe.destinatarios?.find((item) => item.valido)?.nome}
@@ -1636,14 +1636,14 @@ export default function WhatsApp() {
                   ['Falhos', detalhe.total_falhos],
                   ['Ignorados', detalhe.total_invalidos],
                 ].map(([rotulo, valor]) => (
-                  <Box key={rotulo} sx={{ bgcolor: TOV.offwhite, borderRadius: 2, p: 1.5, textAlign: 'center' }}>
-                    <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 25 }}>{valor}</Typography>
-                    <Typography sx={{ color: TOV.caption, fontSize: 12 }}>{rotulo}</Typography>
+                  <Box key={rotulo} sx={{ bgcolor: TOV.offwhite, borderRadius: TOV.radiusLg, p: 1.5, textAlign: 'center' }}>
+                    <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.title }}>{valor}</Typography>
+                    <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>{rotulo}</Typography>
                   </Box>
                 ))}
               </Box>
               {!STATUS_FINAL.has(detalhe.status) && (
-                <LinearProgress variant="determinate" value={progressoDetalhe} sx={{ mb: 2.5, height: 7, borderRadius: 4 }} />
+                <LinearProgress variant="determinate" value={progressoDetalhe} sx={{ mb: 2.5, height: 8, borderRadius: TOV.radiusFull }} />
               )}
               {detalhe.erro && <Alert severity="error" sx={{ mb: 2 }}>{detalhe.erro}</Alert>}
               <Divider />
@@ -1651,8 +1651,8 @@ export default function WhatsApp() {
                 {destinatariosDetalhe.map((item, indice) => (
                   <Box key={item.id} sx={{ py: 1.5, borderTop: indice ? `1px solid ${TOV.offwhite}` : 0, display: 'flex', gap: 1.5, alignItems: 'center' }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{item.nome}</Typography>
-                      <Typography sx={{ color: TOV.caption, fontSize: 12 }}>{item.celular || item.motivo}</Typography>
+                      <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>{item.nome}</Typography>
+                      <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>{item.celular || item.motivo}</Typography>
                     </Box>
                     <Chip size="small" label={item.status} />
                   </Box>

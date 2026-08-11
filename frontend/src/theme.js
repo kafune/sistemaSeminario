@@ -4,63 +4,150 @@ import { ptBR } from '@mui/material/locale'
 /**
  * Design tokens do TOV.
  *
- * A paleta mantém o coral histórico, mas o utiliza como assinatura e ação.
+ * A paleta mantém o coral histórico, mas o reserva a ação, seleção e alerta.
  * A hierarquia do produto é construída principalmente com tinta, grafite,
  * superfícies quentes e filetes finos.
  */
 export const TOV = {
   canvas: '#F5F2EE',
   surface: '#FFFEFC',
-  surfaceMuted: '#EEE9E4',
-  ink: '#191B1D',
-  graphite: '#343B3F',
+  surfaceMuted: '#F0ECE6',
+  surfaceElevated: '#FFFFFF',
+  surfaceHover: '#FBF9F6',
+  surfacePressed: '#F7F3EF',
+  ink: '#141618',
+  graphite: '#2C3236',
   coral: '#C92F2F',
-  coralHover: '#AE2828',
-  coralBright: '#F14949',
+  primary: '#C92F2F',
+  coralHover: '#B52525',
+  primaryHover: '#B52525',
+  coralActive: '#9E1D1D',
+  primaryActive: '#9E1D1D',
   coralOnDark: '#FF9A9A',
-  // Texto secundário precisa manter contraste AA também sobre o canvas quente.
-  caption: '#5E696F',
-  border: '#DED7D0',
-  divider: '#E8E2DC',
+  caption: '#525D63',
+  border: '#D8CEC4',
+  borderHover: '#BFB5AD',
+  divider: '#E4DDD5',
 
   // Aliases mantidos para as telas existentes durante a consolidação.
   offwhite: '#F5F2EE',
   white: '#FFFEFC',
-  slate: '#343B3F',
-  desk: '#E8E2DC',
+  slate: '#2C3236',
+  desk: '#E4DDD5',
 
   coralTint: 'rgba(201,47,47,.09)',
+  coralTintSoft: 'rgba(201,47,47,.05)',
   coralTintStrong: 'rgba(201,47,47,.15)',
-  slateTint: 'rgba(52,59,63,.09)',
-  captionTint: 'rgba(104,115,122,.12)',
-  success: '#277451',
-  successTint: 'rgba(39,116,81,.11)',
-  warning: '#9A5B12',
-  warningTint: 'rgba(154,91,18,.12)',
+  coralBorder: 'rgba(201,47,47,.18)',
+  slateTint: 'rgba(44,50,54,.09)',
+  slateBorder: 'rgba(44,50,54,.13)',
+  captionTint: 'rgba(82,93,99,.12)',
+  captionBorder: 'rgba(82,93,99,.15)',
+  success: '#1E6B43',
+  successBright: '#62C596',
+  successSurface: 'rgba(30,107,67,.075)',
+  successTint: 'rgba(30,107,67,.11)',
+  successBorder: 'rgba(30,107,67,.18)',
+  warning: '#8C5210',
+  warningTint: 'rgba(140,82,16,.12)',
+  warningBorder: 'rgba(140,82,16,.18)',
   info: '#356A82',
   infoTint: 'rgba(53,106,130,.11)',
-  danger: '#B4232A',
-  dangerTint: 'rgba(180,35,42,.10)',
+  infoBorder: 'rgba(53,106,130,.17)',
+  danger: '#A81C24',
+  dangerTint: 'rgba(168,28,36,.10)',
+  dangerBorder: 'rgba(168,28,36,.17)',
 
-  fontHead: "'Bricolage Grotesque', sans-serif",
-  fontBody: "'Open Sans', sans-serif",
+  onDark: '#FFFFFF',
+  onDarkStrong: 'rgba(255,255,255,.85)',
+  onDarkBody: 'rgba(255,255,255,.78)',
+  onDarkMuted: 'rgba(255,255,255,.68)',
+  onDarkSurface: 'rgba(255,255,255,.08)',
+  onDarkSurfaceHover: 'rgba(255,255,255,.12)',
+  onDarkDecoration: 'rgba(255,255,255,.045)',
+  onDarkBorder: 'rgba(255,255,255,.16)',
+  onDarkBorderHover: 'rgba(255,255,255,.28)',
+  onDarkBorderStrong: 'rgba(255,255,255,.45)',
+  focusOnDark: 'rgba(255,154,154,.42)',
+  darkHairline: 'rgba(20,22,24,.14)',
+  darkGradient: 'linear-gradient(115deg, rgba(20,22,24,.26), rgba(44,50,54,0) 58%)',
+  glassSurface: 'rgba(255,255,255,.94)',
+  glassSurfaceSoft: 'rgba(255,255,255,.55)',
+  glassSurfaceFaint: 'rgba(255,255,255,.42)',
+  glassOverlay: 'rgba(255,255,255,.72)',
+  loginGrid: 'linear-gradient(rgba(255,255,255,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px)',
+  feedbackGradient: 'radial-gradient(circle at 50% 34%, rgba(30,107,67,.34), transparent 38%), linear-gradient(145deg, #252A2D, #141618)',
+
+  whatsappGreen: '#176B61',
+  whatsappSuccess: '#247A49',
+  whatsappSuccessTint: '#E8F7EE',
+  whatsappBubble: '#D8F7C8',
+  whatsappCanvas: '#E8DDD4',
+  whatsappBorder: '#D8CEC6',
+  whatsappMeta: '#60806A',
+  whatsappMuted: '#6A5C52',
+  whatsappPattern: 'rgba(95,74,61,.08)',
+  whatsappPanel: 'rgba(255,255,255,.62)',
+  darkDivider: 'rgba(20,22,24,.08)',
+  darkDividerStrong: 'rgba(20,22,24,.12)',
+
+  fontHead: "'Bricolage Grotesque', -apple-system, BlinkMacSystemFont, sans-serif",
+  fontBody: "'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+  fontMono: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace",
+  type: {
+    micro: 10,
+    overline: 11,
+    caption: 12,
+    bodySm: 13,
+    body: 14,
+    bodyLg: 16,
+    section: 18,
+    titleSm: 20,
+    title: 24,
+    titleLg: 28,
+    displaySm: 32,
+    display: 40,
+    hero: 48,
+    heroLg: 56,
+  },
   sidebarW: 272,
 
-  radiusSm: 10,
+  radiusXs: 4,
+  radiusNone: 0,
+  radiusSm: 8,
   radiusMd: 14,
-  radiusLg: 18,
-  radiusPill: 999,
-  shadowCard: 'none',
-  shadowRaised: '0 16px 40px -28px rgba(25,27,29,.42), 0 2px 8px rgba(25,27,29,.05)',
-  shadowFloating: '0 22px 50px -24px rgba(25,27,29,.35)',
+  radiusLg: 16,
+  radiusXl: 20,
+  radius2xl: 24,
+  radiusDisplay: 32,
+  radiusFull: 9999,
+  radiusPill: 9999,
+  radiusMessage: '12px 2px 12px 12px',
+  shadowHairline: 'inset 0 0 0 1px rgba(216,206,196,.6)',
+  shadowCard: '0 1px 3px rgba(20,22,24,.04), 0 1px 2px rgba(20,22,24,.06)',
+  shadowRaised: '0 12px 32px -16px rgba(20,22,24,.12), 0 2px 6px rgba(20,22,24,.04)',
+  shadowFloating: '0 20px 48px -20px rgba(20,22,24,.22), 0 4px 12px rgba(20,22,24,.06)',
+  shadowTop: '0 -8px 24px rgba(20,22,24,.04)',
+  shadowInteractive: '0 8px 24px -20px rgba(20,22,24,.22)',
+  shadowHeader: '0 12px 30px -28px rgba(20,22,24,.32)',
+  shadowSuccess: '0 24px 60px -28px rgba(98,197,150,.48)',
+  shadowMessage: '0 2px 5px rgba(20,22,24,.12)',
   shadowBtn: 'none',
-  durationFast: '160ms',
-  durationBase: '220ms',
+  durationFast: '150ms',
+  durationBase: '250ms',
   ease: 'cubic-bezier(.2,.75,.25,1)',
+  transitionFast: '150ms cubic-bezier(.2,.75,.25,1)',
+  transitionBase: '250ms cubic-bezier(.2,.75,.25,1)',
+  transitionFeedback: '1700ms linear',
 }
 
-const focusRing = {
-  outline: `3px solid ${alpha(TOV.coral, 0.28)}`,
+export const focusRing = {
+  outline: `3px solid ${alpha(TOV.coral, 0.25)}`,
+  outlineOffset: 2,
+}
+
+export const focusRingOnDark = {
+  outline: `3px solid ${TOV.focusOnDark}`,
   outlineOffset: 2,
 }
 
@@ -68,8 +155,8 @@ export const tovTheme = createTheme(
   {
     palette: {
       mode: 'light',
-      primary: { main: TOV.coral, dark: TOV.coralHover, light: TOV.coralBright, contrastText: '#fff' },
-      secondary: { main: TOV.graphite, dark: TOV.ink, contrastText: '#fff' },
+      primary: { main: TOV.primary, dark: TOV.primaryHover, light: TOV.coralOnDark, contrastText: TOV.onDark },
+      secondary: { main: TOV.graphite, dark: TOV.ink, contrastText: TOV.onDark },
       error: { main: TOV.danger },
       warning: { main: TOV.warning },
       info: { main: TOV.info },
@@ -107,17 +194,17 @@ export const tovTheme = createTheme(
       h5: { fontFamily: TOV.fontHead, fontWeight: 700, lineHeight: 1.25 },
       h6: { fontFamily: TOV.fontHead, fontWeight: 700, lineHeight: 1.3 },
       subtitle1: { fontWeight: 600, lineHeight: 1.45 },
-      body1: { fontSize: 15, lineHeight: 1.6 },
-      body2: { fontSize: 14, lineHeight: 1.55 },
+      body1: { fontSize: TOV.type.body, lineHeight: 1.6 },
+      body2: { fontSize: TOV.type.bodySm, lineHeight: 1.55 },
       button: { textTransform: 'none', fontWeight: 700, letterSpacing: 0 },
       overline: {
         fontFamily: TOV.fontHead,
         fontWeight: 700,
-        fontSize: 11,
+        fontSize: TOV.type.overline,
         lineHeight: 1.45,
         letterSpacing: '.16em',
       },
-      caption: { fontSize: 12, lineHeight: 1.5 },
+      caption: { fontSize: TOV.type.caption, lineHeight: 1.5 },
     },
     shape: { borderRadius: TOV.radiusMd },
     components: {
@@ -175,13 +262,13 @@ export const tovTheme = createTheme(
         styleOverrides: {
           root: {
             borderRadius: TOV.radiusSm,
-            paddingInline: 18,
-            minHeight: 46,
+            paddingInline: 16,
+            minHeight: 48,
             boxShadow: 'none',
             '&:focus-visible': focusRing,
             '&:active:not(.Mui-disabled)': { transform: 'translateY(1px)' },
           },
-          sizeSmall: { minHeight: 44, paddingInline: 14 },
+          sizeSmall: { minHeight: 44, paddingInline: 16 },
           containedPrimary: {
             boxShadow: 'none',
             '&:hover': { boxShadow: 'none', backgroundColor: TOV.coralHover },
@@ -239,12 +326,12 @@ export const tovTheme = createTheme(
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
-            borderRadius: TOV.radiusSm,
+            borderRadius: TOV.radiusMd,
             backgroundColor: TOV.surface,
             transition: `box-shadow ${TOV.durationFast} ${TOV.ease}, background-color ${TOV.durationFast} ${TOV.ease}`,
             '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: TOV.caption },
             '&.Mui-focused': {
-              boxShadow: `0 0 0 3px ${alpha(TOV.coral, 0.1)}`,
+              boxShadow: `0 0 0 3px ${alpha(TOV.coral, 0.25)}`,
               '& .MuiOutlinedInput-notchedOutline': { borderColor: TOV.coral, borderWidth: 1.5 },
             },
             '&.Mui-error': {
@@ -253,13 +340,13 @@ export const tovTheme = createTheme(
             },
             '&.Mui-disabled': { backgroundColor: alpha(TOV.caption, 0.07) },
           },
-          input: { paddingTop: 13, paddingBottom: 13 },
-          inputSizeSmall: { paddingTop: 11.5, paddingBottom: 11.5 },
+          input: { paddingTop: 12, paddingBottom: 12 },
+          inputSizeSmall: { paddingTop: 12, paddingBottom: 12 },
           notchedOutline: { borderColor: TOV.border, borderWidth: 1 },
         },
       },
       MuiFormHelperText: {
-        styleOverrides: { root: { marginLeft: 2, marginRight: 2 } },
+        styleOverrides: { root: { marginLeft: 4, marginRight: 4 } },
       },
       MuiTableContainer: {
         styleOverrides: {
@@ -272,28 +359,34 @@ export const tovTheme = createTheme(
         },
       },
       MuiTable: {
+        defaultProps: { stickyHeader: true },
         styleOverrides: { root: { borderCollapse: 'separate', borderSpacing: 0 } },
       },
       MuiTableCell: {
         styleOverrides: {
           root: {
             height: 54,
-            padding: '10px 16px',
+            padding: '12px 16px',
             borderBottom: `1px solid ${TOV.divider}`,
-            fontSize: 14,
+            fontSize: TOV.type.body,
           },
           head: {
             height: 44,
             paddingTop: 8,
             paddingBottom: 8,
-            backgroundColor: '#F0ECE7',
+            backgroundColor: TOV.surfaceMuted,
             fontFamily: TOV.fontHead,
             fontWeight: 700,
             letterSpacing: '.11em',
             textTransform: 'uppercase',
             color: TOV.caption,
-            fontSize: 10.5,
+            fontSize: TOV.type.micro,
             borderBottom: `1px solid ${TOV.border}`,
+          },
+          stickyHeader: {
+            top: 0,
+            zIndex: 2,
+            backgroundColor: TOV.surfaceMuted,
           },
         },
       },
@@ -302,6 +395,7 @@ export const tovTheme = createTheme(
           root: {
             transition: `background-color ${TOV.durationFast} ${TOV.ease}`,
             '&.MuiTableRow-hover:hover': { backgroundColor: alpha(TOV.graphite, 0.035) },
+            '&:nth-of-type(even)': { backgroundColor: alpha(TOV.graphite, 0.018) },
             '&:last-child td': { borderBottom: 0 },
           },
         },
@@ -331,7 +425,7 @@ export const tovTheme = createTheme(
       MuiTabs: {
         styleOverrides: {
           root: { minHeight: 48, borderBottom: `1px solid ${TOV.divider}` },
-          indicator: { height: 3, borderRadius: '3px 3px 0 0' },
+          indicator: { height: 4, borderRadius: `${TOV.radiusXs}px ${TOV.radiusXs}px 0 0` },
         },
       },
       MuiTab: {
@@ -342,7 +436,7 @@ export const tovTheme = createTheme(
             padding: '8px 16px',
             textTransform: 'none',
             fontWeight: 700,
-            fontSize: 14,
+            fontSize: TOV.type.body,
             color: TOV.caption,
             '&.Mui-selected': { color: TOV.ink },
             '&:focus-visible': { ...focusRing, outlineOffset: -3 },
@@ -353,9 +447,9 @@ export const tovTheme = createTheme(
         styleOverrides: {
           tooltip: {
             backgroundColor: TOV.ink,
-            borderRadius: 8,
-            padding: '7px 10px',
-            fontSize: 12,
+            borderRadius: TOV.radiusSm,
+            padding: '8px 12px',
+            fontSize: TOV.type.caption,
           },
           arrow: { color: TOV.ink },
         },
@@ -368,11 +462,11 @@ export const tovTheme = createTheme(
       MuiAlert: {
         styleOverrides: {
           root: { borderRadius: TOV.radiusSm, alignItems: 'center' },
-          standardError: { backgroundColor: TOV.dangerTint, color: '#7D1B22' },
-          standardWarning: { backgroundColor: TOV.warningTint, color: '#70420D' },
-          standardInfo: { backgroundColor: TOV.infoTint, color: '#244D61' },
-          standardSuccess: { backgroundColor: TOV.successTint, color: '#1D5A3E' },
-          filledWarning: { backgroundColor: '#6F4718', color: '#fff' },
+          standardError: { backgroundColor: TOV.dangerTint, color: TOV.danger },
+          standardWarning: { backgroundColor: TOV.warningTint, color: TOV.warning },
+          standardInfo: { backgroundColor: TOV.infoTint, color: TOV.info },
+          standardSuccess: { backgroundColor: TOV.successTint, color: TOV.success },
+          filledWarning: { backgroundColor: TOV.warning, color: TOV.onDark },
         },
       },
       MuiSnackbarContent: {
@@ -386,8 +480,8 @@ export const tovTheme = createTheme(
       },
       MuiLinearProgress: {
         styleOverrides: {
-          root: { height: 7, borderRadius: 99, backgroundColor: TOV.surfaceMuted },
-          bar: { borderRadius: 99 },
+          root: { height: 8, borderRadius: TOV.radiusFull, backgroundColor: TOV.surfaceMuted },
+          bar: { borderRadius: TOV.radiusFull },
         },
       },
       MuiPaginationItem: {
@@ -397,7 +491,7 @@ export const tovTheme = createTheme(
             height: 44,
             borderRadius: TOV.radiusSm,
             fontWeight: 700,
-            '&.Mui-selected': { backgroundColor: TOV.coral, color: '#fff' },
+            '&.Mui-selected': { backgroundColor: TOV.coral, color: TOV.onDark },
             '&:focus-visible': focusRing,
           },
         },
@@ -405,14 +499,14 @@ export const tovTheme = createTheme(
       MuiMenu: {
         styleOverrides: {
           paper: { border: `1px solid ${TOV.border}`, boxShadow: TOV.shadowFloating },
-          list: { padding: 6 },
+          list: { padding: 8 },
         },
       },
       MuiMenuItem: {
         styleOverrides: {
           root: {
             minHeight: 44,
-            borderRadius: 8,
+            borderRadius: TOV.radiusSm,
             '&.Mui-selected': { backgroundColor: TOV.coralTint },
             '&.Mui-selected:hover': { backgroundColor: TOV.coralTintStrong },
           },
@@ -424,7 +518,7 @@ export const tovTheme = createTheme(
       MuiBottomNavigationAction: {
         styleOverrides: {
           root: { minHeight: 60, color: TOV.caption, '&.Mui-selected': { color: TOV.coral } },
-          label: { fontSize: 11, fontWeight: 700, '&.Mui-selected': { fontSize: 11 } },
+          label: { fontSize: TOV.type.overline, fontWeight: 700, '&.Mui-selected': { fontSize: TOV.type.overline } },
         },
       },
     },

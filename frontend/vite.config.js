@@ -10,14 +10,13 @@ export default defineConfig({
       srcDir: 'src',
       filename: 'sw.js',
       injectManifest: {
-        // O shell fica disponível imediatamente; chunks de páginas são
-        // armazenados sob demanda pelo service worker depois da primeira visita.
+        // Todos os chunks de interface entram no shell. Dados autenticados
+        // continuam NetworkOnly no service worker, mas qualquer rota já pode
+        // renderizar uma orientação útil mesmo no primeiro uso offline.
         globPatterns: [
           'index.html',
           'manifest.webmanifest',
-          'assets/index-*.{js,css}',
-          'assets/router-*.js',
-          'assets/*.woff2',
+          'assets/*.{js,css,woff2}',
           '**/*.{svg,png,ico}',
         ],
       },
@@ -29,7 +28,7 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         display: 'standalone',
-        background_color: '#F7F4F1',
+        background_color: '#F5F2EE',
         theme_color: '#C92F2F',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

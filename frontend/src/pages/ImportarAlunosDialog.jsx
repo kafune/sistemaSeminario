@@ -22,11 +22,11 @@ function Resumo({ resultado }) {
   ]
   return (
     <Alert severity={resultado.erros ? 'warning' : 'success'} sx={{ mt: 2 }}>
-      <Box sx={{ fontWeight: 700, mb: 0.75 }}>Importação concluída</Box>
-      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', fontSize: 13 }}>
+      <Box sx={{ fontWeight: 700, mb: 1 }}>Importação concluída</Box>
+      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', fontSize: TOV.type.bodySm }}>
         {itens.map(([rotulo, valor]) => <span key={rotulo}>{rotulo}: <b>{valor || 0}</b></span>)}
       </Box>
-      {resultado.mensagem && <Box sx={{ mt: 1, fontSize: 13 }}>{resultado.mensagem}</Box>}
+      {resultado.mensagem && <Box sx={{ mt: 1, fontSize: TOV.type.bodySm }}>{resultado.mensagem}</Box>}
     </Alert>
   )
 }
@@ -234,13 +234,13 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
 
         <Box sx={{ ...cardSx, boxShadow: 'none', border: `1px solid ${TOV.border}`, p: { xs: 2, sm: 2.5 } }}>
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <CloudSyncIcon sx={{ color: TOV.coral, mt: 0.25 }} />
+            <CloudSyncIcon sx={{ color: TOV.graphite, mt: 0.5 }} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="h3" sx={{ fontSize: 19 }}>Planilha do Google Forms</Typography>
-              <Typography sx={{ mt: 0.75, color: TOV.caption, fontSize: 14, lineHeight: 1.5 }}>
+              <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Planilha do Google Forms</Typography>
+              <Typography sx={{ mt: 1, color: TOV.caption, fontSize: TOV.type.body, lineHeight: 1.5 }}>
                 Pesquise e escolha algumas pessoas ou importe todas as respostas. O Apps Script verifica a solicitação em até um minuto.
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', mt: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 2 }}>
                 <Button
                   variant="contained"
                   startIcon={carregandoPrevia ? <CircularProgress size={16} color="inherit" /> : <SearchIcon />}
@@ -261,8 +261,8 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
 
               {(googleEmAndamento || previaEmAndamento) && (
                 <Box sx={{ mt: 2 }}>
-                  <LinearProgress sx={{ borderRadius: 999 }} />
-                  <Typography sx={{ mt: 0.75, color: TOV.caption, fontSize: 12.5 }}>
+                  <LinearProgress sx={{ borderRadius: TOV.radiusFull }} />
+                  <Typography sx={{ mt: 1, color: TOV.caption, fontSize: TOV.type.caption }}>
                     Aguardando o Apps Script consultar a planilha…
                   </Typography>
                 </Box>
@@ -284,14 +284,14 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
                   />
 
                   <Box sx={{
-                    mt: 1.25,
+                    mt: 1.5,
                     border: `1px solid ${TOV.border}`,
-                    borderRadius: 2,
+                    borderRadius: TOV.radiusLg,
                     overflow: 'hidden',
                   }}>
                     <Box sx={{
-                      px: 1.25,
-                      py: 0.75,
+                      px: 1.5,
+                      py: 1,
                       display: 'flex',
                       alignItems: 'center',
                       gap: 0.5,
@@ -306,7 +306,7 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
                         onChange={alternarVisiveis}
                         inputProps={{ 'aria-label': 'Selecionar pessoas visíveis' }}
                       />
-                      <Typography sx={{ flex: 1, fontSize: 13.5, fontWeight: 700 }}>
+                      <Typography sx={{ flex: 1, fontSize: TOV.type.bodySm, fontWeight: 700 }}>
                         {itensFiltrados.length} {itensFiltrados.length === 1 ? 'pessoa encontrada' : 'pessoas encontradas'}
                       </Typography>
                       {selecionados.length > 0 && (
@@ -320,10 +320,10 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
                           component="label"
                           key={item.id}
                           sx={{
-                            px: 1.25,
+                            px: 1.5,
                             py: 1,
                             display: 'flex',
-                            gap: 0.75,
+                            gap: 1,
                             alignItems: 'flex-start',
                             cursor: 'pointer',
                             borderBottom: `1px solid ${TOV.border}`,
@@ -338,22 +338,22 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
                             sx={{ mt: -0.5 }}
                           />
                           <Box sx={{ flex: 1, minWidth: 0 }}>
-                            <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{item.nome}</Typography>
-                            <Typography sx={{ mt: 0.25, color: TOV.caption, fontSize: 12.5, overflowWrap: 'anywhere' }}>
+                            <Typography sx={{ fontSize: TOV.type.body, fontWeight: 700 }}>{item.nome}</Typography>
+                            <Typography sx={{ mt: 0.5, color: TOV.caption, fontSize: TOV.type.caption, overflowWrap: 'anywhere' }}>
                               {[item.e_mail, item.telefone, item.turma_interesse].filter(Boolean).join(' • ') || 'Sem outros dados'}
                             </Typography>
                           </Box>
                         </Box>
                       ))}
                       {itensFiltrados.length === 0 && (
-                        <Typography sx={{ p: 2.5, textAlign: 'center', color: TOV.caption, fontSize: 14 }}>
+                        <Typography sx={{ p: 2.5, textAlign: 'center', color: TOV.caption, fontSize: TOV.type.body }}>
                           Nenhuma pessoa encontrada com esse nome.
                         </Typography>
                       )}
                     </Box>
                   </Box>
 
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap', mt: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mt: 1.5 }}>
                     <Button
                       variant="contained"
                       disabled={selecionados.length === 0 || importandoSelecao}
@@ -379,20 +379,20 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
 
         <Box sx={{ ...cardSx, boxShadow: 'none', border: `1px solid ${TOV.border}`, p: { xs: 2, sm: 2.5 } }}>
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <UploadFileIcon sx={{ color: TOV.slate, mt: 0.25 }} />
+            <UploadFileIcon sx={{ color: TOV.slate, mt: 0.5 }} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="h3" sx={{ fontSize: 19 }}>Arquivo do computador</Typography>
-              <Typography sx={{ mt: 0.75, color: TOV.caption, fontSize: 14, lineHeight: 1.5 }}>
+              <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Arquivo do computador</Typography>
+              <Typography sx={{ mt: 1, color: TOV.caption, fontSize: TOV.type.body, lineHeight: 1.5 }}>
                 Aceita XLSX, XLS ou CSV. A primeira linha deve conter os cabeçalhos; os nomes usados no formulário já são reconhecidos.
               </Typography>
               <input ref={inputArquivo} hidden type="file" accept=".xlsx,.xls,.csv"
                 onChange={(e) => { setArquivo(e.target.files?.[0] || null); setResultadoArquivo(null) }} />
-              <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'center', flexWrap: 'wrap', mt: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap', mt: 2 }}>
                 <Button variant="outlined" startIcon={<UploadFileIcon />} disabled={!!processando || previaPronta}
                   onClick={() => inputArquivo.current?.click()}>
                   Selecionar arquivo
                 </Button>
-                <Typography sx={{ color: arquivo ? TOV.ink : TOV.caption, fontSize: 14, overflowWrap: 'anywhere' }}>
+                <Typography sx={{ color: arquivo ? TOV.ink : TOV.caption, fontSize: TOV.type.body, overflowWrap: 'anywhere' }}>
                   {arquivo?.name || 'Nenhum arquivo selecionado'}
                 </Typography>
                 <Button variant="contained" disabled={!arquivo || !!processando || previaPronta} onClick={importarArquivo}

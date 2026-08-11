@@ -35,10 +35,10 @@ function Resumo({ importacao }) {
       ]
   return (
     <Alert severity={concluida ? 'success' : 'info'} sx={{ mt: 2 }}>
-      <Box sx={{ fontWeight: 700, mb: 0.75 }}>
+      <Box sx={{ fontWeight: 700, mb: 1 }}>
         {concluida ? 'Importação concluída' : 'Prévia pronta para conferência'}
       </Box>
-      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', fontSize: 13 }}>
+      <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', fontSize: TOV.type.bodySm }}>
         {itens.map(([rotulo, valor]) => (
           <span key={rotulo}>{rotulo}: <b>{valor || 0}</b></span>
         ))}
@@ -115,10 +115,10 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
 
         <Box sx={{ ...cardSx, boxShadow: 'none', border: `1px solid ${TOV.border}`, p: { xs: 2, sm: 2.5 } }}>
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <UploadFileIcon sx={{ color: TOV.coral, mt: 0.25 }} />
+            <UploadFileIcon sx={{ color: TOV.graphite, mt: 0.5 }} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="h3" sx={{ fontSize: 19 }}>Arquivo do computador</Typography>
-              <Typography sx={{ mt: 0.75, color: TOV.caption, fontSize: 14, lineHeight: 1.55 }}>
+              <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Arquivo do computador</Typography>
+              <Typography sx={{ mt: 1, color: TOV.caption, fontSize: TOV.type.body, lineHeight: 1.55 }}>
                 Aceita XLSX, XLS ou CSV. A primeira linha deve ter os cabeçalhos Nome e
                 Telefone/Celular. E-mail, origem, campanha, data de captação, tags,
                 status do funil e opt-in são opcionais.
@@ -137,7 +137,7 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
                   setImportacao(null)
                 }}
               />
-              <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'center', flexWrap: 'wrap', mt: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap', mt: 2 }}>
                 <Button variant="text" onClick={baixarModelo} disabled={processando}>
                   Baixar planilha de exemplo
                 </Button>
@@ -149,7 +149,7 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
                 >
                   Selecionar arquivo
                 </Button>
-                <Typography sx={{ color: arquivo ? TOV.ink : TOV.caption, fontSize: 14, overflowWrap: 'anywhere' }}>
+                <Typography sx={{ color: arquivo ? TOV.ink : TOV.caption, fontSize: TOV.type.body, overflowWrap: 'anywhere' }}>
                   {arquivo?.name || 'Nenhum arquivo selecionado'}
                 </Typography>
                 <Button
@@ -161,7 +161,7 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
                   Gerar prévia
                 </Button>
               </Box>
-              {processando && <LinearProgress sx={{ mt: 2, borderRadius: 999 }} />}
+              {processando && <LinearProgress sx={{ mt: 2, borderRadius: TOV.radiusFull }} />}
               <Resumo importacao={importacao} />
             </Box>
           </Box>
@@ -171,10 +171,10 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
 
         <Box sx={{ ...cardSx, boxShadow: 'none', border: `1px solid ${TOV.border}`, p: { xs: 2, sm: 2.5 } }}>
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <CloudSyncIcon sx={{ color: TOV.slate, mt: 0.25 }} />
+            <CloudSyncIcon sx={{ color: TOV.slate, mt: 0.5 }} />
             <Box>
-              <Typography variant="h3" sx={{ fontSize: 19 }}>Planilha do Google Forms</Typography>
-              <Typography sx={{ mt: 0.75, color: TOV.caption, fontSize: 14, lineHeight: 1.55 }}>
+              <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Planilha do Google Forms</Typography>
+              <Typography sx={{ mt: 1, color: TOV.caption, fontSize: TOV.type.body, lineHeight: 1.55 }}>
                 A integração atual está vinculada ao formulário acadêmico de alunos.
                 Ela permanece desativada aqui para impedir que respostas acadêmicas
                 sejam misturadas à base de marketing.
@@ -186,10 +186,10 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
 
         {previa && (
           <Box sx={{ mt: 2.5 }}>
-            <Typography variant="h3" sx={{ fontSize: 19, mb: 1.25 }}>
+            <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>
               Conferir dados ({importacao.total_linhas})
             </Typography>
-            <Box sx={{ border: `1px solid ${TOV.border}`, borderRadius: 2, maxHeight: 330, overflowY: 'auto' }}>
+            <Box sx={{ border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusLg, maxHeight: 330, overflowY: 'auto' }}>
               {importacao.itens.map((item, indice) => {
                 const acao = ACAO[item.acao] || ACAO.ERRO
                 return (
@@ -201,10 +201,10 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
                     }}
                   >
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography sx={{ fontSize: 14, fontWeight: 700 }}>
+                      <Typography sx={{ fontSize: TOV.type.body, fontWeight: 700 }}>
                         Linha {item.numero_linha} · {item.nome || 'Sem nome'}
                       </Typography>
-                      <Typography sx={{ color: TOV.caption, fontSize: 12, overflowWrap: 'anywhere' }}>
+                      <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, overflowWrap: 'anywhere' }}>
                         {item.telefone || 'Sem telefone'}
                         {item.motivo ? ` · ${item.motivo}` : ''}
                       </Typography>
@@ -218,7 +218,7 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
         )}
 
         {concluida && (
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 2, color: '#247A49' }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 2, color: TOV.whatsappSuccess }}>
             <CheckCircleOutlineIcon />
             <Typography sx={{ fontWeight: 700 }}>A base de leads foi atualizada.</Typography>
           </Box>

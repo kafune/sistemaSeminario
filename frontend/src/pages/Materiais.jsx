@@ -207,7 +207,7 @@ export default function Materiais() {
           <MenuItem value="GERAL">Gerais da matéria</MenuItem>
           {aulasDaMateria.map((aula) => <MenuItem key={aula.id} value={String(aula.id)}>Aula · {rotuloAula(aula)}</MenuItem>)}
         </TextField>
-        <Typography sx={{ ml: { md: 'auto' }, color: TOV.caption, fontSize: 13, pb: 1 }}>
+        <Typography sx={{ ml: { md: 'auto' }, color: TOV.caption, fontSize: TOV.type.bodySm, pb: 1 }}>
           {materiaisFiltrados.length} {materiaisFiltrados.length === 1 ? 'material' : 'materiais'}
         </Typography>
       </BarraFiltros>
@@ -233,14 +233,14 @@ export default function Materiais() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
           {materiaisFiltrados.map((material) => (
             <Box key={material.id} component="article" sx={{ ...cardSx, p: { xs: 2, sm: 2.5 }, display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-              <Box aria-hidden="true" sx={{ width: 46, height: 46, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.coralTint, color: TOV.coral, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <Box aria-hidden="true" sx={{ width: 46, height: 46, borderRadius: TOV.radiusSm, bgcolor: TOV.slateTint, color: TOV.graphite, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                 <InsertDriveFileOutlinedIcon />
               </Box>
               <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
                   <Box sx={{ minWidth: 0 }}>
-                    <Typography component="h2" sx={{ fontWeight: 800, fontSize: 16, overflowWrap: 'anywhere' }}>{material.titulo}</Typography>
-                    <Typography sx={{ color: TOV.caption, fontSize: 12, mt: 0.25, overflowWrap: 'anywhere' }}>
+                    <Typography component="h2" sx={{ fontWeight: 700, fontSize: TOV.type.bodyLg, overflowWrap: 'anywhere' }}>{material.titulo}</Typography>
+                    <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5, overflowWrap: 'anywhere' }}>
                       {material.nome_arquivo} · {formatarTamanho(material.tamanho)}
                     </Typography>
                   </Box>
@@ -249,23 +249,23 @@ export default function Materiais() {
                   </StatusBadge>
                 </Box>
                 {material.aula && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: TOV.slate, fontSize: 13, mt: 1.25 }}>
-                    <EventOutlinedIcon sx={{ fontSize: 17 }} />
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: TOV.slate, fontSize: TOV.type.bodySm, mt: 1.5 }}>
+                    <EventOutlinedIcon sx={{ fontSize: TOV.type.bodyLg }} />
                     {rotuloAula(material.aula)}
                   </Box>
                 )}
                 {!material.aula && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: TOV.slate, fontSize: 13, mt: 1.25 }}>
-                    <MenuBookOutlinedIcon sx={{ fontSize: 17 }} /> Disponível em todas as aulas da matéria
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: TOV.slate, fontSize: TOV.type.bodySm, mt: 1.5 }}>
+                    <MenuBookOutlinedIcon sx={{ fontSize: TOV.type.bodyLg }} /> Disponível em todas as aulas da matéria
                   </Box>
                 )}
-                {material.descricao && <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 1.25, whiteSpace: 'pre-wrap' }}>{material.descricao}</Typography>}
+                {material.descricao && <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 1.5, whiteSpace: 'pre-wrap' }}>{material.descricao}</Typography>}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 2 }}>
                   <Button size="small" variant="outlined" startIcon={baixandoId === material.id ? <CircularProgress size={15} /> : <CloudDownloadOutlinedIcon />} disabled={baixandoId === material.id} onClick={() => baixar(material)}>
                     Baixar
                   </Button>
                   <Button size="small" color="error" startIcon={<DeleteOutlineIcon />} onClick={() => setMaterialExcluir(material)}>Remover</Button>
-                  <Typography sx={{ ml: { sm: 'auto' }, color: TOV.caption, fontSize: 11 }}>Enviado em {formatarDataHora(material.criado_em)}</Typography>
+                  <Typography sx={{ ml: { sm: 'auto' }, color: TOV.caption, fontSize: TOV.type.overline }}>Enviado em {formatarDataHora(material.criado_em)}</Typography>
                 </Box>
               </Box>
             </Box>
@@ -286,9 +286,9 @@ export default function Materiais() {
           <TextField fullWidth label="Título (opcional)" value={titulo} onChange={(e) => setTitulo(e.target.value)} inputProps={{ maxLength: 150 }} helperText="Se ficar vazio, será usado o nome do arquivo." />
           <TextField fullWidth multiline minRows={3} label="Descrição (opcional)" value={descricao} onChange={(e) => setDescricao(e.target.value)} inputProps={{ maxLength: 2000 }} />
           <Box sx={{ border: `1px dashed ${arquivo ? TOV.coral : TOV.border}`, borderRadius: `${TOV.radiusMd}px`, p: 2.5, bgcolor: arquivo ? TOV.coralTint : TOV.offwhite, textAlign: 'center' }}>
-            <UploadFileIcon sx={{ fontSize: 34, color: arquivo ? TOV.coral : TOV.caption }} />
+            <UploadFileIcon sx={{ fontSize: TOV.type.displaySm, color: arquivo ? TOV.coral : TOV.caption }} />
             <Typography sx={{ fontWeight: 700, mt: 0.5, overflowWrap: 'anywhere' }}>{arquivo?.name || 'Selecione o arquivo do material'}</Typography>
-            <Typography sx={{ color: TOV.caption, fontSize: 12, mt: 0.5 }}>
+            <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5 }}>
               PDF, Office, texto, imagem, áudio, vídeo, ZIP ou EPUB · até {limiteMb} MB
             </Typography>
             <Button component="label" variant="outlined" startIcon={<UploadFileIcon />} sx={{ mt: 1.5 }}>

@@ -183,14 +183,14 @@ export default function TurmaProfessor() {
 
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1.1fr) minmax(320px, .9fr)' }, gap: 2 }}>
             <Box sx={{ ...cardSx, overflow: 'hidden' }}>
-              <Box sx={{ px: 2.5, py: 2, borderBottom: `1px solid ${TOV.divider}` }}><Typography variant="h3" sx={{ fontSize: 19 }}>Alunos da turma</Typography></Box>
+              <Box sx={{ px: 2.5, py: 2, borderBottom: `1px solid ${TOV.divider}` }}><Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Alunos da turma</Typography></Box>
               {dados.alunos.length === 0 ? <EstadoVazio compacto titulo="Nenhum aluno matriculado" /> : (
                 <Box sx={{ maxHeight: 430, overflowY: 'auto' }}>
                   {dados.alunos.map((aluno, indice) => (
-                    <Box key={aluno.cod_alu} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 1.4, borderBottom: indice < dados.alunos.length - 1 ? `1px solid ${TOV.divider}` : 0 }}>
-                      <Box sx={{ color: TOV.caption, fontSize: 12, fontWeight: 700 }}>{String(indice + 1).padStart(2, '0')}</Box>
+                    <Box key={aluno.cod_alu} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 1.5, borderBottom: indice < dados.alunos.length - 1 ? `1px solid ${TOV.divider}` : 0 }}>
+                      <Box sx={{ color: TOV.caption, fontSize: TOV.type.caption, fontWeight: 700 }}>{String(indice + 1).padStart(2, '0')}</Box>
                       <Typography sx={{ flexGrow: 1, fontWeight: 700 }}>{aluno.nome}</Typography>
-                      <Typography sx={{ color: TOV.caption, fontSize: 13 }}>{aluno.faltas} falta(s)</Typography>
+                      <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>{aluno.faltas} falta(s)</Typography>
                       <StatusBadge tom={aluno.nota == null ? 'warning' : 'success'}>{aluno.nota == null ? 'Sem nota' : `Nota ${aluno.nota.toLocaleString('pt-BR')}`}</StatusBadge>
                     </Box>
                   ))}
@@ -200,15 +200,15 @@ export default function TurmaProfessor() {
 
             <Box sx={{ ...cardSx, p: 2.5 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 2 }}>
-                <Box><Typography variant="h3" sx={{ fontSize: 19 }}>Comunicados</Typography><Typography sx={{ color: TOV.caption, fontSize: 12.5, mt: 0.4 }}>Rascunhos e avisos preparados para os alunos.</Typography></Box>
+                <Box><Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Comunicados</Typography><Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5 }}>Rascunhos e avisos preparados para os alunos.</Typography></Box>
                 <Button size="small" startIcon={<CampaignOutlinedIcon />} onClick={() => abrirComunicado()}>Novo</Button>
               </Box>
               {dados.comunicados.length === 0 ? <EstadoVazio compacto titulo="Nenhum comunicado" descricao="Crie avisos que poderão aparecer no futuro portal do aluno." /> : (
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                   {dados.comunicados.map((comunicado) => (
                     <Box key={comunicado.id} sx={{ p: 1.5, border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusSm}px` }}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}><Typography sx={{ fontWeight: 800 }}>{comunicado.titulo}</Typography><StatusBadge tom={comunicado.status === 'PUBLICADO' ? 'success' : 'muted'}>{comunicado.status === 'PUBLICADO' ? 'Publicado' : 'Rascunho'}</StatusBadge></Box>
-                      <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 0.75, whiteSpace: 'pre-wrap' }}>{comunicado.mensagem}</Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}><Typography sx={{ fontWeight: 700 }}>{comunicado.titulo}</Typography><StatusBadge tom={comunicado.status === 'PUBLICADO' ? 'success' : 'muted'}>{comunicado.status === 'PUBLICADO' ? 'Publicado' : 'Rascunho'}</StatusBadge></Box>
+                      <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 1, whiteSpace: 'pre-wrap' }}>{comunicado.mensagem}</Typography>
                       <Box sx={{ display: 'flex', gap: 1, mt: 1 }}><Button size="small" onClick={() => abrirComunicado(comunicado)}>Editar</Button><Button size="small" color="error" onClick={() => setComunicadoExcluir(comunicado)}>Remover</Button></Box>
                     </Box>
                   ))}
@@ -229,12 +229,12 @@ export default function TurmaProfessor() {
                 return (
                   <Box key={aula.id} component="article" sx={{ ...cardSx, p: 2.5, borderColor: hoje ? TOV.coral : TOV.border }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
-                      <Box><Typography sx={{ color: hoje ? TOV.coral : TOV.caption, fontSize: 12, fontWeight: 800, textTransform: 'uppercase' }}>{hoje ? 'Hoje · ' : ''}{dataCurta(aula.data)}{aula.hora_inicio ? ` · ${aula.hora_inicio}` : ''}</Typography><Typography variant="h3" sx={{ fontSize: 19, mt: 0.6 }}>{aula.tema || 'Tema ainda não informado'}</Typography></Box>
+                      <Box><Typography sx={{ color: hoje ? TOV.coral : TOV.caption, fontSize: TOV.type.caption, fontWeight: 700, textTransform: 'uppercase' }}>{hoje ? 'Hoje · ' : ''}{dataCurta(aula.data)}{aula.hora_inicio ? ` · ${aula.hora_inicio}` : ''}</Typography><Typography variant="h3" sx={{ fontSize: TOV.type.section, mt: 0.5 }}>{aula.tema || 'Tema ainda não informado'}</Typography></Box>
                       <StatusBadge tom={aula.status === 'REALIZADA' ? 'success' : aula.status === 'CANCELADA' ? 'error' : 'info'}>{aula.status}</StatusBadge>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5 }}><StatusBadge tom={planejada ? 'success' : 'warning'}>{planejada ? 'Planejada' : 'Planejamento pendente'}</StatusBadge>{aula.total_materiais > 0 && <StatusBadge>{aula.total_materiais} material(is)</StatusBadge>}{aula.chamada && <StatusBadge tom={aula.chamada.status === 'ABERTA' ? 'success' : 'muted'}>Chamada {aula.chamada.status.toLowerCase()}</StatusBadge>}</Box>
-                    {aula.planejamento?.objetivos && <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 1.5 }}><b style={{ color: TOV.ink }}>Objetivos:</b> {aula.planejamento.objetivos}</Typography>}
-                    {aula.planejamento?.tarefa && <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 0.75 }}><b style={{ color: TOV.ink }}>Tarefa:</b> {aula.planejamento.tarefa}</Typography>}
+                    {aula.planejamento?.objetivos && <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 1.5 }}><b style={{ color: TOV.ink }}>Objetivos:</b> {aula.planejamento.objetivos}</Typography>}
+                    {aula.planejamento?.tarefa && <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 1 }}><b style={{ color: TOV.ink }}>Tarefa:</b> {aula.planejamento.tarefa}</Typography>}
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}><Button variant="outlined" size="small" startIcon={<NoteAddOutlinedIcon />} onClick={() => abrirPlanejamento(aula)}>{planejada ? 'Editar planejamento' : 'Planejar aula'}</Button>{(hoje || aula.chamada) && <Button variant={hoje ? 'contained' : 'text'} size="small" startIcon={<HowToRegOutlinedIcon />} onClick={() => navigate(`/turmas/${vinculo.cod_tur}/presencas?vinculo=${docturmaId}`)}>{aula.chamada ? 'Ver chamada' : 'Fazer chamada'}</Button>}</Box>
                   </Box>
                 )
@@ -256,7 +256,7 @@ export default function TurmaProfessor() {
           <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto' }}>
             <Table>
               <TableHead><TableRow><TableCell>Aluno</TableCell><TableCell align="center">Nota</TableCell><TableCell align="center">Faltas</TableCell><TableCell>Situação</TableCell></TableRow></TableHead>
-              <TableBody>{dados.alunos.map((aluno) => <TableRow key={aluno.cod_alu}><TableCell sx={{ fontWeight: 700 }}>{aluno.nome}</TableCell><TableCell align="center" sx={{ fontWeight: 800 }}>{aluno.nota == null ? '—' : aluno.nota.toLocaleString('pt-BR')}</TableCell><TableCell align="center">{aluno.faltas}</TableCell><TableCell><StatusBadge tom={aluno.nota == null ? 'warning' : 'success'}>{aluno.nota == null ? 'Pendente' : 'Lançada'}</StatusBadge></TableCell></TableRow>)}</TableBody>
+              <TableBody>{dados.alunos.map((aluno) => <TableRow key={aluno.cod_alu}><TableCell sx={{ fontWeight: 700 }}>{aluno.nome}</TableCell><TableCell align="center" sx={{ fontWeight: 700 }}>{aluno.nota == null ? '—' : aluno.nota.toLocaleString('pt-BR')}</TableCell><TableCell align="center">{aluno.faltas}</TableCell><TableCell><StatusBadge tom={aluno.nota == null ? 'warning' : 'success'}>{aluno.nota == null ? 'Pendente' : 'Lançada'}</StatusBadge></TableCell></TableRow>)}</TableBody>
             </Table>
           </TableContainer>
         </Box>
@@ -266,8 +266,8 @@ export default function TurmaProfessor() {
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}><Button variant="contained" startIcon={<FolderCopyOutlinedIcon />} onClick={() => navigate(`/materiais?vinculo=${docturmaId}`)}>Gerenciar materiais</Button></Box>
           {dados.materiais.length === 0 ? <Box sx={cardSx}><EstadoVazio titulo="Nenhum material anexado" descricao="Adicione arquivos para toda a matéria ou para aulas específicas." /></Box> : (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.25 }}>
-              {dados.materiais.map((material) => <Box key={material.id} sx={{ ...cardSx, p: 2, display: 'flex', gap: 1.5, alignItems: 'center' }}><Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', bgcolor: TOV.coralTint, color: TOV.coral, borderRadius: `${TOV.radiusSm}px`, flexShrink: 0 }}><FolderCopyOutlinedIcon /></Box><Box sx={{ minWidth: 0, flexGrow: 1 }}><Typography sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>{material.titulo}</Typography><Typography sx={{ color: TOV.caption, fontSize: 12, overflowWrap: 'anywhere' }}>{material.nome_arquivo} · {tamanho(material.tamanho)} · {dataHora(material.criado_em)}</Typography></Box><Button size="small" startIcon={baixandoId === material.id ? <CircularProgress size={14} /> : <CloudDownloadOutlinedIcon />} disabled={baixandoId === material.id} onClick={() => baixarMaterial(material)}>{telaDesktop ? 'Baixar' : ''}</Button></Box>)}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
+              {dados.materiais.map((material) => <Box key={material.id} sx={{ ...cardSx, p: 2, display: 'flex', gap: 1.5, alignItems: 'center' }}><Box sx={{ width: 42, height: 42, display: 'grid', placeItems: 'center', bgcolor: TOV.slateTint, color: TOV.graphite, borderRadius: TOV.radiusSm, flexShrink: 0 }}><FolderCopyOutlinedIcon /></Box><Box sx={{ minWidth: 0, flexGrow: 1 }}><Typography sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{material.titulo}</Typography><Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, overflowWrap: 'anywhere' }}>{material.nome_arquivo} · {tamanho(material.tamanho)} · {dataHora(material.criado_em)}</Typography></Box><Button size="small" startIcon={baixandoId === material.id ? <CircularProgress size={14} /> : <CloudDownloadOutlinedIcon />} disabled={baixandoId === material.id} onClick={() => baixarMaterial(material)}>{telaDesktop ? 'Baixar' : ''}</Button></Box>)}
             </Box>
           )}
         </Box>

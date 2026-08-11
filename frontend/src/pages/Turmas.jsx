@@ -5,7 +5,7 @@ import {
   Snackbar, TextField, Typography,
 } from '@mui/material'
 import { api } from '../api'
-import { TOV } from '../theme'
+import { TOV, focusRing } from '../theme'
 import { CabecalhoPagina, DialogoConfirmacao, EstadoErro, SkeletonCards, resetBotao, useDialogoTelaCheia } from '../ui'
 import { useClearUnsavedChanges, useDirtyForm } from '../UnsavedChanges'
 
@@ -23,26 +23,26 @@ function CardTurma({ turma, onClick }) {
       onClick={onClick}
       sx={{
         ...resetBotao, display: 'block', width: '100%',
-        bgcolor: TOV.surface, borderRadius: `${TOV.radiusMd}px`, p: '24px 26px',
+        bgcolor: TOV.surface, borderRadius: TOV.radiusMd, p: '24px 28px',
         border: `1px solid ${TOV.border}`, boxShadow: 'none',
         transition: `transform ${TOV.durationFast} ${TOV.ease}, border-color ${TOV.durationFast} ${TOV.ease}`,
-        '&:hover': { transform: 'translateY(-1px)', borderColor: '#BFB5AD' },
-        '&:focus-visible': { outline: `3px solid ${TOV.coralTintStrong}`, outlineOffset: 2, borderRadius: `${TOV.radiusMd}px` },
+        '&:hover': { transform: 'translateY(-1px)', borderColor: TOV.borderHover },
+        '&:focus-visible': focusRing,
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Box component="span" sx={{ px: 1.5, py: '5px', bgcolor: TOV.coralTint, color: TOV.coral, borderRadius: 999, fontSize: 12, fontWeight: 700 }}>#{turma.cod_tur}</Box>
-        {turma.horario && <Typography component="span" sx={{ fontSize: 13, color: TOV.caption }}>{turma.horario}</Typography>}
+        <Box component="span" sx={{ px: 1.5, py: 0.5, bgcolor: TOV.slateTint, color: TOV.graphite, borderRadius: TOV.radiusFull, fontSize: TOV.type.caption, fontWeight: 700 }}>#{turma.cod_tur}</Box>
+        {turma.horario && <Typography component="span" sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>{turma.horario}</Typography>}
       </Box>
-      <Typography variant="h3" sx={{ fontSize: 24, mb: 0.75 }}>{turma.nome}</Typography>
-      <Typography sx={{ fontSize: 14, color: TOV.caption, mb: 2.5 }}>{turma.curso || 'Curso não informado'}</Typography>
-      <Box sx={{ display: 'flex', gap: 3, pt: 2.25, borderTop: `1px solid ${TOV.offwhite}`, alignItems: 'flex-end' }}>
+      <Typography variant="h3" sx={{ fontSize: TOV.type.title, mb: 1 }}>{turma.nome}</Typography>
+      <Typography sx={{ fontSize: TOV.type.body, color: TOV.caption, mb: 2.5 }}>{turma.curso || 'Curso não informado'}</Typography>
+      <Box sx={{ display: 'flex', gap: 3, pt: 2.5, borderTop: `1px solid ${TOV.offwhite}`, alignItems: 'flex-end' }}>
         <Box>
-          <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 28 }}>{turma.qtd_alunos ?? 0}</Box>
-          <Box sx={{ fontSize: 12, color: TOV.caption }}>alunos</Box>
+          <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleLg }}>{turma.qtd_alunos ?? 0}</Box>
+          <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>alunos</Box>
         </Box>
         {mesAno(turma.dat_ini) && (
-          <Box sx={{ ml: 'auto', fontSize: 13, color: TOV.caption }}>Início {mesAno(turma.dat_ini)}</Box>
+          <Box sx={{ ml: 'auto', fontSize: TOV.type.bodySm, color: TOV.caption }}>Início {mesAno(turma.dat_ini)}</Box>
         )}
       </Box>
     </Box>
@@ -101,7 +101,7 @@ export default function Turmas() {
         acoes={<Button variant="contained" onClick={abrirForm} sx={{ height: 46 }}>+ Nova turma</Button>}
       />
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', lg: 'repeat(3,1fr)' }, gap: '18px' }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', lg: 'repeat(3,1fr)' }, gap: 2.5 }}>
         {!turmas && msg && <EstadoErro titulo="Não foi possível carregar as turmas" descricao={msg} onTentarNovamente={carregar} sx={{ gridColumn: '1 / -1' }} />}
         {!turmas && !msg && <SkeletonCards quantidade={3} altura={200} sx={{ display: 'contents' }} />}
         {turmas && turmas.map((t) => (
@@ -114,15 +114,15 @@ export default function Turmas() {
             onClick={abrirForm}
             sx={{
               ...resetBotao,
-              bgcolor: 'transparent', border: `1px dashed #C8BDB4`, borderRadius: `${TOV.radiusMd}px`, p: '26px 28px',
+              bgcolor: 'transparent', border: `1px dashed ${TOV.borderHover}`, borderRadius: TOV.radiusMd, p: '24px 28px',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               color: TOV.caption, minHeight: 200,
               '&:hover': { borderColor: TOV.coral },
-              '&:focus-visible': { outline: `3px solid ${TOV.coralTintStrong}`, outlineOffset: 2, borderRadius: `${TOV.radiusMd}px` },
+              '&:focus-visible': focusRing,
             }}
           >
-            <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 34, color: TOV.coral }}>+</Box>
-            <Box sx={{ fontWeight: 600, mt: 0.75 }}>Criar nova turma</Box>
+            <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.displaySm, color: TOV.coral }}>+</Box>
+            <Box sx={{ fontWeight: 600, mt: 1 }}>Criar nova turma</Box>
           </Box>
         )}
       </Box>

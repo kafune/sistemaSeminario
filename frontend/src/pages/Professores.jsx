@@ -154,7 +154,7 @@ export default function Professores() {
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
-                <SearchIcon sx={{ color: TOV.caption, fontSize: 20 }} />
+                <SearchIcon sx={{ color: TOV.caption, fontSize: TOV.type.titleSm }} />
               </InputAdornment>
             ),
           }}
@@ -178,7 +178,7 @@ export default function Professores() {
       />
 
       {/* Lista em cards — celular/tablet */}
-      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {carregando && professores.length === 0 && (
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
@@ -189,8 +189,8 @@ export default function Professores() {
           <CartaoLista key={p.cod_pro}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
               <Box sx={{ minWidth: 0 }}>
-                <Box sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3 }}>{p.nome}</Box>
-                <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>
+                <Box sx={{ fontWeight: 700, fontSize: TOV.type.bodyLg, lineHeight: 1.3 }}>{p.nome}</Box>
+                <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>
                   Código {String(p.cod_pro).padStart(2, '0')}{p.sigla ? ` · ${p.sigla}` : ''}
                 </Box>
               </Box>
@@ -247,7 +247,7 @@ export default function Professores() {
                 </TableCell>
                 <TableCell><PilulaStatus status={p.status} /></TableCell>
                 <TableCell align="right">
-                  <Box sx={{ display: 'inline-flex', gap: 1.25, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
+                  <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption }}>
                     {!p.usuario_acesso && <>
                       <Box component="button" type="button" onClick={() => criarConviteAcesso(p)} disabled={criandoConvite}
                         sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
@@ -261,7 +261,7 @@ export default function Professores() {
                     </Box>
                     <Box component="span" sx={{ color: TOV.border }}>·</Box>
                     <Box component="button" type="button" onClick={() => setParaExcluir(p)}
-                      sx={{ ...resetBotao, '&:hover': { color: '#d32f2f' } }}>
+                      sx={{ ...resetBotao, '&:hover': { color: TOV.danger } }}>
                       Excluir
                     </Box>
                   </Box>
@@ -390,7 +390,7 @@ export default function Professores() {
       <Dialog open={!!convite} onClose={() => setConvite(null)} maxWidth="sm" fullWidth>
         <DialogTitle>{convite?.tipo === 'acesso' ? 'Link de acesso às notas' : 'Link de autocadastro'}</DialogTitle>
         <DialogContent>
-          <Box sx={{ color: TOV.slate, fontSize: 15, mb: 2 }}>
+          <Box sx={{ color: TOV.slate, fontSize: TOV.type.body, mb: 2 }}>
             {convite?.tipo === 'acesso'
               ? `Envie este link a ${convite.professor_nome}. Ele poderá criar a senha e acessar somente as próprias turmas. O link expira em 7 dias.`
               : 'Envie este link a um professor. Ele é individual, expira em 30 dias e deixa de funcionar após o primeiro cadastro.'}

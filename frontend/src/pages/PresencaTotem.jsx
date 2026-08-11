@@ -70,7 +70,7 @@ function Relogio() {
     return () => window.clearInterval(timer)
   }, [])
   return (
-    <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 18, lineHeight: 1.15, fontVariantNumeric: 'tabular-nums' }}>
+    <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.section, lineHeight: 1.15, fontVariantNumeric: 'tabular-nums' }}>
       {textoHora(agora.toISOString())}
     </Typography>
   )
@@ -82,22 +82,22 @@ function CabecalhoSecao({ id, titulo, quantidade, descricao, tom = 'neutral' }) 
     <Box sx={{ display: 'flex', alignItems: 'end', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
       <Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography id={id} component="h2" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 19, sm: 22 }, lineHeight: 1.2 }}>
+          <Typography id={id} component="h2" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: TOV.type.section, sm: TOV.type.titleSm }, lineHeight: 1.2 }}>
             {titulo}
           </Typography>
           <Box
             component="span"
             sx={{
-              minWidth: 28, height: 28, px: 0.85, display: 'inline-grid', placeItems: 'center',
-              borderRadius: 999, bgcolor: sucesso ? TOV.successTint : TOV.slateTint,
-              color: sucesso ? TOV.success : TOV.graphite, fontSize: 12, fontWeight: 800,
+              minWidth: 28, height: 28, px: 1, display: 'inline-grid', placeItems: 'center',
+              borderRadius: TOV.radiusFull, bgcolor: sucesso ? TOV.successTint : TOV.slateTint,
+              color: sucesso ? TOV.success : TOV.graphite, fontSize: TOV.type.caption, fontWeight: 700,
               fontVariantNumeric: 'tabular-nums',
             }}
           >
             {quantidade}
           </Box>
         </Box>
-        {descricao && <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 0.35 }}>{descricao}</Typography>}
+        {descricao && <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>{descricao}</Typography>}
       </Box>
     </Box>
   )
@@ -113,21 +113,21 @@ const CartaoAluno = memo(function CartaoAluno({ aluno, onSelecionar }) {
       aria-label={presente ? `${aluno.nome}, presença marcada às ${textoHora(aluno.registrado_em)}` : `Marcar presença de ${aluno.nome}`}
       sx={{
         ...(presente ? {} : resetBotao),
-        minHeight: { xs: 88, sm: 102 }, width: '100%', px: { xs: 1.5, sm: 2.25 }, py: 1.5,
-        display: 'flex', alignItems: 'center', gap: { xs: 1.4, sm: 1.75 }, textAlign: 'left',
-        borderRadius: '18px', border: `1px solid ${presente ? 'rgba(39,116,81,.20)' : TOV.border}`,
-        bgcolor: presente ? 'rgba(39,116,81,.075)' : TOV.surface,
-        boxShadow: presente ? 'none' : '0 10px 30px -30px rgba(25,27,29,.55)',
+        minHeight: { xs: 88, sm: 104 }, width: '100%', px: { xs: 1.5, sm: 2.5 }, py: 1.5,
+        display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, textAlign: 'left',
+        borderRadius: TOV.radiusLg, border: `1px solid ${presente ? TOV.successBorder : TOV.border}`,
+        bgcolor: presente ? TOV.successSurface : TOV.surface,
+        boxShadow: presente ? 'none' : TOV.shadowInteractive,
         cursor: presente ? 'default' : 'pointer', position: 'relative', overflow: 'hidden',
         userSelect: 'none', WebkitUserSelect: 'none',
         touchAction: 'manipulation', WebkitTouchCallout: 'none',
         transition: `border-color ${TOV.durationFast} ${TOV.ease}, transform ${TOV.durationFast} ${TOV.ease}, background-color ${TOV.durationFast} ${TOV.ease}`,
         '&::before': presente ? undefined : {
-          content: '""', position: 'absolute', inset: '14px auto 14px 0', width: 3,
-          borderRadius: '0 4px 4px 0', bgcolor: TOV.coral,
+          content: '""', position: 'absolute', inset: '16px auto 16px 0', width: 4,
+          borderRadius: `0 ${TOV.radiusXs}px ${TOV.radiusXs}px 0`, bgcolor: TOV.coral,
         },
         '@media (hover: hover)': {
-          '&:hover': presente ? {} : { borderColor: '#C3B9B1', bgcolor: '#FCFAF7' },
+          '&:hover': presente ? {} : { borderColor: TOV.borderHover, bgcolor: TOV.surfaceHover },
         },
         '&:active': presente ? {} : { transform: 'scale(.992)', bgcolor: TOV.canvas },
       }}
@@ -135,17 +135,17 @@ const CartaoAluno = memo(function CartaoAluno({ aluno, onSelecionar }) {
       <AvatarIniciais
         nome={aluno.nome}
         tamanho={60}
-        radius={18}
-        fontSize={20}
+        radius={TOV.radiusLg}
+        fontSize={TOV.type.titleSm}
         sx={presente
-          ? { bgcolor: TOV.success, color: '#fff', borderColor: 'transparent' }
+          ? { bgcolor: TOV.success, color: TOV.onDark, borderColor: 'transparent' }
           : { bgcolor: TOV.surfaceMuted, color: TOV.graphite, borderColor: TOV.divider }}
       />
       <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 17, sm: 20 }, lineHeight: 1.22, color: TOV.ink }}>
+        <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: TOV.type.bodyLg, sm: TOV.type.titleSm }, lineHeight: 1.22, color: TOV.ink }}>
           {aluno.nome}
         </Typography>
-        <Typography sx={{ color: presente ? TOV.success : TOV.caption, fontSize: 12.5, fontWeight: 700, mt: 0.45 }}>
+        <Typography sx={{ color: presente ? TOV.success : TOV.caption, fontSize: TOV.type.bodySm, fontWeight: 700, mt: 0.5 }}>
           {presente ? `Confirmada às ${textoHora(aluno.registrado_em)}` : 'Toque para marcar sua chegada'}
         </Typography>
       </Box>
@@ -153,11 +153,11 @@ const CartaoAluno = memo(function CartaoAluno({ aluno, onSelecionar }) {
         aria-hidden="true"
         sx={{
           width: 42, height: 42, flex: '0 0 42px', display: 'grid', placeItems: 'center',
-          borderRadius: '13px', bgcolor: presente ? 'transparent' : TOV.coralTint,
+          borderRadius: TOV.radiusMd, bgcolor: presente ? 'transparent' : TOV.slateTint,
           color: presente ? TOV.success : TOV.coral,
         }}
       >
-        {presente ? <CheckCircleRoundedIcon sx={{ fontSize: 29 }} /> : <ArrowForwardRoundedIcon sx={{ fontSize: 25 }} />}
+        {presente ? <CheckCircleRoundedIcon sx={{ fontSize: TOV.type.titleLg }} /> : <ArrowForwardRoundedIcon sx={{ fontSize: TOV.type.title }} />}
       </Box>
     </Box>
   )
@@ -304,7 +304,7 @@ export default function PresencaTotem() {
     return (
       <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', bgcolor: TOV.canvas, p: 3 }}>
         <Box sx={{ textAlign: 'center' }}>
-          <Box sx={{ width: 62, height: 62, mx: 'auto', mb: 2.5, display: 'grid', placeItems: 'center', borderRadius: '18px', bgcolor: TOV.graphite, color: '#fff', fontFamily: TOV.fontHead, fontWeight: 800, fontSize: 18 }}>TOV</Box>
+          <Box sx={{ width: 64, height: 64, mx: 'auto', mb: 2.5, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusLg, bgcolor: TOV.graphite, color: TOV.onDark, fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.section }}>TOV</Box>
           <CircularProgress size={36} thickness={4.5} />
           <Typography sx={{ mt: 2, color: TOV.caption, fontWeight: 700 }}>Preparando a chamada…</Typography>
         </Box>
@@ -316,14 +316,14 @@ export default function PresencaTotem() {
     const encerrada = /encerrad|expirad|não encontrad/i.test(erro)
     return (
       <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', bgcolor: TOV.canvas, p: 3 }}>
-        <Box sx={{ width: 'min(520px, 100%)', textAlign: 'center', bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: '26px', overflow: 'hidden' }}>
+        <Box sx={{ width: 'min(520px, 100%)', textAlign: 'center', bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: TOV.radius2xl, overflow: 'hidden' }}>
           <Box sx={{ height: 5, bgcolor: encerrada ? TOV.coral : TOV.warning }} />
           <Box sx={{ p: { xs: 3, sm: 5 } }}>
-            <Box sx={{ width: 76, height: 76, mx: 'auto', mb: 2.5, display: 'grid', placeItems: 'center', borderRadius: '23px', bgcolor: encerrada ? TOV.coralTint : TOV.warningTint, color: encerrada ? TOV.coral : TOV.warning }}>
-              {encerrada ? <HowToRegRoundedIcon sx={{ fontSize: 40 }} /> : <WifiOffRoundedIcon sx={{ fontSize: 38 }} />}
+            <Box sx={{ width: 76, height: 76, mx: 'auto', mb: 2.5, display: 'grid', placeItems: 'center', borderRadius: TOV.radius2xl, bgcolor: encerrada ? TOV.slateTint : TOV.warningTint, color: encerrada ? TOV.graphite : TOV.warning }}>
+              {encerrada ? <HowToRegRoundedIcon sx={{ fontSize: TOV.type.display }} /> : <WifiOffRoundedIcon sx={{ fontSize: TOV.type.display }} />}
             </Box>
-            <Typography variant="h1" sx={{ fontSize: { xs: 30, sm: 38 } }}>{encerrada ? 'Chamada encerrada' : 'Sem conexão no momento'}</Typography>
-            <Typography sx={{ color: TOV.caption, mt: 1.5, fontSize: 16 }}>
+            <Typography variant="h1" sx={{ fontSize: { xs: TOV.type.displaySm, sm: TOV.type.display } }}>{encerrada ? 'Chamada encerrada' : 'Sem conexão no momento'}</Typography>
+            <Typography sx={{ color: TOV.caption, mt: 1.5, fontSize: TOV.type.bodyLg }}>
               {encerrada ? 'Peça à secretaria para abrir a chamada de hoje neste iPad.' : 'Confira a internet do iPad e tente carregar a lista novamente.'}
             </Typography>
             {!encerrada && <Button variant="contained" onClick={() => carregar()} sx={{ mt: 3, minWidth: 180 }}>Tentar novamente</Button>}
@@ -338,49 +338,49 @@ export default function PresencaTotem() {
       <Box
         component="header"
         sx={{
-          position: 'sticky', top: 0, zIndex: 20, color: '#fff', borderTop: `4px solid ${TOV.coral}`,
+          position: 'sticky', top: 0, zIndex: 20, color: TOV.onDark, borderTop: `4px solid ${TOV.ink}`,
           bgcolor: TOV.graphite,
-          backgroundImage: 'linear-gradient(115deg, rgba(25,27,29,.26), rgba(52,59,63,0) 58%)',
-          px: { xs: 2, sm: 3.5 }, pt: 'max(16px, env(safe-area-inset-top))', pb: { xs: 1.8, sm: 2.15 },
-          boxShadow: '0 12px 30px -28px rgba(25,27,29,.85)',
+          backgroundImage: TOV.darkGradient,
+          px: { xs: 2, sm: 3.5 }, pt: 'max(16px, env(safe-area-inset-top))', pb: { xs: 2, sm: 2 },
+          boxShadow: TOV.shadowHeader,
         }}
       >
         <Box sx={{ maxWidth: 1160, mx: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: { xs: 1.5, sm: 2.5 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.25, sm: 1.5 }, minWidth: 0 }}>
-            <Box sx={{ width: { xs: 46, sm: 50 }, height: { xs: 46, sm: 50 }, flex: '0 0 auto', display: 'grid', placeItems: 'center', borderRadius: '15px', bgcolor: TOV.coral, boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.1)', fontFamily: TOV.fontHead, fontWeight: 800, fontSize: 16 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 1.5 }, minWidth: 0 }}>
+            <Box sx={{ width: { xs: 48, sm: 52 }, height: { xs: 48, sm: 52 }, flex: '0 0 auto', display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: TOV.onDarkSurface, boxShadow: TOV.shadowHairline, fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.bodyLg }}>
               TOV
             </Box>
             <Box sx={{ minWidth: 0 }}>
-              <Typography component="div" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 18, sm: 23 }, lineHeight: 1.15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <Typography component="div" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: TOV.type.section, sm: TOV.type.title }, lineHeight: 1.15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {chamada.turma.nome}
               </Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,.62)', fontSize: { xs: 11.5, sm: 13.5 }, mt: 0.35, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <Typography sx={{ color: TOV.onDarkMuted, fontSize: { xs: TOV.type.caption, sm: TOV.type.body }, mt: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {textoData(chamada.data)}{chamada.aula?.materia_nome ? ` · ${chamada.aula.materia_nome}` : ''}
               </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ ml: 'auto', display: { xs: 'none', sm: reconectando ? 'flex' : 'none', md: 'flex' }, alignItems: 'center', gap: 0.8, px: 1.2, py: 0.7, borderRadius: 999, bgcolor: reconectando ? 'rgba(154,91,18,.22)' : 'rgba(255,255,255,.07)', border: '1px solid rgba(255,255,255,.09)', color: reconectando ? '#F2C47D' : 'rgba(255,255,255,.72)', fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
-            {reconectando ? <WifiOffRoundedIcon sx={{ fontSize: 15 }} /> : <Box aria-hidden="true" sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#62C596' }} />}
+          <Box sx={{ ml: 'auto', display: { xs: 'none', sm: reconectando ? 'flex' : 'none', md: 'flex' }, alignItems: 'center', gap: 1, px: 1.5, py: 1, borderRadius: TOV.radiusFull, bgcolor: reconectando ? TOV.warningTint : TOV.onDarkSurface, border: `1px solid ${reconectando ? TOV.warningBorder : TOV.onDarkBorder}`, color: reconectando ? TOV.onDarkStrong : TOV.onDarkBody, fontSize: TOV.type.caption, fontWeight: 700, whiteSpace: 'nowrap' }}>
+            {reconectando ? <WifiOffRoundedIcon sx={{ fontSize: TOV.type.bodyLg }} /> : <Box aria-hidden="true" sx={{ width: 8, height: 8, borderRadius: TOV.radiusFull, bgcolor: TOV.successBright }} />}
             {reconectando ? 'Reconectando…' : 'Chamada aberta'}
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.25, sm: 2 }, flexShrink: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, flexShrink: 0 }}>
             <Box sx={{ display: { xs: 'none', sm: 'block' }, textAlign: 'right' }}>
-              <Typography sx={{ color: 'rgba(255,255,255,.5)', fontSize: 9.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase' }}>Agora</Typography>
+              <Typography sx={{ color: TOV.onDarkMuted, fontSize: TOV.type.micro, fontWeight: 700, letterSpacing: '.12em', textTransform: 'uppercase' }}>Agora</Typography>
               <Relogio />
             </Box>
-            <Box aria-hidden="true" sx={{ display: { xs: 'none', sm: 'block' }, width: '1px', height: 35, bgcolor: 'rgba(255,255,255,.12)' }} />
+            <Box aria-hidden="true" sx={{ display: { xs: 'none', sm: 'block' }, width: '1px', height: 36, bgcolor: TOV.onDarkBorder }} />
             <Box sx={{ textAlign: 'right' }}>
-              <Typography sx={{ fontFamily: TOV.fontHead, fontSize: { xs: 22, sm: 28 }, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                {chamada.presentes}<Box component="span" sx={{ color: 'rgba(255,255,255,.38)', fontSize: '.62em' }}>/{chamada.total}</Box>
+              <Typography sx={{ fontFamily: TOV.fontHead, fontSize: { xs: TOV.type.titleSm, sm: TOV.type.titleLg }, fontWeight: 700, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+                {chamada.presentes}<Box component="span" sx={{ color: TOV.onDarkMuted, fontSize: TOV.type.body }}>/{chamada.total}</Box>
               </Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,.56)', fontSize: { xs: 9.5, sm: 10.5 }, fontWeight: 700, mt: 0.45, whiteSpace: 'nowrap' }}>presentes</Typography>
+              <Typography sx={{ color: TOV.onDarkMuted, fontSize: TOV.type.micro, fontWeight: 700, mt: 0.5, whiteSpace: 'nowrap' }}>presentes</Typography>
             </Box>
           </Box>
         </Box>
-        <Box aria-hidden="true" sx={{ position: 'absolute', inset: 'auto 0 0', height: 3, bgcolor: 'rgba(255,255,255,.08)' }}>
-          <Box sx={{ width: `${progresso}%`, height: '100%', bgcolor: '#62C596', transition: `width 420ms ${TOV.ease}` }} />
+        <Box aria-hidden="true" sx={{ position: 'absolute', inset: 'auto 0 0', height: 4, bgcolor: TOV.onDarkSurface }}>
+          <Box sx={{ width: `${progresso}%`, height: '100%', bgcolor: TOV.successBright, transition: `width ${TOV.transitionBase}` }} />
         </Box>
       </Box>
 
@@ -392,20 +392,20 @@ export default function PresencaTotem() {
           aria-label="Busca de aluno"
           sx={{
             position: { xs: 'static', sm: 'sticky' }, top: { sm: 'calc(73px + max(16px, env(safe-area-inset-top)))' }, zIndex: 15,
-            mx: { sm: -1 }, px: { sm: 1 }, pt: { sm: 2.25 }, pb: { xs: 2.5, sm: 2.25 },
+            mx: { sm: -1 }, px: { sm: 1 }, pt: { sm: 2.5 }, pb: { xs: 2.5, sm: 2.5 },
             bgcolor: TOV.canvas,
           }}
         >
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(230px,.75fr) minmax(360px,1.25fr)' }, alignItems: 'center', gap: { xs: 1.75, sm: 3.5 }, p: { xs: 0, sm: 2 }, borderRadius: { sm: '22px' }, bgcolor: { sm: 'rgba(255,255,255,.94)' }, border: { sm: `1px solid ${TOV.border}` }, boxShadow: { sm: '0 16px 36px -34px rgba(25,27,29,.72)' }, WebkitBackdropFilter: 'blur(14px)', backdropFilter: 'blur(14px)' }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(230px,.75fr) minmax(360px,1.25fr)' }, alignItems: 'center', gap: { xs: 2, sm: 3.5 }, p: { xs: 0, sm: 2 }, borderRadius: { sm: TOV.radiusXl }, bgcolor: { sm: TOV.glassSurface }, border: { sm: `1px solid ${TOV.border}` }, boxShadow: { sm: TOV.shadowRaised }, WebkitBackdropFilter: 'blur(16px)', backdropFilter: 'blur(16px)' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box aria-hidden="true" sx={{ width: 50, height: 50, flex: '0 0 50px', display: 'grid', placeItems: 'center', borderRadius: '15px', bgcolor: TOV.coralTint, color: TOV.coral }}>
-                <TouchAppRoundedIcon sx={{ fontSize: 27 }} />
+              <Box aria-hidden="true" sx={{ width: 52, height: 52, flex: '0 0 52px', display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: TOV.slateTint, color: TOV.graphite }}>
+                <TouchAppRoundedIcon sx={{ fontSize: TOV.type.titleLg }} />
               </Box>
               <Box>
-                <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 25, sm: 27 }, lineHeight: 1.08 }}>
+                <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: TOV.type.title, sm: TOV.type.titleLg }, lineHeight: 1.08 }}>
                   Encontre seu nome
                 </Typography>
-                <Typography sx={{ color: TOV.caption, fontSize: { xs: 13, sm: 14 }, mt: 0.45 }}>
+                <Typography sx={{ color: TOV.caption, fontSize: { xs: TOV.type.bodySm, sm: TOV.type.body }, mt: 0.5 }}>
                   {chamada.ausentes === 0 ? 'Todas as presenças foram confirmadas.' : `${chamada.ausentes} ${chamada.ausentes === 1 ? 'pessoa ainda não confirmou' : 'pessoas ainda não confirmaram'}.`}
                 </Typography>
               </Box>
@@ -419,49 +419,49 @@ export default function PresencaTotem() {
               inputProps={{ inputMode: 'search', enterKeyHint: 'search', autoCorrect: 'off', spellCheck: false, 'aria-label': 'Digite seu nome para buscar na chamada' }}
               fullWidth
               InputProps={{
-                startAdornment: <InputAdornment position="start"><SearchRoundedIcon sx={{ color: TOV.coral, fontSize: 27 }} /></InputAdornment>,
+                startAdornment: <InputAdornment position="start"><SearchRoundedIcon sx={{ color: TOV.graphite, fontSize: TOV.type.titleLg }} /></InputAdornment>,
                 endAdornment: busca
                   ? <InputAdornment position="end"><IconButton aria-label="Limpar busca" onClick={() => setBusca('')} sx={{ width: 44, height: 44 }}><CloseRoundedIcon /></IconButton></InputAdornment>
                   : undefined,
-                sx: { height: { xs: 58, sm: 64 }, fontSize: { xs: 16.5, sm: 18 }, bgcolor: TOV.surface, borderRadius: '16px', touchAction: 'manipulation' },
+                sx: { height: { xs: 60, sm: 64 }, fontSize: { xs: TOV.type.bodyLg, sm: TOV.type.section }, bgcolor: TOV.surface, borderRadius: TOV.radiusMd, touchAction: 'manipulation' },
               }}
             />
           </Box>
         </Box>
 
         {alunosFiltrados.length === 0 && (
-          <Box sx={{ border: `1px dashed ${TOV.border}`, borderRadius: '20px', bgcolor: 'rgba(255,255,255,.42)', py: { xs: 5, sm: 7 }, px: 3, textAlign: 'center' }}>
-            <Box sx={{ width: 58, height: 58, mx: 'auto', mb: 1.75, display: 'grid', placeItems: 'center', borderRadius: '17px', bgcolor: TOV.slateTint, color: TOV.caption }}><SearchRoundedIcon sx={{ fontSize: 29 }} /></Box>
-            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 22 }}>{busca ? 'Nenhum nome encontrado' : 'A lista ainda está vazia'}</Typography>
-            <Typography sx={{ color: TOV.caption, mt: 0.75 }}>{busca ? 'Confira a digitação ou tente apenas o primeiro nome.' : 'Peça à secretaria para conferir os alunos desta turma.'}</Typography>
+          <Box sx={{ border: `1px dashed ${TOV.border}`, borderRadius: TOV.radiusXl, bgcolor: TOV.glassSurfaceFaint, py: { xs: 5, sm: 7 }, px: 3, textAlign: 'center' }}>
+            <Box sx={{ width: 60, height: 60, mx: 'auto', mb: 2, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusLg, bgcolor: TOV.slateTint, color: TOV.caption }}><SearchRoundedIcon sx={{ fontSize: TOV.type.titleLg }} /></Box>
+            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm }}>{busca ? 'Nenhum nome encontrado' : 'A lista ainda está vazia'}</Typography>
+            <Typography sx={{ color: TOV.caption, mt: 1 }}>{busca ? 'Confira a digitação ou tente apenas o primeiro nome.' : 'Peça à secretaria para conferir os alunos desta turma.'}</Typography>
           </Box>
         )}
 
         {aguardando.length > 0 && (
           <Box component="section" aria-labelledby="titulo-aguardando">
             <CabecalhoSecao id="titulo-aguardando" titulo="Aguardando confirmação" quantidade={aguardando.length} descricao="Toque no seu nome para registrar a chegada." />
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))', md: 'repeat(3,minmax(0,1fr))' }, gap: { xs: 1.15, sm: 1.5 } }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))', md: 'repeat(3,minmax(0,1fr))' }, gap: { xs: 1, sm: 1.5 } }}>
               {aguardando.map((aluno) => <CartaoAluno key={aluno.cod_alu} aluno={aluno} onSelecionar={selecionarAluno} />)}
             </Box>
           </Box>
         )}
 
         {buscaAtiva && aguardando.length === 0 && presentes.length > 0 && (
-          <Box sx={{ mb: 2.5, px: { xs: 2.25, sm: 3 }, py: 2.25, display: 'flex', alignItems: 'center', gap: 1.75, borderRadius: '20px', bgcolor: TOV.successTint, border: '1px solid rgba(39,116,81,.18)' }}>
-            <CheckCircleRoundedIcon sx={{ color: TOV.success, fontSize: 36 }} />
+          <Box sx={{ mb: 2.5, px: { xs: 2.5, sm: 3 }, py: 2.5, display: 'flex', alignItems: 'center', gap: 2, borderRadius: TOV.radiusXl, bgcolor: TOV.successTint, border: `1px solid ${TOV.successBorder}` }}>
+            <CheckCircleRoundedIcon sx={{ color: TOV.success, fontSize: TOV.type.displaySm }} />
             <Box>
-              <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 20 }}>Presença já confirmada</Typography>
-              <Typography sx={{ color: TOV.success, fontSize: 13.5, mt: 0.2 }}>Este nome já está na lista de quem chegou.</Typography>
+              <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm }}>Presença já confirmada</Typography>
+              <Typography sx={{ color: TOV.success, fontSize: TOV.type.body, mt: 0.5 }}>Este nome já está na lista de quem chegou.</Typography>
             </Box>
           </Box>
         )}
 
         {aguardando.length === 0 && presentes.length > 0 && !busca && (
-          <Box sx={{ mb: 3, px: { xs: 2.5, sm: 3.5 }, py: 2.5, display: 'flex', alignItems: 'center', gap: 2, borderRadius: '20px', bgcolor: TOV.successTint, border: '1px solid rgba(39,116,81,.18)' }}>
-            <CheckCircleRoundedIcon sx={{ color: TOV.success, fontSize: 40 }} />
+          <Box sx={{ mb: 3, px: { xs: 2.5, sm: 3.5 }, py: 2.5, display: 'flex', alignItems: 'center', gap: 2, borderRadius: TOV.radiusXl, bgcolor: TOV.successTint, border: `1px solid ${TOV.successBorder}` }}>
+            <CheckCircleRoundedIcon sx={{ color: TOV.success, fontSize: TOV.type.display }} />
             <Box>
-              <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 22 }}>Todo mundo chegou!</Typography>
-              <Typography sx={{ color: TOV.success, fontSize: 13.5, mt: 0.25 }}>Todas as presenças desta turma já foram confirmadas.</Typography>
+              <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm }}>Todo mundo chegou!</Typography>
+              <Typography sx={{ color: TOV.success, fontSize: TOV.type.body, mt: 0.5 }}>Todas as presenças desta turma já foram confirmadas.</Typography>
             </Box>
           </Box>
         )}
@@ -476,8 +476,8 @@ export default function PresencaTotem() {
                 aria-expanded={mostrarPresentes}
                 aria-controls="lista-presentes"
                 startIcon={<PeopleAltRoundedIcon />}
-                endIcon={<ExpandMoreRoundedIcon sx={{ transition: `transform ${TOV.durationFast} ${TOV.ease}`, transform: mostrarPresentes ? 'rotate(180deg)' : 'none' }} />}
-                sx={{ minHeight: 58, justifyContent: 'flex-start', px: 2, color: TOV.graphite, borderColor: TOV.border, bgcolor: 'rgba(255,255,255,.55)', '& .MuiButton-endIcon': { ml: 'auto' } }}
+                endIcon={<ExpandMoreRoundedIcon sx={{ transition: `transform ${TOV.transitionFast}`, transform: mostrarPresentes ? 'rotate(180deg)' : 'none' }} />}
+                sx={{ minHeight: 60, justifyContent: 'flex-start', px: 2, color: TOV.graphite, borderColor: TOV.border, bgcolor: TOV.glassSurfaceSoft, '& .MuiButton-endIcon': { ml: 'auto' } }}
               >
                 {mostrarPresentes ? 'Ocultar confirmados' : `Ver quem já confirmou (${presentes.length})`}
               </Button>
@@ -485,7 +485,7 @@ export default function PresencaTotem() {
             {exibirPresentes && (
               <Box id="lista-presentes" sx={{ mt: buscaAtiva ? 0 : 2 }}>
                 <CabecalhoSecao id="titulo-presentes" titulo={buscaAtiva ? 'Resultado confirmado' : 'Já chegaram'} quantidade={presentes.length} descricao={buscaAtiva ? 'Este nome já registrou presença.' : 'Presenças confirmadas nesta chamada.'} tom="success" />
-                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))', md: 'repeat(3,minmax(0,1fr))' }, gap: { xs: 1.15, sm: 1.5 } }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))', md: 'repeat(3,minmax(0,1fr))' }, gap: { xs: 1, sm: 1.5 } }}>
                   {presentes.map((aluno) => <CartaoAluno key={aluno.cod_alu} aluno={aluno} onSelecionar={selecionarAluno} />)}
                 </Box>
               </Box>
@@ -502,23 +502,23 @@ export default function PresencaTotem() {
         fullWidth
         aria-labelledby="titulo-confirmacao-presenca"
         aria-describedby="descricao-confirmacao-presenca"
-        PaperProps={{ sx: { borderRadius: '26px', overflow: 'hidden', m: { xs: 2, sm: 4 }, width: { xs: 'calc(100% - 32px)', sm: '100%' }, maxWidth: 620 } }}
+        PaperProps={{ sx: { borderRadius: TOV.radius2xl, overflow: 'hidden', m: { xs: 2, sm: 4 }, width: { xs: 'calc(100% - 32px)', sm: '100%' }, maxWidth: 620 } }}
       >
         {selecionado && (
           <>
             <Box sx={{ height: 5, bgcolor: TOV.coral }} />
             <DialogContent sx={{ textAlign: 'center', px: { xs: 2.5, sm: 5 }, pt: { xs: 3, sm: 4 }, pb: 2 }}>
               <Typography variant="overline" sx={{ color: TOV.coral }}>Confirme seu nome</Typography>
-              <Typography id="titulo-confirmacao-presenca" component="h2" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 29, sm: 36 }, lineHeight: 1.1, mt: 0.75 }}>
+              <Typography id="titulo-confirmacao-presenca" component="h2" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: TOV.type.titleLg, sm: TOV.type.displaySm }, lineHeight: 1.1, mt: 1 }}>
                 É você?
               </Typography>
-              <AvatarIniciais nome={selecionado.nome} tamanho={82} radius={25} fontSize={27} sx={{ mx: 'auto', mt: 2.5, mb: 1.5, bgcolor: TOV.graphite }} />
-              <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 23, sm: 29 }, lineHeight: 1.22, overflowWrap: 'anywhere' }}>
+              <AvatarIniciais nome={selecionado.nome} tamanho={80} radius={TOV.radius2xl} fontSize={TOV.type.titleLg} sx={{ mx: 'auto', mt: 2.5, mb: 1.5, bgcolor: TOV.graphite }} />
+              <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: TOV.type.title, sm: TOV.type.titleLg }, lineHeight: 1.22, overflowWrap: 'anywhere' }}>
                 {selecionado.nome}
               </Typography>
               <Typography id="descricao-confirmacao-presenca" sx={{ color: TOV.caption, mt: 1 }}>Confira o nome antes de continuar. A chegada será registrada com o horário atual.</Typography>
             </DialogContent>
-            <DialogActions sx={{ p: { xs: 2, sm: 3 }, pt: 2, gap: 1.25, bgcolor: '#FAF8F5', borderTop: `1px solid ${TOV.divider}`, '& > button': { flex: 1, minHeight: { xs: 58, sm: 64 }, fontSize: { xs: 13.5, sm: 16 }, touchAction: 'manipulation' } }}>
+            <DialogActions sx={{ p: { xs: 2, sm: 3 }, pt: 2, gap: 1.5, bgcolor: TOV.surfaceMuted, borderTop: `1px solid ${TOV.divider}`, '& > button': { flex: 1, minHeight: { xs: 60, sm: 64 }, fontSize: { xs: TOV.type.body, sm: TOV.type.bodyLg }, touchAction: 'manipulation' } }}>
               <Button variant="outlined" onClick={() => setSelecionado(null)} disabled={confirmando}>Não sou eu</Button>
               <Button variant="contained" onClick={confirmarPresenca} disabled={confirmando} startIcon={!confirmando && <CheckCircleRoundedIcon />}>
                 {confirmando ? 'Confirmando…' : 'Sim, confirmar'}
@@ -536,28 +536,28 @@ export default function PresencaTotem() {
           sx={{
             position: 'fixed', inset: 0, zIndex: 1500, display: 'grid', placeItems: 'center',
             bgcolor: TOV.ink,
-            backgroundImage: 'radial-gradient(circle at 50% 34%, rgba(39,116,81,.34), transparent 38%), linear-gradient(145deg, #252A2D, #191B1D)',
+            backgroundImage: TOV.feedbackGradient,
             p: 3,
             '@keyframes entradaSucesso': { from: { opacity: 0, transform: 'translateY(12px) scale(.96)' }, to: { opacity: 1, transform: 'translateY(0) scale(1)' } },
           }}
         >
-          <Box sx={{ width: 'min(540px, 100%)', textAlign: 'center', color: '#fff', animation: `entradaSucesso 360ms ${TOV.ease} both` }}>
-            <Box sx={{ width: { xs: 100, sm: 120 }, height: { xs: 100, sm: 120 }, mx: 'auto', display: 'grid', placeItems: 'center', borderRadius: '34px', bgcolor: '#62C596', color: TOV.ink, boxShadow: '0 24px 60px -28px rgba(98,197,150,.7)' }}>
-              <CheckCircleRoundedIcon sx={{ fontSize: { xs: 68, sm: 82 } }} />
+          <Box sx={{ width: 'min(540px, 100%)', textAlign: 'center', color: TOV.onDark, animation: `entradaSucesso ${TOV.transitionBase} both` }}>
+            <Box sx={{ width: { xs: 104, sm: 120 }, height: { xs: 104, sm: 120 }, mx: 'auto', display: 'grid', placeItems: 'center', borderRadius: TOV.radiusDisplay, bgcolor: TOV.successBright, color: TOV.ink, boxShadow: TOV.shadowSuccess }}>
+              <CheckCircleRoundedIcon sx={{ fontSize: { xs: TOV.type.heroLg, sm: TOV.type.heroLg } }} />
             </Box>
-            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: 34, sm: 48 }, lineHeight: 1.05, mt: 3 }}>
+            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: { xs: TOV.type.displaySm, sm: TOV.type.hero }, lineHeight: 1.05, mt: 3 }}>
               Presença confirmada!
             </Typography>
-            <Typography sx={{ color: 'rgba(255,255,255,.78)', fontSize: { xs: 18, sm: 22 }, mt: 1.5 }}>
+            <Typography sx={{ color: TOV.onDarkBody, fontSize: { xs: TOV.type.section, sm: TOV.type.titleSm }, mt: 1.5 }}>
               Que bom ter você aqui, {primeiroNome(sucesso.nome)}.
             </Typography>
-            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, mt: 2.5, px: 1.6, py: 0.9, borderRadius: 999, bgcolor: 'rgba(255,255,255,.08)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.72)', fontSize: 13.5, fontWeight: 700 }}>
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, mt: 2.5, px: 2, py: 1, borderRadius: TOV.radiusFull, bgcolor: TOV.onDarkSurface, border: `1px solid ${TOV.onDarkBorder}`, color: TOV.onDarkBody, fontSize: TOV.type.body, fontWeight: 700 }}>
               Chegada registrada às {sucesso.horario}
             </Box>
-            <Typography sx={{ color: 'rgba(255,255,255,.62)', fontSize: 13, mt: 3 }}>Toque em qualquer lugar para continuar.</Typography>
+            <Typography sx={{ color: TOV.onDarkMuted, fontSize: TOV.type.bodySm, mt: 3 }}>Toque em qualquer lugar para continuar.</Typography>
           </Box>
-          <Box aria-hidden="true" sx={{ position: 'absolute', inset: 'auto 0 0', height: 5, bgcolor: 'rgba(255,255,255,.12)', overflow: 'hidden' }}>
-            <Box sx={{ height: '100%', bgcolor: '#62C596', transformOrigin: 'left', animation: 'tempoSucesso 1700ms linear both', '@keyframes tempoSucesso': { from: { transform: 'scaleX(1)' }, to: { transform: 'scaleX(0)' } } }} />
+          <Box aria-hidden="true" sx={{ position: 'absolute', inset: 'auto 0 0', height: 4, bgcolor: TOV.onDarkSurfaceHover, overflow: 'hidden' }}>
+            <Box sx={{ height: '100%', bgcolor: TOV.successBright, transformOrigin: 'left', animation: `tempoSucesso ${TOV.transitionFeedback} both`, '@keyframes tempoSucesso': { from: { transform: 'scaleX(1)' }, to: { transform: 'scaleX(0)' } } }} />
           </Box>
         </Box>
       )}

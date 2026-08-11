@@ -1,5 +1,5 @@
 import { Box, Button, Typography } from '@mui/material'
-import { TOV } from '../theme'
+import { TOV, focusRing } from '../theme'
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
@@ -21,7 +21,7 @@ export function intervaloGrade(mes) {
 function corEvento(status) {
   if (status === 'CANCELADA') return { bg: TOV.captionTint, color: TOV.caption }
   if (status === 'REALIZADA') return { bg: TOV.slateTint, color: TOV.slate }
-  return { bg: TOV.coralTint, color: TOV.coral }
+  return { bg: TOV.infoTint, color: TOV.info }
 }
 
 const STATUS = {
@@ -55,8 +55,8 @@ export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
   if (!doMes.length) {
     return (
       <Box sx={{ bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, p: 3, textAlign: 'center' }}>
-        <Typography variant="h3" sx={{ fontSize: 19 }}>Nenhuma aula neste mês</Typography>
-        <Typography sx={{ color: TOV.caption, fontSize: 14, mt: 1 }}>
+        <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Nenhuma aula neste mês</Typography>
+        <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mt: 1 }}>
           {onNovo ? 'Adicione a primeira aula ou avance para outro mês.' : 'Avance para outro mês para consultar a agenda.'}
         </Typography>
         {onNovo && <Button variant="contained" onClick={() => onNovo()} sx={{ mt: 2 }}>Adicionar aula</Button>}
@@ -71,7 +71,7 @@ export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
           <Box sx={{ px: 2, py: 1.5, bgcolor: TOV.offwhite, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography
               variant="h3"
-              sx={{ fontSize: 15, flex: 1 }}
+              sx={{ fontSize: TOV.type.body, flex: 1 }}
             >
               {dataLegivel(data)}
             </Typography>
@@ -93,29 +93,29 @@ export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
                   sx={{
                     appearance: 'none', border: 0, width: '100%', minHeight: 64,
                     borderTop: indice ? `1px solid ${TOV.divider}` : 0,
-                    borderRadius: '10px', p: 1.25, bgcolor: 'transparent',
+                    borderRadius: TOV.radiusSm, p: 1.5, bgcolor: 'transparent',
                     color: TOV.ink, font: 'inherit', textAlign: 'left', cursor: 'pointer',
-                    display: 'flex', alignItems: 'flex-start', gap: 1.25,
+                    display: 'flex', alignItems: 'flex-start', gap: 1.5,
                     '&:active': { bgcolor: TOV.offwhite },
-                    '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 1 },
+                    '&:focus-visible': focusRing,
                   }}
                 >
-                  <Box sx={{ minWidth: 52, color: cores.color, fontWeight: 800, fontSize: 14, pt: '2px' }}>
+                  <Box sx={{ minWidth: 52, color: cores.color, fontWeight: 700, fontSize: TOV.type.body, pt: 0.5 }}>
                     {aula.hora_inicio || '—'}
                   </Box>
                   <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Typography sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
+                    <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
                       {aula.materia_nome}
                     </Typography>
-                    <Typography sx={{ color: TOV.caption, fontSize: 13, mt: '3px', overflowWrap: 'anywhere' }}>
+                    <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5, overflowWrap: 'anywhere' }}>
                       {[aula.turma_nome, aula.professor_nome, aula.local].filter(Boolean).join(' · ')}
                     </Typography>
                   </Box>
                   <Box
                     component="span"
                     sx={{
-                      flexShrink: 0, px: 1, py: '4px', borderRadius: 999,
-                      bgcolor: cores.bg, color: cores.color, fontSize: 12, fontWeight: 800,
+                      flexShrink: 0, px: 1, py: 0.5, borderRadius: TOV.radiusFull,
+                      bgcolor: cores.bg, color: cores.color, fontSize: TOV.type.caption, fontWeight: 700,
                     }}
                   >
                     {STATUS[aula.status] || aula.status}
@@ -143,7 +143,7 @@ export default function CalendarioGrade({ mes, aulas, onSelecionar, onNovo }) {
     <Box sx={{ minWidth: 760 }}>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
         {DIAS.map((dia) => (
-          <Box key={dia} sx={{ p: 1, textAlign: 'center', fontSize: 12, fontWeight: 700, color: TOV.caption, textTransform: 'uppercase', letterSpacing: '.08em', borderBottom: `1px solid ${TOV.border}` }}>
+          <Box key={dia} sx={{ p: 1, textAlign: 'center', fontSize: TOV.type.caption, fontWeight: 700, color: TOV.caption, textTransform: 'uppercase', letterSpacing: '.08em', borderBottom: `1px solid ${TOV.border}` }}>
             {dia}
           </Box>
         ))}
@@ -156,11 +156,11 @@ export default function CalendarioGrade({ mes, aulas, onSelecionar, onNovo }) {
               key={iso}
               onDoubleClick={() => onNovo?.(iso)}
               sx={{
-                minHeight: 118, p: 0.75, borderRight: `1px solid ${TOV.border}`,
-                borderBottom: `1px solid ${TOV.border}`, bgcolor: fora ? TOV.offwhite : '#fff',
+                minHeight: 118, p: 1, borderRight: `1px solid ${TOV.border}`,
+                borderBottom: `1px solid ${TOV.border}`, bgcolor: fora ? TOV.offwhite : TOV.surfaceElevated,
               }}
             >
-              <Box sx={{ fontSize: 12, fontWeight: 700, color: fora ? TOV.caption : TOV.ink, mb: 0.5 }}>{data.getDate()}</Box>
+              <Box sx={{ fontSize: TOV.type.caption, fontWeight: 700, color: fora ? TOV.caption : TOV.ink, mb: 0.5 }}>{data.getDate()}</Box>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 {eventos.map((aula) => {
                   const cores = corEvento(aula.status)
@@ -171,15 +171,15 @@ export default function CalendarioGrade({ mes, aulas, onSelecionar, onNovo }) {
                       key={aula.id}
                       onClick={() => onSelecionar?.(aula)}
                       sx={{
-                        appearance: 'none', border: 0, borderRadius: '6px', p: '5px 6px',
+                        appearance: 'none', border: 0, borderRadius: TOV.radiusSm, p: '4px 8px',
                         textAlign: 'left', cursor: onSelecionar ? 'pointer' : 'default',
                         bgcolor: cores.bg, color: cores.color, font: 'inherit', minWidth: 0,
                       }}
                     >
-                      <Box sx={{ fontSize: 11, fontWeight: 800, lineHeight: 1.2 }}>
+                      <Box sx={{ fontSize: TOV.type.overline, fontWeight: 700, lineHeight: 1.2 }}>
                         {aula.hora_inicio || ''} {aula.turma_nome}
                       </Box>
-                      <Box sx={{ fontSize: 11, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <Box sx={{ fontSize: TOV.type.overline, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {aula.materia_nome}
                       </Box>
                     </Box>

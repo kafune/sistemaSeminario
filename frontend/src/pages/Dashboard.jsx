@@ -81,11 +81,11 @@ export default function Dashboard() {
       </Box>}
 
       {/* Matrículas por curso + Atividade recente */}
-      {!erro && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.55fr 1fr' }, gap: '18px' }}>
+      {!erro && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.55fr 1fr' }, gap: 2.5 }}>
         <Superficie sx={{ p: { xs: 2.5, md: 3.5 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2.75 }}>
-            <Typography variant="h3" sx={{ fontSize: 22 }}>Matrículas por curso</Typography>
-            <Typography sx={{ fontSize: 13, color: TOV.caption }}>{semestreAtual(agora)}</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>Matrículas por curso</Typography>
+            <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>{semestreAtual(agora)}</Typography>
           </Box>
           {!dados ? (
             [0, 1, 2, 3].map((i) => <Skeleton key={i} height={40} sx={{ mb: 1 }} />)
@@ -95,12 +95,12 @@ export default function Dashboard() {
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {dados.matriculas_por_curso.map((c, i) => (
                 <Box key={c.curso}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, mb: '7px' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: TOV.type.body, mb: 1 }}>
                     <Box component="span" sx={{ fontWeight: 600, color: TOV.slate }}>{c.curso}</Box>
                     <Box component="span" sx={{ fontWeight: 700 }}>{c.total}</Box>
                   </Box>
-                  <Box sx={{ height: 8, bgcolor: TOV.surfaceMuted, borderRadius: 99, overflow: 'hidden' }}>
-                    <Box sx={{ width: `${Math.round((c.total / maxCurso) * 100)}%`, height: '100%', bgcolor: i < 2 ? TOV.coral : TOV.graphite, borderRadius: 99, transition: `width ${TOV.durationBase} ${TOV.ease}` }} />
+                  <Box sx={{ height: 8, bgcolor: TOV.surfaceMuted, borderRadius: TOV.radiusFull, overflow: 'hidden' }}>
+                    <Box sx={{ width: `${Math.round((c.total / maxCurso) * 100)}%`, height: '100%', bgcolor: i < 2 ? TOV.graphite : TOV.caption, borderRadius: TOV.radiusFull, transition: `width ${TOV.transitionBase}` }} />
                   </Box>
                 </Box>
               ))}
@@ -109,25 +109,25 @@ export default function Dashboard() {
         </Superficie>
 
         <Superficie sx={{ p: { xs: 2.5, md: 3.5 } }}>
-          <Typography variant="h3" sx={{ fontSize: 22, mb: 2.5 }}>Atividade recente</Typography>
+          <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 2.5 }}>Atividade recente</Typography>
           {!dados ? (
             [0, 1, 2, 3].map((i) => <Skeleton key={i} height={38} sx={{ mb: 1 }} />)
           ) : dados.recentes.length === 0 ? (
             <EstadoVazio compacto titulo="Sem atividade recente" descricao="Novos cadastros aparecerão nesta linha do tempo." />
           ) : (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.25 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
               {dados.recentes.map((r, i) => (
                 <Box
                   component="button"
                   type="button"
                   key={r.cod_alu}
                   onClick={() => navigate(`/alunos/${r.cod_alu}`)}
-                  sx={{ ...resetBotao, display: 'flex', gap: 1.75, width: '100%', '&:hover .nome': { color: TOV.coral } }}
+                  sx={{ ...resetBotao, display: 'flex', gap: 2, width: '100%', '&:hover .nome': { color: TOV.coral } }}
                 >
-                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: i === 0 ? TOV.coral : TOV.graphite, mt: '7px', flex: '0 0 8px' }} />
+                  <Box sx={{ width: 8, height: 8, borderRadius: TOV.radiusFull, bgcolor: TOV.graphite, mt: 1, flex: '0 0 8px' }} />
                   <Box>
-                    <Box className="nome" sx={{ fontSize: 14, fontWeight: 600, transition: 'color .15s' }}>Aluno cadastrado — {r.nome}</Box>
-                    <Box sx={{ fontSize: 13, color: TOV.caption }}>Matrícula {r.cod_alu} · {tempoRelativo(r.dat_cad)}</Box>
+                    <Box className="nome" sx={{ fontSize: TOV.type.body, fontWeight: 600, transition: `color ${TOV.transitionFast}` }}>Aluno cadastrado — {r.nome}</Box>
+                    <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>Matrícula {r.cod_alu} · {tempoRelativo(r.dat_cad)}</Box>
                   </Box>
                 </Box>
               ))}

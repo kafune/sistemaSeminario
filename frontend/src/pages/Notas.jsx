@@ -30,7 +30,7 @@ const formatarPontos = (valor) => Number(valor || 0).toLocaleString('pt-BR', { m
 /** Rótulo de um seletor (uppercase caption) acima do campo. */
 function RotuloCampo({ children, htmlFor, id }) {
   return (
-    <Box id={id} component="label" htmlFor={htmlFor} sx={{ display: 'block', fontSize: 12, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>{children}</Box>
+    <Box id={id} component="label" htmlFor={htmlFor} sx={{ display: 'block', fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>{children}</Box>
   )
 }
 
@@ -348,7 +348,7 @@ export default function Notas() {
       />
 
       {/* Seletores */}
-      <BarraFiltros sx={{ p: { xs: 2, sm: 2.5 }, mb: 2.5, gap: { xs: 1.75, sm: 2.25 }, alignItems: 'flex-end' }}>
+      <BarraFiltros sx={{ p: { xs: 2, sm: 2.5 }, mb: 2.5, gap: { xs: 2, sm: 2.5 }, alignItems: 'flex-end' }}>
         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 230px' }, minWidth: 0, maxWidth: { sm: 320 } }}>
           <RotuloCampo id="notas-turma-label" htmlFor="notas-turma">Turma</RotuloCampo>
           <TextField id="notas-turma" select size="small" fullWidth value={codTur} onChange={(e) => setCodTur(e.target.value)}
@@ -372,18 +372,18 @@ export default function Notas() {
           </TextField>
         </Box>
         <Box sx={{ flex: { xs: '1 1 40%', sm: '0 0 110px' } }}>
-          <Box sx={{ fontSize: 12, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>Ano</Box>
-          <Box sx={{ height: 48, px: 1.75, display: 'flex', alignItems: 'center', border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.surface, fontWeight: 600 }}>
+          <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>Ano</Box>
+          <Box sx={{ height: 48, px: 2, display: 'flex', alignItems: 'center', border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.surface, fontWeight: 600 }}>
             {ano || '—'}
           </Box>
         </Box>
         <Box sx={{ flex: { xs: '1 1 40%', sm: '0 0 110px' } }}>
-          <Box sx={{ fontSize: 12, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>Semestre</Box>
-          <Box sx={{ height: 48, px: 1.75, display: 'flex', alignItems: 'center', border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.surface, fontWeight: 600 }}>
+          <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>Semestre</Box>
+          <Box sx={{ height: 48, px: 2, display: 'flex', alignItems: 'center', border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.surface, fontWeight: 600 }}>
             {semestre ? `${semestre}º` : '—'}
           </Box>
         </Box>
-        <Box sx={{ ml: { md: 'auto' }, display: 'flex', gap: 1.25, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, '& > *': { flexGrow: { xs: 1, md: 0 } } }}>
+        <Box sx={{ ml: { md: 'auto' }, display: 'flex', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, '& > *': { flexGrow: { xs: 1, md: 0 } } }}>
           {getPerfil() !== 'PROFESSOR' && <Button variant="outlined" startIcon={<PictureAsPdfIcon />} disabled={!docSel} sx={{ height: 48 }}
             onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?docturma_id=${docSel.id}`).catch((e) => avisar(e.message))}>
             Diário (PDF)
@@ -399,8 +399,8 @@ export default function Notas() {
         <Box sx={{ ...cardSx, p: { xs: 2, sm: 2.5 }, mb: 2.5 }}>
           <Box sx={{ display: 'flex', alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
             <Box>
-              <Typography variant="h3" sx={{ fontSize: 18 }}>Composição da nota</Typography>
-              <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 0.5 }}>
+              <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Composição da nota</Typography>
+              <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>
                 {atividades.length > 0
                   ? `${atividades.length} ${atividades.length === 1 ? 'atividade' : 'atividades'} · ${formatarPontos(atividades.reduce((soma, item) => soma + Number(item.valor_maximo), 0))} de 10 pontos`
                   : 'Nota única de 0 a 10. Configure atividades para dividir o lançamento.'}
@@ -414,8 +414,8 @@ export default function Notas() {
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
               {atividades.map((atividade) => (
                 <Box key={atividade.id} sx={{ px: 1.5, py: 1, border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.offwhite }}>
-                  <Typography sx={{ fontSize: 11, color: TOV.caption, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>{rotuloTipo(atividade.tipo)}</Typography>
-                  <Typography sx={{ fontSize: 14, fontWeight: 700 }}>{atividade.nome} · {formatarPontos(atividade.valor_maximo)} pts</Typography>
+                  <Typography sx={{ fontSize: TOV.type.overline, color: TOV.caption, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>{rotuloTipo(atividade.tipo)}</Typography>
+                  <Typography sx={{ fontSize: TOV.type.body, fontWeight: 700 }}>{atividade.nome} · {formatarPontos(atividade.valor_maximo)} pts</Typography>
                 </Box>
               ))}
             </Box>
@@ -435,13 +435,13 @@ export default function Notas() {
         <>
           {/* Grade em cards — celular/tablet */}
           {!telaDesktop && <Box>
-            <Box sx={{ ...cardSx, p: '16px 18px', mb: 1.25 }}>
-              <Typography variant="h3" sx={{ fontSize: 18 }}>{linhas.length} {linhas.length === 1 ? 'aluno' : 'alunos'}</Typography>
-              <Typography sx={{ fontSize: 13, color: TOV.caption, mt: 0.5 }}>
+            <Box sx={{ ...cardSx, p: '16px 20px', mb: 1.5 }}>
+              <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>{linhas.length} {linhas.length === 1 ? 'aluno' : 'alunos'}</Typography>
+              <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, mt: 0.5 }}>
                 {profResponsavel ? `Prof. responsável: ${profResponsavel} · ` : ''}alterações não salvas ficam em coral
               </Typography>
             </Box>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {carregandoGrade && (
                 <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando grade…</CartaoLista>
               )}
@@ -450,19 +450,19 @@ export default function Notas() {
               )}
               {!carregandoGrade && linhas.map((l, i) => (
                 <CartaoLista key={l.cod_alu} sx={{ borderLeft: `4px solid ${l._dirty ? TOV.coral : 'transparent'}` }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
-                    <Box component="span" sx={{ color: TOV.caption, fontWeight: 600, fontSize: 13, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</Box>
-                    <Box sx={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3, minWidth: 0, flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                    <Box component="span" sx={{ color: TOV.caption, fontWeight: 600, fontSize: TOV.type.bodySm, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</Box>
+                    <Box sx={{ fontWeight: 700, fontSize: TOV.type.body, lineHeight: 1.3, minWidth: 0, flexGrow: 1 }}>
                       {l.nome}
                       {l._dirty && <StatusBadge tom="warning" sx={{ ml: 1, verticalAlign: 'middle' }}>Não salvo</StatusBadge>}
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                      <Box component="span" sx={{ fontSize: 12, color: TOV.caption, fontWeight: 600 }}>Cursou</Box>
+                      <Box component="span" sx={{ fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600 }}>Cursou</Box>
                       <Switch checked={l.cursou} inputProps={{ 'aria-label': `Marcar se ${l.nome} cursou a matéria` }} onChange={(e) => editarLinha(l.cod_alu, 'cursou', e.target.checked)} />
                     </Box>
                   </Box>
                   {atividades.length === 0 ? (
-                    <Box sx={{ display: 'flex', gap: 1.25 }}>
+                    <Box sx={{ display: 'flex', gap: 1.5 }}>
                       <TextField
                         type="number" size="small" fullWidth label="Nota (0–10)" value={l.nota}
                         error={notaInvalida(l)}
@@ -474,14 +474,14 @@ export default function Notas() {
                     </Box>
                   ) : (
                     <>
-                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.25 }}>
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
                         {atividades.map((atividade) => (
                           <Box key={atividade.id}>{celulaAtividade(l, atividade, true)}</Box>
                         ))}
                       </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, pt: 0.5, color: TOV.caption, fontSize: 13 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, pt: 0.5, color: TOV.caption, fontSize: TOV.type.bodySm }}>
                         <Box>Faltas: <Box component="span" sx={{ color: TOV.ink, fontWeight: 700 }}>{l.falta}</Box></Box>
-                        <Box>Nota total: <Box component="span" sx={{ color: TOV.ink, fontWeight: 800 }}>{totalLinha(l) == null ? '—' : formatarPontos(totalLinha(l))}</Box></Box>
+                        <Box>Nota total: <Box component="span" sx={{ color: TOV.ink, fontWeight: 700 }}>{totalLinha(l) == null ? '—' : formatarPontos(totalLinha(l))}</Box></Box>
                       </Box>
                     </>
                   )}
@@ -492,9 +492,9 @@ export default function Notas() {
 
           {/* Grade em tabela — desktop */}
           {telaDesktop && <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', p: '18px 28px', borderBottom: `2px solid ${TOV.offwhite}` }}>
-              <Typography variant="h3" sx={{ fontSize: 20 }}>{linhas.length} {linhas.length === 1 ? 'aluno' : 'alunos'}</Typography>
-              <Typography sx={{ fontSize: 13, color: TOV.caption }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', p: '20px 28px', borderBottom: `2px solid ${TOV.offwhite}` }}>
+              <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>{linhas.length} {linhas.length === 1 ? 'aluno' : 'alunos'}</Typography>
+              <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>
                 {profResponsavel ? `Prof. responsável: ${profResponsavel} · ` : ''}edite direto na grade e salve tudo de uma vez
               </Typography>
             </Box>
@@ -510,7 +510,7 @@ export default function Notas() {
                       {atividades.map((atividade) => (
                         <TableCell key={atividade.id} sx={{ width: 120 }}>
                           <Box sx={{ fontWeight: 700 }}>{atividade.nome}</Box>
-                          <Box sx={{ color: TOV.caption, fontSize: 11, mt: 0.25 }}>{rotuloTipo(atividade.tipo)} · até {formatarPontos(atividade.valor_maximo)}</Box>
+                          <Box sx={{ color: TOV.caption, fontSize: TOV.type.overline, mt: 0.5 }}>{rotuloTipo(atividade.tipo)} · até {formatarPontos(atividade.valor_maximo)}</Box>
                         </TableCell>
                       ))}
                       <TableCell sx={{ width: 90 }}>Total</TableCell>
@@ -528,7 +528,7 @@ export default function Notas() {
                   <TableRow><TableCell colSpan={atividades.length > 0 ? atividades.length + 5 : 5} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhum aluno matriculado nesta turma.</TableCell></TableRow>
                 )}
                 {!carregandoGrade && linhas.map((l, i) => (
-                  <TableRow key={l.cod_alu} sx={{ bgcolor: l._dirty ? 'rgba(241,73,73,.05)' : 'transparent', '& td': { borderLeft: l._dirty ? `3px solid ${TOV.coral}` : '3px solid transparent' }, '& td:not(:first-of-type)': { borderLeft: 'none' } }}>
+                  <TableRow key={l.cod_alu} sx={{ bgcolor: l._dirty ? TOV.coralTintSoft : 'transparent', '& td': { borderLeft: l._dirty ? `4px solid ${TOV.coral}` : '4px solid transparent' }, '& td:not(:first-of-type)': { borderLeft: 'none' } }}>
                     <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{String(i + 1).padStart(2, '0')}</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>
                       {l.nome}
@@ -541,7 +541,7 @@ export default function Notas() {
                         {atividades.map((atividade) => (
                           <TableCell key={atividade.id}>{celulaAtividade(l, atividade)}</TableCell>
                         ))}
-                        <TableCell sx={{ fontWeight: 800, color: TOV.ink }}>{totalLinha(l) == null ? '—' : formatarPontos(totalLinha(l))}</TableCell>
+                        <TableCell sx={{ fontWeight: 700, color: TOV.ink }}>{totalLinha(l) == null ? '—' : formatarPontos(totalLinha(l))}</TableCell>
                       </>
                     )}
                     <TableCell sx={{ fontWeight: 700, color: TOV.slate }}>{l.falta}</TableCell>
@@ -553,7 +553,7 @@ export default function Notas() {
               </TableBody>
             </Table>
           </TableContainer>}
-          {telaDesktop && <Typography sx={{ mt: 1.75, fontSize: 13, color: TOV.caption }}>
+          {telaDesktop && <Typography sx={{ mt: 2, fontSize: TOV.type.bodySm, color: TOV.caption }}>
             Dica: use Tab para navegar célula a célula. Alterações não salvas ficam destacadas em coral.
           </Typography>}
         </>
@@ -591,7 +591,7 @@ export default function Notas() {
       <Dialog open={configuracaoAberta} onClose={fecharConfiguracao} maxWidth="md" fullWidth>
         <DialogTitle sx={{ pb: 1 }}>
           Composição da nota
-          <Typography sx={{ color: TOV.caption, fontSize: 14, mt: 0.75 }}>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mt: 1 }}>
             Adicione quantas leituras, trabalhos e provas precisar. A soma pode chegar a 10 pontos.
           </Typography>
         </DialogTitle>
@@ -599,7 +599,7 @@ export default function Notas() {
           {atividadesEdicao.length === 0 && (
             <Box sx={{ py: 2, textAlign: 'center' }}>
               <Typography sx={{ fontWeight: 700 }}>Nenhuma atividade configurada</Typography>
-              <Typography sx={{ color: TOV.caption, fontSize: 13, mt: 0.5 }}>Sem atividades, a grade usa uma única nota de 0 a 10.</Typography>
+              <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>Sem atividades, a grade usa uma única nota de 0 a 10.</Typography>
             </Box>
           )}
           {atividadesEdicao.map((atividade, indice) => (
@@ -608,7 +608,7 @@ export default function Notas() {
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr 44px', sm: '150px minmax(180px, 1fr) 130px 44px' },
-                gap: 1.25,
+                gap: 1.5,
                 alignItems: 'start',
                 p: 1.5,
                 border: `1px solid ${TOV.border}`,
@@ -654,7 +654,7 @@ export default function Notas() {
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2.5, gap: 1, flexWrap: 'wrap' }}>
-          <Typography sx={{ mr: 'auto', fontWeight: 800, color: somaAtividadesEdicao > 10.000001 ? TOV.danger : TOV.ink }}>
+          <Typography sx={{ mr: 'auto', fontWeight: 700, color: somaAtividadesEdicao > 10.000001 ? TOV.danger : TOV.ink }}>
             Total: {formatarPontos(somaAtividadesEdicao)} / 10
           </Typography>
           <Button onClick={fecharConfiguracao} disabled={salvandoConfiguracao}>Cancelar</Button>

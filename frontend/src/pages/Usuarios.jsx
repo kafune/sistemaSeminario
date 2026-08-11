@@ -115,7 +115,7 @@ export default function Usuarios() {
       />
 
       {/* Lista em cards — celular/tablet */}
-      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {carregando && usuarios.length === 0 && (
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
@@ -128,19 +128,19 @@ export default function Usuarios() {
             <CartaoLista key={u.user}>
               <Box sx={{ display: 'grid', gridTemplateColumns: '38px minmax(0,1fr)', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
                 <Box sx={{
-                  width: 38, height: 38, flex: '0 0 38px', borderRadius: '11px',
-                  bgcolor: TOV.graphite, color: '#fff', fontFamily: TOV.fontHead, fontWeight: 700,
-                  fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  width: 40, height: 40, flex: '0 0 40px', borderRadius: TOV.radiusSm,
+                  bgcolor: TOV.graphite, color: TOV.onDark, fontFamily: TOV.fontHead, fontWeight: 700,
+                  fontSize: TOV.type.body, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {iniciais(u.user)}
                 </Box>
-                <Box sx={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
-                  <Box component="span" sx={{ minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere', fontWeight: 700, fontSize: 16 }}>{u.user}</Box>
+                <Box sx={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Box component="span" sx={{ minWidth: 0, maxWidth: '100%', overflowWrap: 'anywhere', fontWeight: 700, fontSize: TOV.type.bodyLg }}>{u.user}</Box>
                   <Chip size="small" variant="outlined" label={u.perfil || 'ADMIN'} />
                   {euMesmo && (
                     <Box component="span" sx={{
-                      px: 1.25, py: '3px', borderRadius: 999, bgcolor: TOV.coralTint,
-                      color: TOV.coral, fontSize: 11, fontWeight: 700,
+                      px: 1.5, py: 0.5, borderRadius: TOV.radiusFull, bgcolor: TOV.slateTint,
+                      color: TOV.graphite, fontSize: TOV.type.overline, fontWeight: 700,
                     }}>
                       você
                     </Box>
@@ -179,9 +179,9 @@ export default function Usuarios() {
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                       <Box sx={{
-                        width: 38, height: 38, flex: '0 0 38px', borderRadius: '11px',
-                        bgcolor: TOV.graphite, color: '#fff', fontFamily: TOV.fontHead, fontWeight: 700,
-                        fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        width: 40, height: 40, flex: '0 0 40px', borderRadius: TOV.radiusSm,
+                        bgcolor: TOV.graphite, color: TOV.onDark, fontFamily: TOV.fontHead, fontWeight: 700,
+                        fontSize: TOV.type.body, display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
                         {iniciais(u.user)}
                       </Box>
@@ -189,8 +189,8 @@ export default function Usuarios() {
                       <Chip size="small" variant="outlined" label={u.perfil || 'ADMIN'} />
                       {euMesmo && (
                         <Box component="span" sx={{
-                          px: 1.25, py: '3px', borderRadius: 999, bgcolor: TOV.coralTint,
-                          color: TOV.coral, fontSize: 11, fontWeight: 700,
+                          px: 1.5, py: 0.5, borderRadius: TOV.radiusFull, bgcolor: TOV.slateTint,
+                          color: TOV.graphite, fontSize: TOV.type.overline, fontWeight: 700,
                         }}>
                           você
                         </Box>
@@ -198,7 +198,7 @@ export default function Usuarios() {
                     </Box>
                   </TableCell>
                   <TableCell align="right">
-                    <Box sx={{ display: 'inline-flex', gap: 1.25, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
+                    <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption }}>
                       <Box component="button" type="button" onClick={() => redefinir(u)}
                         sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
                         Gerenciar acesso
@@ -211,7 +211,7 @@ export default function Usuarios() {
                         </Box>
                       ) : (
                         <Box component="button" type="button" onClick={() => setParaExcluir(u)}
-                          sx={{ ...resetBotao, '&:hover': { color: '#d32f2f' } }}>
+                          sx={{ ...resetBotao, '&:hover': { color: TOV.danger } }}>
                           Excluir
                         </Box>
                       )}

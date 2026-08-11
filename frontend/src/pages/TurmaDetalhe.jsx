@@ -154,16 +154,16 @@ export default function TurmaDetalhe() {
 
   return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate('/turmas')} sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: 14, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}>
+      <Box component="button" type="button" onClick={() => navigate('/turmas')} sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: TOV.type.body, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}>
         ‹ Voltar para Turmas
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 1.75 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
         <Box>
-          <Regua sx={{ mb: 1.75 }} />
-          <Typography variant="h1" sx={{ fontSize: { xs: 30, md: 40 } }}>{turma.nome}</Typography>
+          <Regua sx={{ mb: 2 }} />
+          <Typography variant="h1" sx={{ fontSize: { xs: TOV.type.displaySm, md: TOV.type.display } }}>{turma.nome}</Typography>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1.25, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, '& > *': { flexGrow: { xs: 1, sm: 0 } } }}>
+        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, '& > *': { flexGrow: { xs: 1, sm: 0 } } }}>
           <Button variant="outlined" startIcon={<HowToRegRoundedIcon />} sx={{ height: 44 }}
             onClick={() => navigate(`/turmas/${codTur}/presencas`)}>
             Fazer chamada
@@ -178,11 +178,11 @@ export default function TurmaDetalhe() {
           </Button>
         </Box>
       </Box>
-      <Typography sx={{ fontSize: 15, color: TOV.caption, mb: 3 }}>{subtitulo}</Typography>
+      <Typography sx={{ fontSize: TOV.type.body, color: TOV.caption, mb: 3 }}>{subtitulo}</Typography>
 
       <Tabs value={aba} onChange={(_, v) => setAba(v)} textColor="primary" indicatorColor="primary"
         variant="scrollable" allowScrollButtonsMobile
-        sx={{ mb: 2.75, borderBottom: `2px solid ${TOV.divider}`, minHeight: 0, '& .MuiTab-root': { color: TOV.caption, px: { xs: 1.5, sm: 2.5 }, py: 1.5, fontSize: { xs: 14, sm: 15 } }, '& .Mui-selected': { color: TOV.coral } }}>
+        sx={{ mb: 3, borderBottom: `2px solid ${TOV.divider}`, minHeight: 0, '& .MuiTab-root': { color: TOV.caption, px: { xs: 1.5, sm: 2.5 }, py: 1.5, fontSize: { xs: TOV.type.body, sm: TOV.type.body } }, '& .Mui-selected': { color: TOV.coral } }}>
         <Tab label={`Alunos (${alunos.length})`} />
         <Tab label={`Matérias e professores (${materias.length})`} />
       </Tabs>
@@ -194,7 +194,7 @@ export default function TurmaDetalhe() {
           </Button>
 
           {/* Lista em cards — celular/tablet */}
-          {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+          {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {alunos.length === 0 && (
               <CartaoLista><EstadoVazio compacto titulo="Nenhum aluno matriculado" descricao="Use a ação acima para adicionar o primeiro aluno." /></CartaoLista>
             )}
@@ -202,8 +202,8 @@ export default function TurmaDetalhe() {
               <CartaoLista key={a.cod_alu}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
                   <Box sx={{ minWidth: 0 }}>
-                    <Box component="button" type="button" onClick={() => navigate(`/alunos/${a.cod_alu}`)} sx={{ ...resetBotao, minHeight: 0, color: TOV.ink, fontWeight: 700, fontSize: 16, lineHeight: 1.3, '&:hover': { color: TOV.coral } }}>{a.nome}</Box>
-                    <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>Matrícula {a.cod_alu}</Box>
+                    <Box component="button" type="button" onClick={() => navigate(`/alunos/${a.cod_alu}`)} sx={{ ...resetBotao, color: TOV.ink, fontWeight: 700, fontSize: TOV.type.bodyLg, lineHeight: 1.3, '&:hover': { color: TOV.coral } }}>{a.nome}</Box>
+                    <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>Matrícula {a.cod_alu}</Box>
                   </Box>
                   <IconButton size="small" color="error" title="Remover da turma" aria-label={`Remover ${a.nome} da turma`}
                     onClick={() => setParaRemover({ tipo: 'aluno', item: a })}>
@@ -236,7 +236,7 @@ export default function TurmaDetalhe() {
                   <TableRow key={a.cod_alu} hover>
                     <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{a.cod_alu}</TableCell>
                     <TableCell>
-                      <Box component="button" type="button" onClick={() => navigate(`/alunos/${a.cod_alu}`)} sx={{ ...resetBotao, minHeight: 0, fontWeight: 700, color: TOV.coral, '&:hover': { color: TOV.coralHover } }}>{a.nome}</Box>
+                      <Box component="button" type="button" onClick={() => navigate(`/alunos/${a.cod_alu}`)} sx={{ ...resetBotao, fontWeight: 700, color: TOV.coral, '&:hover': { color: TOV.coralHover } }}>{a.nome}</Box>
                     </TableCell>
                     <TableCell sx={{ color: TOV.slate }}>{a.celular || '—'}</TableCell>
                     <TableCell sx={{ color: TOV.slate }}>{a.e_mail || '—'}</TableCell>
@@ -260,7 +260,7 @@ export default function TurmaDetalhe() {
           </Button>
 
           {/* Lista em cards — celular/tablet */}
-          {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+          {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
             {materias.length === 0 && (
               <CartaoLista><EstadoVazio compacto titulo="Nenhuma matéria vinculada" descricao="Adicione a primeira matéria e defina o professor responsável." /></CartaoLista>
             )}
@@ -268,8 +268,8 @@ export default function TurmaDetalhe() {
               <CartaoLista key={m.id}>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
                   <Box sx={{ minWidth: 0 }}>
-                    <Box sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3 }}>{m.materia_nome?.trim()}</Box>
-                    <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>
+                    <Box sx={{ fontWeight: 700, fontSize: TOV.type.bodyLg, lineHeight: 1.3 }}>{m.materia_nome?.trim()}</Box>
+                    <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>
                       {m.Ano || '—'}{m.semestre ? ` · ${m.semestre}º semestre` : ''}
                     </Box>
                   </Box>

@@ -10,7 +10,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import CloseIcon from '@mui/icons-material/Close'
 import { api, abrirArquivo } from '../api'
-import { TOV } from '../theme'
+import { TOV, focusRing } from '../theme'
 import {
   BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio, LinhaCartao,
   PilulaStatus, resetBotao, useTelaDesktop,
@@ -42,13 +42,13 @@ function ChipFiltro({ ativo, children, onClick }) {
       aria-pressed={ativo}
       sx={{
         ...resetBotao,
-        px: 2, py: 1, borderRadius: 999, fontSize: 13.5, fontWeight: 600, userSelect: 'none',
+        px: 2, py: 1, borderRadius: TOV.radiusFull, fontSize: TOV.type.body, fontWeight: 600, userSelect: 'none',
         minHeight: 44, flexShrink: 0,
-        bgcolor: ativo ? TOV.graphite : TOV.surface, color: ativo ? '#fff' : TOV.graphite,
+        bgcolor: ativo ? TOV.graphite : TOV.surface, color: ativo ? TOV.onDark : TOV.graphite,
         border: `1px solid ${ativo ? TOV.graphite : TOV.border}`,
         boxShadow: 'none',
         '&:hover': ativo ? {} : { color: TOV.ink, borderColor: TOV.caption },
-        '&:focus-visible': { outline: `2px solid ${TOV.coral}`, outlineOffset: 2, borderRadius: 999 },
+        '&:focus-visible': focusRing,
       }}
     >
       {children}
@@ -119,7 +119,7 @@ export default function Alunos() {
           sx={{ minWidth: { xs: '100%', sm: 280 }, '& .MuiOutlinedInput-root': { height: 46, bgcolor: TOV.white } }}
           inputProps={{ enterKeyHint: 'search', 'aria-label': 'Buscar por nome ou matrícula' }}
           InputProps={{
-            startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ fontSize: 20, color: TOV.caption }} /></InputAdornment>),
+            startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ fontSize: TOV.type.titleSm, color: TOV.caption }} /></InputAdornment>),
             endAdornment: busca ? (
               <InputAdornment position="end">
                 <IconButton size="small" aria-label="Limpar busca" onClick={() => setBusca('')}>
@@ -157,7 +157,7 @@ export default function Alunos() {
         <Box
           aria-label="Filtrar alunos por status"
           sx={{
-            display: 'flex', gap: 1.25, overflowX: 'auto', pb: 0.5,
+            display: 'flex', gap: 1.5, overflowX: 'auto', pb: 0.5,
             width: '100%', maxWidth: '100%', minWidth: 0,
             overscrollBehaviorInline: 'contain',
             scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
@@ -188,7 +188,7 @@ export default function Alunos() {
       </BarraFiltros>
 
       {/* Lista em cards — celular/tablet */}
-      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+      {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {carregando && dados.itens.length === 0 && (
           <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
         )}
@@ -199,8 +199,8 @@ export default function Alunos() {
           <CartaoLista key={a.cod_alu} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
               <Box sx={{ minWidth: 0 }}>
-                <Box sx={{ fontWeight: 700, fontSize: 16, lineHeight: 1.3 }}>{a.nome}</Box>
-                <Box sx={{ fontSize: 13, color: TOV.caption, fontWeight: 600, mt: '2px' }}>Matrícula {a.cod_alu}</Box>
+                <Box sx={{ fontWeight: 700, fontSize: TOV.type.bodyLg, lineHeight: 1.3 }}>{a.nome}</Box>
+                <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>Matrícula {a.cod_alu}</Box>
               </Box>
               <PilulaStatus status={a.status} sx={{ flexShrink: 0 }} />
             </Box>
@@ -237,7 +237,7 @@ export default function Alunos() {
                 <TableCell sx={{ color: TOV.slate }}>{a.celular || '—'}</TableCell>
                 <TableCell><PilulaStatus status={a.status} /></TableCell>
                 <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                  <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: 13, fontWeight: 600, color: TOV.caption }}>
+                  <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption }}>
                     <Box component="button" type="button" sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>Ver</Box>
                     <Box component="span" sx={{ color: TOV.border }}>·</Box>
                     <Box component="button" type="button" title="Boletim em PDF" sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }} onClick={() => abrirArquivo(`/relatorios/boletim/${a.cod_alu}`).catch((e) => setErro(e.message))}>PDF</Box>
@@ -249,8 +249,8 @@ export default function Alunos() {
         </Table>
       </TableContainer>}
 
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 2.25, flexWrap: 'wrap', gap: 1 }}>
-        <Typography sx={{ fontSize: 14, color: TOV.caption }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 2.5, flexWrap: 'wrap', gap: 1 }}>
+        <Typography sx={{ fontSize: TOV.type.body, color: TOV.caption }}>
           {dados.total === 0 ? 'Nenhum registro' : `Mostrando ${inicio}–${fim} de ${dados.total}`}
         </Typography>
         <Pagination

@@ -124,11 +124,11 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
   function resumo(titulo, indice, linhas) {
     return (
       <Box sx={{ ...cardSx, border: `1px solid ${TOV.divider}`, p: 2, mb: 1.5 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1.25 }}>
-          <Typography variant="h3" sx={{ fontSize: 17 }}>{titulo}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 1.5 }}>
+          <Typography variant="h3" sx={{ fontSize: TOV.type.bodyLg }}>{titulo}</Typography>
           <Button size="small" onClick={() => setEtapa(indice)}>Editar</Button>
         </Box>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.8 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           {linhas.map(([rotulo, valor]) => (
             <LinhaCartao key={rotulo} rotulo={rotulo} valor={valorOuTraco(valor)} />
           ))}
@@ -141,14 +141,14 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
     <>
       <Dialog open={aberto} onClose={pedirFechar} maxWidth="md" fullWidth fullScreen={telaCheia}>
         <DialogTitle sx={{ pb: 1.5 }}>
-          <Typography component="div" variant="h2" sx={{ fontSize: { xs: 23, sm: 27 } }}>
+          <Typography component="div" variant="h2" sx={{ fontSize: { xs: TOV.type.title, sm: TOV.type.titleLg } }}>
             {aluno ? `Editar aluno ${aluno.cod_alu}` : 'Novo aluno'}
           </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 1.25 }}>
-            <Typography sx={{ color: TOV.slate, fontSize: 14, fontWeight: 700 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 1.5 }}>
+            <Typography sx={{ color: TOV.slate, fontSize: TOV.type.body, fontWeight: 700 }}>
               {ETAPAS[etapa][0]}
             </Typography>
-            <Typography sx={{ color: TOV.caption, fontSize: 13 }}>
+            <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>
               Etapa {etapa + 1} de {ETAPAS.length}
             </Typography>
           </Box>
@@ -156,12 +156,12 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
             variant="determinate"
             value={((etapa + 1) / ETAPAS.length) * 100}
             aria-label={`Etapa ${etapa + 1} de ${ETAPAS.length}`}
-            sx={{ mt: 1, height: 6, borderRadius: 3, bgcolor: TOV.coralTint }}
+            sx={{ mt: 1, height: 8, borderRadius: TOV.radiusFull, bgcolor: TOV.coralTint }}
           />
         </DialogTitle>
 
         <DialogContent>
-          <Typography sx={{ color: TOV.caption, fontSize: 14, mb: 2.25 }}>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2.5 }}>
             {ETAPAS[etapa][1]}
           </Typography>
           {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}

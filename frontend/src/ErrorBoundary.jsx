@@ -23,9 +23,9 @@ export default class ErrorBoundary extends Component {
     return (
       <Box component="main" sx={{ minHeight: '100vh', bgcolor: TOV.canvas, display: 'grid', placeItems: 'center', p: 2 }}>
         <Box role="alert" sx={{ width: '100%', maxWidth: 560, p: { xs: 3, sm: 4 }, bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusMd}px` }}>
-          <ErrorOutlineIcon sx={{ color: TOV.danger, fontSize: 36, mb: 2 }} />
-          <Typography component="h1" variant="h2" sx={{ fontSize: 28 }}>A página encontrou um problema</Typography>
-          <Typography sx={{ mt: 1.25, color: TOV.caption }}>
+          <ErrorOutlineIcon sx={{ color: TOV.danger, fontSize: TOV.type.displaySm, mb: 2 }} />
+          <Typography component="h1" variant="h2" sx={{ fontSize: TOV.type.titleLg }}>A página encontrou um problema</Typography>
+          <Typography sx={{ mt: 1.5, color: TOV.caption }}>
             Seus dados já salvos continuam seguros. Recarregue a página para tentar recuperar esta tela.
           </Typography>
           <Button variant="contained" onClick={() => window.location.reload()} sx={{ mt: 3 }}>

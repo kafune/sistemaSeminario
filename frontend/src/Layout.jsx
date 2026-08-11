@@ -23,7 +23,7 @@ import CheckIcon from '@mui/icons-material/Check'
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import { api, clearSession, getPerfil, getUser } from './api'
-import { TOV } from './theme'
+import { TOV, focusRingOnDark } from './theme'
 import { DialogoConfirmacao, iniciais, resetBotao } from './ui'
 import NotificationCenter, { BotaoInstalarPwa, BotaoNotificacoes, useNotificacoes } from './NotificationCenter'
 import { UnsavedChangesContext } from './UnsavedChanges'
@@ -57,23 +57,23 @@ function ItemNav({ item, ativo, onClick }) {
       aria-current={ativo ? 'page' : undefined}
       sx={{
         ...resetBotao,
-        display: 'flex', alignItems: 'center', gap: 1.5, px: 1.75, py: 1.25, width: '100%',
-        minHeight: 46, borderRadius: '10px', fontSize: 14, userSelect: 'none',
+        display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.5, width: '100%',
+        minHeight: 48, borderRadius: TOV.radiusSm, fontSize: TOV.type.body, userSelect: 'none',
         fontWeight: ativo ? 700 : 600,
         bgcolor: ativo ? TOV.surface : 'transparent',
-        color: ativo ? TOV.ink : 'rgba(255,255,255,.76)',
+        color: ativo ? TOV.ink : TOV.onDarkBody,
         position: 'relative',
         transition: `background-color ${TOV.durationFast} ${TOV.ease}, color ${TOV.durationFast} ${TOV.ease}`,
         '&::before': ativo ? {
           content: '""', position: 'absolute', left: 0, top: 10, bottom: 10,
-          width: 3, borderRadius: '0 3px 3px 0', bgcolor: TOV.coral,
+          width: 4, borderRadius: `0 ${TOV.radiusXs}px ${TOV.radiusXs}px 0`, bgcolor: TOV.coral,
         } : undefined,
-        '&:hover': ativo ? {} : { bgcolor: 'rgba(255,255,255,.07)', color: '#fff' },
-        '&:focus-visible': { outline: `3px solid rgba(241,73,73,.35)`, outlineOffset: 1, borderRadius: '10px' },
-        '& .MuiSvgIcon-root': { color: ativo ? TOV.coral : 'rgba(255,255,255,.62)' },
+        '&:hover': ativo ? {} : { bgcolor: TOV.onDarkSurface, color: TOV.onDark },
+        '&:focus-visible': focusRingOnDark,
+        '& .MuiSvgIcon-root': { color: ativo ? TOV.coral : TOV.onDarkMuted },
       }}
     >
-      <Icone sx={{ fontSize: 20 }} />
+      <Icone sx={{ fontSize: TOV.type.titleSm }} />
       {item.rotulo}
     </Box>
   )
@@ -103,27 +103,27 @@ function SeletorSistema({ onTrocar }) {
         onClick={(event) => setAncora(event.currentTarget)}
         sx={{
           ...resetBotao,
-          display: 'flex', alignItems: 'center', gap: 1.25, width: '100%', mb: 2.25,
-          p: 1.25, minHeight: 58, border: '1px solid rgba(255,255,255,.12)', borderRadius: '12px',
-          bgcolor: 'rgba(255,255,255,.055)', color: '#fff', textAlign: 'left',
+          display: 'flex', alignItems: 'center', gap: 1.5, width: '100%', mb: 2.5,
+          p: 1.5, minHeight: 60, border: `1px solid ${TOV.onDarkBorder}`, borderRadius: TOV.radiusMd,
+          bgcolor: TOV.onDarkSurface, color: TOV.onDark, textAlign: 'left',
           transition: `background-color ${TOV.durationFast} ${TOV.ease}, border-color ${TOV.durationFast} ${TOV.ease}`,
-          '&:hover': { bgcolor: 'rgba(255,255,255,.09)', borderColor: 'rgba(255,255,255,.22)' },
-          '&:focus-visible': { outline: `3px solid rgba(241,73,73,.35)`, outlineOffset: 1 },
+          '&:hover': { bgcolor: TOV.onDarkSurfaceHover, borderColor: TOV.onDarkBorderHover },
+          '&:focus-visible': focusRingOnDark,
         }}
       >
-        <Box sx={{ width: 34, height: 34, borderRadius: '9px', bgcolor: TOV.coralTintStrong, color: '#FF9D9D', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-          <SchoolIcon sx={{ fontSize: 19 }} />
+        <Box sx={{ width: 36, height: 36, borderRadius: TOV.radiusSm, bgcolor: TOV.onDarkSurfaceHover, color: TOV.onDarkStrong, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+          <SchoolIcon sx={{ fontSize: TOV.type.section }} />
         </Box>
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-          <Box sx={{ fontSize: 10, lineHeight: 1.2, opacity: 0.72, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+          <Box sx={{ fontSize: TOV.type.micro, lineHeight: 1.2, opacity: 0.72, letterSpacing: '.08em', textTransform: 'uppercase' }}>
             Sistema atual
           </Box>
-          <Box sx={{ mt: 0.25, fontSize: 14, lineHeight: 1.25, fontWeight: 700 }}>
+          <Box sx={{ mt: 0.5, fontSize: TOV.type.body, lineHeight: 1.25, fontWeight: 700 }}>
             TOV Acadêmico
           </Box>
         </Box>
         <KeyboardArrowDownIcon
-          sx={{ fontSize: 20, flexShrink: 0, transform: aberto ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}
+          sx={{ fontSize: TOV.type.titleSm, flexShrink: 0, transform: aberto ? 'rotate(180deg)' : 'none', transition: `transform ${TOV.transitionFast}` }}
         />
       </Box>
 
@@ -135,16 +135,16 @@ function SeletorSistema({ onTrocar }) {
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         PaperProps={{
           elevation: 8,
-          sx: { mt: 0.75, width: 300, maxWidth: 'calc(100vw - 32px)', borderRadius: '14px' },
+          sx: { mt: 1, width: 300, maxWidth: 'calc(100vw - 32px)', borderRadius: TOV.radiusMd },
         }}
-        MenuListProps={{ 'aria-label': 'Selecionar sistema', sx: { p: 0.75 } }}
+        MenuListProps={{ 'aria-label': 'Selecionar sistema', sx: { p: 1 } }}
       >
-        <MenuItem selected onClick={fechar} sx={{ borderRadius: '9px', py: 1 }}>
+        <MenuItem selected onClick={fechar} sx={{ borderRadius: TOV.radiusSm, py: 1 }}>
           <ListItemIcon><SchoolIcon fontSize="small" /></ListItemIcon>
           <ListItemText primary="TOV Acadêmico" secondary="Sistema atual" />
           <CheckIcon color="primary" fontSize="small" />
         </MenuItem>
-        <MenuItem onClick={selecionarSTG} sx={{ borderRadius: '9px', py: 1 }}>
+        <MenuItem onClick={selecionarSTG} sx={{ borderRadius: TOV.radiusSm, py: 1 }}>
           <ListItemIcon><HistoryEduIcon fontSize="small" /></ListItemIcon>
           <ListItemText primary="STG Legado" secondary="Seminário Teológico de Guarulhos" />
         </MenuItem>
@@ -291,43 +291,43 @@ export default function Layout({ children }) {
 
   const conteudoMenu = (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.25, px: 1, mb: 1.75 }}>
-        <Typography component="span" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 27, letterSpacing: '-.035em' }}>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, px: 1, mb: 2 }}>
+        <Typography component="span" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleLg, letterSpacing: '-.035em' }}>
           TOV
         </Typography>
-        <Typography component="span" sx={{ fontSize: 11, color: 'rgba(255,255,255,.56)' }}>acadêmico</Typography>
+        <Typography component="span" sx={{ fontSize: TOV.type.overline, color: TOV.onDarkMuted }}>acadêmico</Typography>
       </Box>
 
       {perfil !== 'PROFESSOR' && <SeletorSistema onTrocar={trocarSistema} />}
 
-      <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 10, letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.62)', px: 1.25, mb: 0.75 }}>
+      <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.micro, letterSpacing: '.16em', textTransform: 'uppercase', color: TOV.onDarkMuted, px: 1.5, mb: 1 }}>
         {perfil === 'MARKETING' ? 'Marketing' : perfil === 'PROFESSOR' ? 'Portal do professor' : 'Secretaria'}
       </Box>
 
-      <Box component="nav" aria-label="Navegação principal" sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+      <Box component="nav" aria-label="Navegação principal" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
         {menuVisivel.map((item) => (
           <ItemNav key={item.rota} item={item} ativo={estaAtivo(item)} onClick={() => irPara(item.rota)} />
         ))}
       </Box>
 
       <Box sx={{ mt: 1, px: 1 }}>
-        <BotaoInstalarPwa sx={{ color: 'rgba(255,255,255,.78)', borderColor: 'rgba(255,255,255,.18)', bgcolor: 'transparent', '&:hover': { color: '#fff', borderColor: 'rgba(255,255,255,.35)', bgcolor: 'rgba(255,255,255,.06)' } }} />
+        <BotaoInstalarPwa sx={{ color: TOV.onDarkBody, borderColor: TOV.onDarkBorder, bgcolor: 'transparent', '&:hover': { color: TOV.onDark, borderColor: TOV.onDarkBorderHover, bgcolor: TOV.onDarkSurface } }} />
       </Box>
 
       <Box
         sx={{
           mt: 'auto', display: 'grid', gridTemplateColumns: '44px 36px minmax(0,1fr) 44px',
-          alignItems: 'center', gap: 1, pt: 2, px: 0.25,
-          borderTop: '1px solid rgba(255,255,255,.1)',
+          alignItems: 'center', gap: 1, pt: 2, px: 0.5,
+          borderTop: `1px solid ${TOV.onDarkBorder}`,
         }}
       >
         <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
-        <Box sx={{ width: 36, height: 36, borderRadius: '10px', bgcolor: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
+        <Box sx={{ width: 36, height: 36, borderRadius: TOV.radiusSm, bgcolor: TOV.onDarkSurface, border: `1px solid ${TOV.onDarkBorder}`, color: TOV.onDark, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: TOV.type.bodySm, flexShrink: 0 }}>
           {iniciais(usuario)}
         </Box>
         <Box sx={{ lineHeight: 1.2, overflow: 'hidden' }}>
-          <Box sx={{ fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{usuario}</Box>
-          <Box sx={{ fontSize: 11, color: 'rgba(255,255,255,.55)' }}>
+          <Box sx={{ fontWeight: 700, fontSize: TOV.type.body, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{usuario}</Box>
+          <Box sx={{ fontSize: TOV.type.overline, color: TOV.onDarkMuted }}>
             {perfil === 'ADMIN' ? 'Administrador' : perfil === 'MARKETING' ? 'Marketing' : perfil === 'PROFESSOR' ? 'Professor' : 'Secretaria'}
           </Box>
         </Box>
@@ -337,17 +337,17 @@ export default function Layout({ children }) {
           onClick={sair}
           title="Sair"
           aria-label="Sair do sistema"
-          sx={{ ...resetBotao, width: 44, height: 44, display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,.58)', '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,.06)' }, '&:focus-visible': { outline: `3px solid rgba(241,73,73,.35)`, outlineOffset: 1, borderRadius: '8px' } }}
+          sx={{ ...resetBotao, width: 44, height: 44, display: 'grid', placeItems: 'center', color: TOV.onDarkMuted, '&:hover': { color: TOV.onDark, bgcolor: TOV.onDarkSurface }, '&:focus-visible': focusRingOnDark }}
         >
-          <LogoutIcon sx={{ fontSize: 19 }} />
+          <LogoutIcon sx={{ fontSize: TOV.type.section }} />
         </Box>
       </Box>
     </>
   )
 
   const estiloPainel = {
-    bgcolor: TOV.graphite, color: '#fff', p: '26px 18px 22px',
-    borderRight: '1px solid rgba(25,27,29,.14)',
+    bgcolor: TOV.graphite, color: TOV.onDark, p: '24px 16px',
+    borderRight: `1px solid ${TOV.darkHairline}`,
     display: 'flex', flexDirection: 'column', gap: 0.5, overflowY: 'auto',
   }
 
@@ -359,9 +359,9 @@ export default function Layout({ children }) {
         href="#conteudo-principal"
         sx={{
           position: 'fixed', zIndex: (theme) => theme.zIndex.tooltip + 1,
-          top: 8, left: 8, px: 2, py: 1.25, borderRadius: '8px',
-          bgcolor: TOV.ink, color: '#fff', textDecoration: 'none',
-          transform: 'translateY(-160%)', transition: `transform ${TOV.durationFast} ${TOV.ease}`,
+          top: 8, left: 8, px: 2, py: 1.5, borderRadius: TOV.radiusSm,
+          bgcolor: TOV.ink, color: TOV.onDark, textDecoration: 'none',
+          transform: 'translateY(-160%)', transition: `transform ${TOV.transitionFast}`,
           '&:focus': { transform: 'translateY(0)' },
         }}
       >
@@ -387,10 +387,10 @@ export default function Layout({ children }) {
           >
             <MenuIcon />
           </IconButton>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
-            <Box aria-hidden="true" sx={{ width: 3, height: 24, borderRadius: 99, bgcolor: TOV.coral }} />
-            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: 19, letterSpacing: '-.025em' }}>TOV</Typography>
-            <Typography noWrap sx={{ fontSize: 12, color: TOV.caption }}>{tituloAtual}</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+            <Box aria-hidden="true" sx={{ width: 4, height: 24, borderRadius: TOV.radiusFull, bgcolor: TOV.graphite }} />
+            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm, letterSpacing: '-.025em' }}>TOV</Typography>
+            <Typography noWrap sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{tituloAtual}</Typography>
           </Box>
           <Box sx={{ ml: 'auto' }}>
             <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
@@ -412,8 +412,8 @@ export default function Layout({ children }) {
           display: { xs: 'block', md: 'none' },
           '& .MuiDrawer-paper': {
             ...estiloPainel, width: 292, maxWidth: '88vw', border: 0,
-            pt: 'calc(26px + env(safe-area-inset-top))',
-            pb: 'calc(30px + env(safe-area-inset-bottom))',
+            pt: 'calc(24px + env(safe-area-inset-top))',
+            pb: 'calc(32px + env(safe-area-inset-bottom))',
           },
         }}
       >
@@ -441,7 +441,7 @@ export default function Layout({ children }) {
         ref={conteudoPrincipalRef}
         sx={{
           flexGrow: 1, minWidth: 0, bgcolor: TOV.canvas,
-          pt: { xs: 'calc(82px + env(safe-area-inset-top))', sm: 'calc(88px + env(safe-area-inset-top))', md: '42px' },
+          pt: { xs: 'calc(84px + env(safe-area-inset-top))', sm: 'calc(88px + env(safe-area-inset-top))', md: '40px' },
           px: { xs: '16px', sm: '28px', md: 'clamp(36px,4vw,64px)' },
           pb: { xs: 'calc(96px + env(safe-area-inset-bottom))', sm: '44px', md: '52px' },
           '& > *': { width: '100%', maxWidth: 1500, mx: 'auto' },
@@ -463,9 +463,9 @@ export default function Layout({ children }) {
         sx={{
           display: { xs: 'block', sm: 'none' }, position: 'fixed', inset: 'auto 0 0',
           zIndex: (theme) => theme.zIndex.appBar,
-          pb: 'env(safe-area-inset-bottom)', borderRadius: 0,
+          pb: 'env(safe-area-inset-bottom)', borderRadius: TOV.radiusNone,
           borderTop: `1px solid ${TOV.border}`,
-          boxShadow: '0 -8px 24px rgba(25,27,29,.04)',
+          boxShadow: TOV.shadowTop,
         }}
       >
         <BottomNavigation
@@ -479,10 +479,10 @@ export default function Layout({ children }) {
             height: 66,
             '& .MuiBottomNavigationAction-root': {
               minWidth: 64, minHeight: 60, color: TOV.caption, position: 'relative',
-              '&::before': { content: '""', position: 'absolute', top: 0, width: 28, height: 3, borderRadius: '0 0 3px 3px', bgcolor: 'transparent' },
+              '&::before': { content: '""', position: 'absolute', top: 0, width: 28, height: 4, borderRadius: `0 0 ${TOV.radiusXs}px ${TOV.radiusXs}px`, bgcolor: 'transparent' },
             },
             '& .Mui-selected': { color: TOV.coral, '&::before': { bgcolor: TOV.coral } },
-            '& .MuiBottomNavigationAction-label': { fontSize: 11, fontWeight: 700 },
+            '& .MuiBottomNavigationAction-label': { fontSize: TOV.type.overline, fontWeight: 700 },
           }}
         >
           {perfil === 'PROFESSOR' ? (

@@ -189,8 +189,8 @@ export default function PresencasTurma() {
 
   return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate(ehProfessor && vinculoId ? `/professor/turmas/${vinculoId}?aba=aulas` : `/turmas/${codTur}`)} sx={{ ...resetBotao, px: 0.5, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: 14, color: TOV.caption, fontWeight: 700, mb: 1.5, '&:hover': { color: TOV.coral } }}>
-        <ArrowBackRoundedIcon sx={{ fontSize: 18 }} /> Voltar para a turma
+      <Box component="button" type="button" onClick={() => navigate(ehProfessor && vinculoId ? `/professor/turmas/${vinculoId}?aba=aulas` : `/turmas/${codTur}`)} sx={{ ...resetBotao, px: 0.5, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TOV.type.body, color: TOV.caption, fontWeight: 700, mb: 1.5, '&:hover': { color: TOV.coral } }}>
+        <ArrowBackRoundedIcon sx={{ fontSize: TOV.type.section }} /> Voltar para a turma
       </Box>
 
       <CabecalhoPagina
@@ -225,13 +225,13 @@ export default function PresencasTurma() {
 
       {chamadas.length === 0 && (
         <Box sx={{ ...cardSx, overflow: 'hidden' }}>
-          <Box sx={{ p: { xs: 2.5, sm: 4 }, bgcolor: TOV.graphite, color: '#fff', display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'auto minmax(0,1fr) auto' }, alignItems: 'center', gap: 2.5 }}>
-            <Box sx={{ width: 66, height: 66, display: 'grid', placeItems: 'center', borderRadius: '20px', bgcolor: TOV.coral, color: '#fff' }}>
-              <HowToRegRoundedIcon sx={{ fontSize: 34 }} />
+          <Box sx={{ p: { xs: 2.5, sm: 4 }, bgcolor: TOV.graphite, color: TOV.onDark, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'auto minmax(0,1fr) auto' }, alignItems: 'center', gap: 2.5 }}>
+            <Box sx={{ width: 68, height: 68, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusXl, bgcolor: TOV.onDarkSurface, color: TOV.onDark }}>
+              <HowToRegRoundedIcon sx={{ fontSize: TOV.type.displaySm }} />
             </Box>
             <Box>
-              <Typography variant="h2" sx={{ fontSize: { xs: 25, sm: 31 } }}>Pronto para receber a turma</Typography>
-              <Typography sx={{ color: 'rgba(255,255,255,.68)', mt: 0.75, maxWidth: 620 }}>
+              <Typography variant="h2" sx={{ fontSize: { xs: TOV.type.title, sm: TOV.type.displaySm } }}>Pronto para receber a turma</Typography>
+              <Typography sx={{ color: TOV.onDarkMuted, mt: 1, maxWidth: 620 }}>
                 Ao iniciar, o sistema abre uma tela grande com os nomes dos alunos. Cada um toca no próprio nome e confirma a chegada.
               </Typography>
             </Box>
@@ -239,9 +239,9 @@ export default function PresencasTurma() {
               {processando ? 'Preparando…' : 'Iniciar agora'}
             </Button>
           </Box>
-          <Box sx={{ px: { xs: 2.5, sm: 4 }, py: 2.25, display: 'flex', alignItems: 'flex-start', gap: 1.25, color: TOV.caption }}>
-            <CheckCircleRoundedIcon sx={{ color: TOV.success, mt: '1px' }} />
-            <Typography sx={{ fontSize: 13.5 }}>Uma confirmação evita toques por engano. O link deixa de funcionar quando a chamada é encerrada ou o dia termina.</Typography>
+          <Box sx={{ px: { xs: 2.5, sm: 4 }, py: 2.5, display: 'flex', alignItems: 'flex-start', gap: 1.5, color: TOV.caption }}>
+            <CheckCircleRoundedIcon sx={{ color: TOV.success, mt: 0.5 }} />
+            <Typography sx={{ fontSize: TOV.type.bodySm }}>Uma confirmação evita toques por engano. O link deixa de funcionar quando a chamada é encerrada ou o dia termina.</Typography>
           </Box>
         </Box>
       )}
@@ -249,11 +249,11 @@ export default function PresencasTurma() {
       {chamadas.length > 0 && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '280px minmax(0,1fr)' }, gap: 2.5, alignItems: 'start' }}>
           <Box component="aside" aria-label="Histórico de chamadas" sx={{ ...cardSx, overflow: 'hidden' }}>
-            <Box sx={{ px: 2, py: 1.75, borderBottom: `1px solid ${TOV.divider}`, display: 'flex', alignItems: 'center', gap: 1 }}>
-              <HistoryRoundedIcon sx={{ color: TOV.coral, fontSize: 21 }} />
+            <Box sx={{ px: 2, py: 2, borderBottom: `1px solid ${TOV.divider}`, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <HistoryRoundedIcon sx={{ color: TOV.graphite, fontSize: TOV.type.titleSm }} />
               <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700 }}>Histórico de chamadas</Typography>
             </Box>
-            <Box sx={{ p: 1, display: 'flex', flexDirection: { xs: 'row', lg: 'column' }, gap: 0.75, overflowX: 'auto' }}>
+            <Box sx={{ p: 1, display: 'flex', flexDirection: { xs: 'row', lg: 'column' }, gap: 1, overflowX: 'auto' }}>
               {chamadas.map((chamada) => {
                 const ativa = chamada.id === selecionadaId
                 return (
@@ -263,17 +263,17 @@ export default function PresencasTurma() {
                     type="button"
                     onClick={() => { setDetalhe(null); setSelecionadaId(chamada.id) }}
                     sx={{
-                      ...resetBotao, minWidth: { xs: 210, lg: 0 }, width: '100%', px: 1.5, py: 1.25,
-                      borderRadius: '10px', bgcolor: ativa ? TOV.coralTint : 'transparent',
-                      border: `1px solid ${ativa ? 'rgba(201,47,47,.18)' : 'transparent'}`,
+                      ...resetBotao, minWidth: { xs: 210, lg: 0 }, width: '100%', px: 1.5, py: 1.5,
+                      borderRadius: TOV.radiusSm, bgcolor: ativa ? TOV.coralTint : 'transparent',
+                      border: `1px solid ${ativa ? TOV.coralBorder : 'transparent'}`,
                       '&:hover': { bgcolor: ativa ? TOV.coralTint : TOV.slateTint },
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                      <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{dataCurta(chamada.data)}</Typography>
-                      {chamada.status === 'ABERTA' && <StatusBadge tom="success" dot sx={{ minHeight: 24, px: 1, fontSize: 10.5 }}>Aberta</StatusBadge>}
+                      <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>{dataCurta(chamada.data)}</Typography>
+                      {chamada.status === 'ABERTA' && <StatusBadge tom="success" dot sx={{ minHeight: 24, px: 1, fontSize: TOV.type.overline }}>Aberta</StatusBadge>}
                     </Box>
-                    <Typography sx={{ color: TOV.caption, fontSize: 12.5, mt: 0.4 }}>{chamada.aula?.materia_nome ? `${chamada.aula.materia_nome} · ` : ''}{chamada.presentes} de {chamada.total} presentes</Typography>
+                    <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5 }}>{chamada.aula?.materia_nome ? `${chamada.aula.materia_nome} · ` : ''}{chamada.presentes} de {chamada.total} presentes</Typography>
                   </Box>
                 )
               })}
@@ -286,9 +286,9 @@ export default function PresencasTurma() {
               <>
                 <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
                   <Box>
-                    <Typography variant="h2" sx={{ fontSize: { xs: 24, sm: 29 } }}>{dataLonga(detalhe.data)}</Typography>
+                    <Typography variant="h2" sx={{ fontSize: { xs: TOV.type.title, sm: TOV.type.titleLg } }}>{dataLonga(detalhe.data)}</Typography>
                     {detalhe.aula?.materia_nome && <Typography sx={{ color: TOV.caption, mt: 0.5 }}>{[detalhe.aula.hora_inicio, detalhe.aula.materia_nome, detalhe.aula.professor_nome].filter(Boolean).join(' · ')}</Typography>}
-                    <Box sx={{ mt: 0.9 }}>
+                    <Box sx={{ mt: 1 }}>
                       <StatusBadge tom={detalhe.status === 'ABERTA' ? 'success' : 'muted'} dot>
                         {detalhe.status === 'ABERTA' ? 'Chamada aberta' : `Encerrada${detalhe.encerrada_em ? ` às ${hora(detalhe.encerrada_em)}` : ''}`}
                       </StatusBadge>

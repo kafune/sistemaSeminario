@@ -87,7 +87,7 @@ export function BotaoInstalarPwa({ compacto = false, sx }) {
     return (
       <>
         {botao(() => setMostrarIOS(!mostrarIOS))}
-        {mostrarIOS && <Alert severity="info" sx={{ mt: 1, fontSize: 13 }}>No Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.</Alert>}
+        {mostrarIOS && <Alert severity="info" sx={{ mt: 1, fontSize: TOV.type.bodySm }}>No Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.</Alert>}
       </>
     )
   }
@@ -253,14 +253,14 @@ export default function NotificationCenter({ aberto, onFechar, onNavigate, estad
       anchor="right"
       open={aberto}
       onClose={onFechar}
-      PaperProps={{ sx: { width: { xs: '100%', sm: 430 }, maxWidth: '100%', borderLeft: `1px solid ${TOV.border}`, borderTop: { xs: `3px solid ${TOV.coral}`, sm: 0 } } }}
+      PaperProps={{ sx: { width: { xs: '100%', sm: 430 }, maxWidth: '100%', borderLeft: `1px solid ${TOV.border}`, borderTop: { xs: `3px solid ${TOV.graphite}`, sm: 0 } } }}
     >
       <Box sx={{ p: { xs: 2, sm: 3 }, minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <NotificationsIcon sx={{ color: TOV.coral }} />
+          <NotificationsIcon sx={{ color: TOV.graphite }} />
           <Box sx={{ flex: 1 }}>
             <Typography variant="h5">Notificações</Typography>
-            <Typography sx={{ color: TOV.caption, fontSize: 13 }}>{naoLidas ? `${naoLidas} não lida${naoLidas === 1 ? '' : 's'}` : 'Tudo em dia'}</Typography>
+            <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>{naoLidas ? `${naoLidas} não lida${naoLidas === 1 ? '' : 's'}` : 'Tudo em dia'}</Typography>
           </Box>
           <Tooltip title="Marcar todas como lidas"><span><IconButton disabled={!naoLidas} onClick={marcarTodas}><DoneAllIcon /></IconButton></span></Tooltip>
           <Tooltip title="Fechar notificações"><IconButton aria-label="Fechar notificações" onClick={onFechar}><CloseIcon /></IconButton></Tooltip>
@@ -278,29 +278,29 @@ export default function NotificationCenter({ aberto, onFechar, onNavigate, estad
               onClick={() => abrir(item)}
               alignItems="flex-start"
               sx={{
-                px: 1.5, py: 1.4, borderRadius: 2, mb: .5,
+                px: 1.5, py: 1.5, borderRadius: TOV.radiusLg, mb: 0.5,
                 bgcolor: item.lida ? 'transparent' : TOV.coralTint,
                 borderLeft: `3px solid ${item.lida ? 'transparent' : TOV.coral}`,
               }}
             >
               <ListItemText
-                primary={<Typography sx={{ fontWeight: item.lida ? 600 : 800, fontSize: 14 }}>{item.titulo}</Typography>}
-                secondary={<><Typography component="span" sx={{ display: 'block', color: TOV.ink, fontSize: 13, mt: .4 }}>{item.corpo}</Typography><Typography component="span" sx={{ display: 'block', color: TOV.caption, fontSize: 11, mt: .6 }}>{item.categoria} · {dataHora(item.criado_em)}</Typography></>}
+                primary={<Typography sx={{ fontWeight: item.lida ? 600 : 700, fontSize: TOV.type.body }}>{item.titulo}</Typography>}
+                secondary={<><Typography component="span" sx={{ display: 'block', color: TOV.ink, fontSize: TOV.type.bodySm, mt: 0.5 }}>{item.corpo}</Typography><Typography component="span" sx={{ display: 'block', color: TOV.caption, fontSize: TOV.type.overline, mt: 0.5 }}>{item.categoria} · {dataHora(item.criado_em)}</Typography></>}
               />
             </ListItemButton>
           ))}
           {!exibidas.length && <EstadoVazio compacto titulo="Tudo em dia" descricao="Nenhuma notificação neste filtro." />}
         </List>
         <Divider sx={{ my: 2 }} />
-        <Typography variant="h6" sx={{ fontSize: 16 }}>Preferências</Typography>
+        <Typography variant="h6" sx={{ fontSize: TOV.type.bodyLg }}>Preferências</Typography>
         {configuracao?.disponivel && pushSuportado() ? (
           <Button sx={{ alignSelf: 'flex-start', mt: 1 }} variant={dispositivoAtivo ? 'outlined' : 'contained'} disabled={processandoPush} onClick={alternarPush}>
             {processandoPush ? 'Configurando…' : dispositivoAtivo ? 'Desativar push neste dispositivo' : 'Ativar push neste dispositivo'}
           </Button>
-        ) : <Alert severity="info" sx={{ mt: 1, fontSize: 13 }}>{configuracao?.disponivel ? mensagemPushIndisponivel() : 'Push está indisponível nesta instalação. O histórico interno continua ativo.'}</Alert>}
+        ) : <Alert severity="info" sx={{ mt: 1, fontSize: TOV.type.bodySm }}>{configuracao?.disponivel ? mensagemPushIndisponivel() : 'Push está indisponível nesta instalação. O histórico interno continua ativo.'}</Alert>}
         {preferencias && CATEGORIAS.map(([campo, rotulo]) => (
           <Box key={campo} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: .5 }}>
-            <Typography sx={{ fontSize: 14 }}>{rotulo}</Typography>
+            <Typography sx={{ fontSize: TOV.type.body }}>{rotulo}</Typography>
             <Switch checked={Boolean(preferencias[campo])} onChange={(evento) => alterarPreferencia(campo, evento.target.checked)} inputProps={{ 'aria-label': `Push de ${rotulo}` }} />
           </Box>
         ))}

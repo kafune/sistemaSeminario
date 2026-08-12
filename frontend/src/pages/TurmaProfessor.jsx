@@ -221,6 +221,9 @@ export default function TurmaProfessor() {
 
       {abaAtual === 'aulas' && (
         <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}>
+            <Button variant="outlined" startIcon={<MenuBookOutlinedIcon />} onClick={() => navigate(`/turmas/${vinculo.cod_tur}/diario?vinculo=${docturmaId}`)}>Diário de classe</Button>
+          </Box>
           {dados.aulas.length === 0 ? <Box sx={cardSx}><EstadoVazio titulo="Nenhuma aula cadastrada" descricao="Peça à secretaria para adicionar as aulas desta matéria ao calendário." /></Box> : (
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
               {dados.aulas.map((aula) => {
@@ -252,7 +255,7 @@ export default function TurmaProfessor() {
             <CardMetrica rotulo="Média" valor={dados.notas_resumo.media == null ? '—' : dados.notas_resumo.media.toLocaleString('pt-BR')} nota="média da turma" />
             <CardMetrica rotulo="Atividades" valor={dados.notas_resumo.atividades} nota="partes da nota" />
           </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1.5 }}><Button variant="contained" startIcon={<EditNoteOutlinedIcon />} onClick={() => navigate(`/notas?turma=${vinculo.cod_tur}&vinculo=${docturmaId}`)}>Abrir grade de notas</Button></Box>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, flexWrap: 'wrap', mb: 1.5 }}><Button variant="outlined" startIcon={<MenuBookOutlinedIcon />} onClick={() => navigate(`/turmas/${vinculo.cod_tur}/diario?vinculo=${docturmaId}`)}>Diário de faltas</Button><Button variant="contained" startIcon={<EditNoteOutlinedIcon />} onClick={() => navigate(`/notas?turma=${vinculo.cod_tur}&vinculo=${docturmaId}`)}>Abrir grade de notas</Button></Box>
           <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto' }}>
             <Table>
               <TableHead><TableRow><TableCell>Aluno</TableCell><TableCell align="center">Nota</TableCell><TableCell align="center">Faltas</TableCell><TableCell>Situação</TableCell></TableRow></TableHead>

@@ -9,6 +9,7 @@ import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded'
 import HowToRegRoundedIcon from '@mui/icons-material/HowToRegRounded'
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import OpenInFullRoundedIcon from '@mui/icons-material/OpenInFullRounded'
 import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded'
 import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined'
@@ -197,9 +198,14 @@ export default function PresencasTurma() {
         eyebrow="Chamada digital"
         titulo={`Presenças · ${turma?.nome || 'Turma'}`}
         descricao="Abra a chamada neste iPad para cada aluno registrar a própria chegada."
-        acoes={chamadaAbertaHoje
-          ? <Button variant="contained" startIcon={<OpenInFullRoundedIcon />} onClick={() => abrirTotem(chamadaAbertaHoje)}>Abrir modo iPad</Button>
-          : <Button variant="contained" startIcon={<PlayArrowRoundedIcon />} onClick={iniciarChamada} disabled={processando || !aulaSelecionada}>{chamadaDaAula ? 'Reabrir chamada desta aula' : 'Iniciar chamada no iPad'}</Button>}
+        acoes={(
+          <>
+            <Button variant="outlined" startIcon={<MenuBookOutlinedIcon />} onClick={() => navigate(`/turmas/${codTur}/diario${vinculoId ? `?vinculo=${vinculoId}` : ''}`)}>Diário de faltas</Button>
+            {chamadaAbertaHoje
+              ? <Button variant="contained" startIcon={<OpenInFullRoundedIcon />} onClick={() => abrirTotem(chamadaAbertaHoje)}>Abrir modo iPad</Button>
+              : <Button variant="contained" startIcon={<PlayArrowRoundedIcon />} onClick={iniciarChamada} disabled={processando || !aulaSelecionada}>{chamadaDaAula ? 'Reabrir chamada desta aula' : 'Iniciar chamada no iPad'}</Button>}
+          </>
+        )}
       />
 
       {erro && <Alert severity="error" onClose={() => setErro('')} sx={{ mb: 2 }}>{erro}</Alert>}

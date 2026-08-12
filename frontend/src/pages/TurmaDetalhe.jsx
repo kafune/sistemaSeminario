@@ -9,6 +9,7 @@ import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import HowToRegRoundedIcon from '@mui/icons-material/HowToRegRounded'
+import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
@@ -274,6 +275,10 @@ export default function TurmaDetalhe() {
                     </Box>
                   </Box>
                   <Box sx={{ display: 'flex', flexShrink: 0 }}>
+                    <IconButton size="small" title="Diário de faltas" aria-label="Abrir diário de faltas"
+                      onClick={() => navigate(`/turmas/${codTur}/diario?vinculo=${m.id}`)}>
+                      <MenuBookOutlinedIcon fontSize="small" />
+                    </IconButton>
                     <IconButton size="small" title="Diário de classe (PDF)"
                       onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?cod_mat=${m.cod_mat}`).catch((e) => avisar(e.message))}>
                       <PictureAsPdfIcon fontSize="small" />
@@ -311,6 +316,10 @@ export default function TurmaDetalhe() {
                     <TableCell sx={{ color: TOV.slate }}>{m.Ano || '—'}</TableCell>
                     <TableCell sx={{ color: TOV.slate }}>{m.semestre ? `${m.semestre}º` : '—'}</TableCell>
                     <TableCell align="right">
+                      <IconButton size="small" title="Diário de faltas" aria-label="Abrir diário de faltas"
+                        onClick={() => navigate(`/turmas/${codTur}/diario?vinculo=${m.id}`)}>
+                        <MenuBookOutlinedIcon fontSize="small" />
+                      </IconButton>
                       <IconButton size="small" title="Diário de classe (PDF)"
                         onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?cod_mat=${m.cod_mat}`).catch((e) => avisar(e.message))}>
                         <PictureAsPdfIcon fontSize="small" />

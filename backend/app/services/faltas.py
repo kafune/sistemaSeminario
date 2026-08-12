@@ -3,7 +3,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..models import Aula, Chamada, Presenca
+from ..models import AluNota, Aula, Chamada, Presenca
 
 
 def subconsulta_faltas():
@@ -36,3 +36,16 @@ def faltas_do_vinculo(db: Session, docturma_id: int) -> dict[int, int]:
             )
         )
     }
+
+
+def sincronizar_faltas(db: Session, docturma_id: int) -> dict[int, int]:
+    """Reescreve o cache ``AluNota.falta`` a partir das chamadas encerradas.
+
+    Não faz commit: quem chama decide o momento de persistir.
+    """
+    faltas = faltas_do_vinculo(db, docturma_id)
+    for nota in db.scalars(
+        select(AluNota).where(AluNota.docturma_id == docturma_id)
+    ):
+        nota.falta = faltas.get(nota.cod_alu, 0)
+    return faltas

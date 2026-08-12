@@ -18,6 +18,7 @@ const Materias = lazy(() => import('./pages/Materias'))
 const Turmas = lazy(() => import('./pages/Turmas'))
 const TurmaDetalhe = lazy(() => import('./pages/TurmaDetalhe'))
 const PresencasTurma = lazy(() => import('./pages/PresencasTurma'))
+const DiarioClasse = lazy(() => import('./pages/DiarioClasse'))
 const PresencaTotem = lazy(() => import('./pages/PresencaTotem'))
 const Calendario = lazy(() => import('./pages/Calendario'))
 const CalendarioPublico = lazy(() => import('./pages/CalendarioPublico'))
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="/turmas" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Turmas /></Protegida>} />
           <Route path="/turmas/:codTur" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><TurmaDetalhe /></Protegida>} />
           <Route path="/turmas/:codTur/presencas" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'PROFESSOR']}><PresencasTurma /></Protegida>} />
+          <Route path="/turmas/:codTur/diario" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'PROFESSOR']}><DiarioClasse /></Protegida>} />
           <Route path="/calendario" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Calendario /></Protegida>} />
           <Route path="/notas" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'PROFESSOR']}><Notas /></Protegida>} />
           <Route path="/materiais" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'PROFESSOR']}><Materiais /></Protegida>} />

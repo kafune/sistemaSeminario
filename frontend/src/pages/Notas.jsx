@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  IconButton, MenuItem, Paper, Snackbar, Switch, Table, TableBody, TableCell,
+  IconButton, MenuItem, Snackbar, Switch, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
@@ -13,8 +13,8 @@ import TuneIcon from '@mui/icons-material/Tune'
 import { api, abrirArquivo, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
-  BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio, StatusBadge,
-  cardSx, useTelaDesktop,
+  BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CartaoLista, DialogoConfirmacao,
+  EstadoVazio, StatusBadge, cardSx, useAtalhoSalvar, useTelaDesktop,
 } from '../ui'
 import { useUnsavedChanges } from '../UnsavedChanges'
 
@@ -50,6 +50,7 @@ export default function Notas() {
   const [atividadesEdicao, setAtividadesEdicao] = useState([])
   const [configuracaoAberta, setConfiguracaoAberta] = useState(false)
   const [configuracaoSuja, setConfiguracaoSuja] = useState(false)
+  const [remocaoPendente, setRemocaoPendente] = useState(null)
   const [profResponsavel, setProfResponsavel] = useState('')
   const [carregandoGrade, setCarregandoGrade] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -229,11 +230,31 @@ export default function Notas() {
     setConfiguracaoSuja(true)
   }
 
-  async function salvarConfiguracao() {
-    if (!docSel || configuracaoInvalida) return
+  /** Quantas notas parciais já lançadas dependem de uma atividade. */
+  const notasLancadas = (atividadeId) => linhas.filter((linha) => {
+    const valor = linha.notas_atividades[String(atividadeId)]
+    return valor != null && valor !== ''
+  }).length
+
+  function pedirConfirmacaoRemocao() {
     const idsMantidos = new Set(atividadesEdicao.map((item) => item.id).filter(Boolean))
-    const removeAtividadeExistente = atividades.some((item) => !idsMantidos.has(item.id))
-    if (removeAtividadeExistente && !window.confirm('Remover atividades também apaga as notas parciais ligadas a elas. Deseja continuar?')) return
+    const removidas = atividades.filter((item) => !idsMantidos.has(item.id))
+    if (removidas.length === 0) return false
+    setRemocaoPendente({
+      atividades: removidas.map((item) => ({
+        id: item.id,
+        nome: item.nome,
+        valor_maximo: item.valor_maximo,
+        notas: notasLancadas(item.id),
+      })),
+    })
+    return true
+  }
+
+  async function salvarConfiguracao(remocaoConfirmada = false) {
+    if (!docSel || configuracaoInvalida) return
+    if (!remocaoConfirmada && pedirConfirmacaoRemocao()) return
+    setRemocaoPendente(null)
     setSalvandoConfiguracao(true)
     try {
       const resposta = await api.put(`/notas/vinculo/${docSel.id}/atividades`, {
@@ -295,6 +316,14 @@ export default function Notas() {
     }
   }
 
+  function descartarAlteracoes() {
+    if (salvando || !docSel) return
+    carregarGrade(docSel)
+  }
+
+  const podeSalvar = Boolean(docSel) && sujas.length > 0 && !salvando && !temInvalida
+  useAtalhoSalvar(podeSalvar, salvarGrade)
+
   const celulaInput = (l, campo, props) => {
     const invalida = notaInvalida(l)
     return (
@@ -306,7 +335,7 @@ export default function Notas() {
         sx={{
           width: 88,
           '& .MuiOutlinedInput-root': { height: 42 },
-          ...(invalida ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.coral : TOV.border } }),
+          ...(invalida ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.warning : TOV.border } }),
         }}
       />
     )
@@ -334,7 +363,7 @@ export default function Notas() {
         sx={{
           width: celular ? '100%' : 88,
           '& .MuiOutlinedInput-root': { height: 42 },
-          ...(invalida ? {} : { '& fieldset': { borderColor: linha._dirty ? TOV.coral : TOV.border } }),
+          ...(invalida ? {} : { '& fieldset': { borderColor: linha._dirty ? TOV.warning : TOV.border } }),
         }}
       />
     )
@@ -388,10 +417,6 @@ export default function Notas() {
             onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?docturma_id=${docSel.id}`).catch((e) => avisar(e.message))}>
             Diário (PDF)
           </Button>}
-          <Button variant="contained" startIcon={<SaveIcon />} disabled={!docSel || sujas.length === 0 || salvando || temInvalida} sx={{ height: 48 }}
-            onClick={salvarGrade}>
-            {salvando ? 'Salvando…' : temInvalida ? 'Corrija os valores' : `Salvar grade${sujas.length ? ` (${sujas.length})` : ''}`}
-          </Button>
         </Box>
       </BarraFiltros>
 
@@ -438,7 +463,7 @@ export default function Notas() {
             <Box sx={{ ...cardSx, p: '16px 20px', mb: 1.5 }}>
               <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>{linhas.length} {linhas.length === 1 ? 'aluno' : 'alunos'}</Typography>
               <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, mt: 0.5 }}>
-                {profResponsavel ? `Prof. responsável: ${profResponsavel} · ` : ''}alterações não salvas ficam em coral
+                {profResponsavel ? `Prof. responsável: ${profResponsavel} · ` : ''}alterações não salvas ficam com filete âmbar
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -449,12 +474,11 @@ export default function Notas() {
                 <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhum aluno matriculado nesta turma.</CartaoLista>
               )}
               {!carregandoGrade && linhas.map((l, i) => (
-                <CartaoLista key={l.cod_alu} sx={{ borderLeft: `4px solid ${l._dirty ? TOV.coral : 'transparent'}` }}>
+                <CartaoLista key={l.cod_alu} sx={{ borderLeft: `4px solid ${l._dirty ? TOV.warning : 'transparent'}`, bgcolor: l._dirty ? TOV.warningTintSoft : TOV.surface }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     <Box component="span" sx={{ color: TOV.caption, fontWeight: 600, fontSize: TOV.type.bodySm, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</Box>
                     <Box sx={{ fontWeight: 700, fontSize: TOV.type.body, lineHeight: 1.3, minWidth: 0, flexGrow: 1 }}>
                       {l.nome}
-                      {l._dirty && <StatusBadge tom="warning" sx={{ ml: 1, verticalAlign: 'middle' }}>Não salvo</StatusBadge>}
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                       <Box component="span" sx={{ fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600 }}>Cursou</Box>
@@ -468,7 +492,7 @@ export default function Notas() {
                         error={notaInvalida(l)}
                         onChange={(e) => editarLinha(l.cod_alu, 'nota', e.target.value)}
                         inputProps={{ min: 0, max: 10, step: 0.1, inputMode: 'decimal', style: { fontWeight: 700 } }}
-                        sx={notaInvalida(l) ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.coral : TOV.border } }}
+                        sx={notaInvalida(l) ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.warning : TOV.border } }}
                       />
                       <TextField size="small" fullWidth label="Faltas da chamada" value={l.falta} InputProps={{ readOnly: true }} />
                     </Box>
@@ -528,12 +552,9 @@ export default function Notas() {
                   <TableRow><TableCell colSpan={atividades.length > 0 ? atividades.length + 5 : 5} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhum aluno matriculado nesta turma.</TableCell></TableRow>
                 )}
                 {!carregandoGrade && linhas.map((l, i) => (
-                  <TableRow key={l.cod_alu} sx={{ bgcolor: l._dirty ? TOV.coralTintSoft : 'transparent', '& td': { borderLeft: l._dirty ? `4px solid ${TOV.coral}` : '4px solid transparent' }, '& td:not(:first-of-type)': { borderLeft: 'none' } }}>
+                  <TableRow key={l.cod_alu} sx={{ bgcolor: l._dirty ? TOV.warningTintSoft : 'transparent', '& td': { borderLeft: l._dirty ? `4px solid ${TOV.warning}` : '4px solid transparent' }, '& td:not(:first-of-type)': { borderLeft: 'none' } }}>
                     <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{String(i + 1).padStart(2, '0')}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>
-                      {l.nome}
-                      {l._dirty && <StatusBadge tom="warning" sx={{ ml: 1 }}>Não salvo</StatusBadge>}
-                    </TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{l.nome}</TableCell>
                     {atividades.length === 0 ? (
                       <TableCell>{celulaInput(l, 'nota', { min: 0, max: 10, step: 0.1 })}</TableCell>
                     ) : (
@@ -554,39 +575,30 @@ export default function Notas() {
             </Table>
           </TableContainer>}
           {telaDesktop && <Typography sx={{ mt: 2, fontSize: TOV.type.bodySm, color: TOV.caption }}>
-            Dica: use Tab para navegar célula a célula. Alterações não salvas ficam destacadas em coral.
+            Dica: use Tab para navegar célula a célula; Ctrl/Cmd+S salva a grade. Linhas alteradas ficam com filete âmbar.
           </Typography>}
         </>
       )}
 
-      {sujas.length > 0 && (
-        <>
-          <Box sx={{ display: { xs: 'block', sm: 'none' }, height: 76 }} />
-          <Paper
-            elevation={10}
-            sx={{
-              display: { xs: 'block', sm: 'none' },
-              position: 'fixed',
-              left: 12,
-              right: 12,
-              bottom: 'calc(74px + env(safe-area-inset-bottom))',
-              zIndex: (theme) => theme.zIndex.appBar + 1,
-              p: 1,
-              border: `1px solid ${TOV.divider}`,
-            }}
-          >
+      <BarraAcaoFixa
+        visivel={sujas.length > 0}
+        rotulo="Alterações pendentes na grade"
+        selo={<StatusBadge tom="warning">{sujas.length} {sujas.length === 1 ? 'alteração' : 'alterações'}</StatusBadge>}
+        resumo={<>Faltas vêm das chamadas encerradas · <Box component="strong" sx={{ color: TOV.ink }}>Ctrl/Cmd+S</Box> salva</>}
+        acoes={(
+          <>
+            <Button variant="outlined" disabled={salvando} onClick={descartarAlteracoes}>Descartar</Button>
             <Button
               variant="contained"
               startIcon={<SaveIcon />}
-              fullWidth
               disabled={salvando || temInvalida}
               onClick={salvarGrade}
             >
-              {salvando ? 'Salvando…' : temInvalida ? 'Corrija os valores' : `Salvar ${sujas.length} ${sujas.length === 1 ? 'alteração' : 'alterações'}`}
+              {salvando ? 'Salvando…' : temInvalida ? 'Corrija os valores' : `Salvar grade (${sujas.length})`}
             </Button>
-          </Paper>
-        </>
-      )}
+          </>
+        )}
+      />
 
       <Dialog open={configuracaoAberta} onClose={fecharConfiguracao} maxWidth="md" fullWidth>
         <DialogTitle sx={{ pb: 1 }}>
@@ -658,11 +670,32 @@ export default function Notas() {
             Total: {formatarPontos(somaAtividadesEdicao)} / 10
           </Typography>
           <Button onClick={fecharConfiguracao} disabled={salvandoConfiguracao}>Cancelar</Button>
-          <Button variant="contained" startIcon={<SaveIcon />} disabled={configuracaoInvalida || salvandoConfiguracao} onClick={salvarConfiguracao}>
+          <Button variant="contained" startIcon={<SaveIcon />} disabled={configuracaoInvalida || salvandoConfiguracao} onClick={() => salvarConfiguracao()}>
             {salvandoConfiguracao ? 'Salvando…' : 'Salvar composição'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <DialogoConfirmacao
+        aberto={!!remocaoPendente}
+        titulo={`Remover ${remocaoPendente?.atividades.length ?? 0} ${remocaoPendente?.atividades.length === 1 ? 'atividade' : 'atividades'}?`}
+        descricao={(() => {
+          const total = remocaoPendente?.atividades.reduce((soma, item) => soma + item.notas, 0) ?? 0
+          const contexto = [docSel?.materia_nome?.trim(), turmas.find((t) => String(t.cod_tur) === String(codTur))?.nome].filter(Boolean).join(' · ')
+          return total === 0
+            ? `Nenhuma nota parcial foi lançada nessas atividades${contexto ? ` em ${contexto}` : ''}. A nota final passa a ser recalculada pela nova composição.`
+            : `Isso apaga ${total} ${total === 1 ? 'nota parcial já lançada' : 'notas parciais já lançadas'}${contexto ? ` em ${contexto}` : ''}. A nota final dos alunos passa a ser recalculada pela nova composição.`
+        })()}
+        itens={remocaoPendente?.atividades.map((item) => ({
+          chave: item.id,
+          rotulo: item.nome,
+          detalhe: `${formatarPontos(item.valor_maximo)} pts · ${item.notas} ${item.notas === 1 ? 'nota' : 'notas'}`,
+        }))}
+        rotuloConfirmar="Remover e recalcular"
+        processando={salvandoConfiguracao}
+        onConfirmar={() => salvarConfiguracao(true)}
+        onFechar={() => setRemocaoPendente(null)}
+      />
 
       <Snackbar open={!!msg} autoHideDuration={5000} onClose={() => setMsg('')}>
         <Alert severity={ehErro ? 'error' : 'success'} onClose={() => setMsg('')}>{msg}</Alert>

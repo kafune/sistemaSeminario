@@ -1,7 +1,10 @@
 import { readFile, readdir } from 'node:fs/promises'
 import { extname, join, relative } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const srcDir = new URL('../src/', import.meta.url)
+// fileURLToPath (e não `.pathname`) para o caminho valer também no Windows.
+const srcDir = fileURLToPath(new URL('../src/', import.meta.url))
+const raizProjeto = fileURLToPath(new URL('../', import.meta.url))
 const extensoes = new Set(['.js', '.jsx', '.ts', '.tsx'])
 const propriedadesEspacamento = '(?:m|mt|mr|mb|ml|mx|my|p|pt|pr|pb|pl|px|py|gap|rowGap|columnGap)'
 const erros = []
@@ -16,7 +19,7 @@ async function listar(diretorio) {
 }
 
 function registrar(arquivo, linha, regra, trecho) {
-  erros.push(`${relative(new URL('..', srcDir).pathname, arquivo)}:${linha} [${regra}] ${trecho.trim()}`)
+  erros.push(`${relative(raizProjeto, arquivo)}:${linha} [${regra}] ${trecho.trim()}`)
 }
 
 function noGridMui(valor) {
@@ -27,8 +30,8 @@ function noGridPx(valor) {
   return valor % 4 === 0
 }
 
-for (const arquivo of await listar(srcDir.pathname)) {
-  if (!extensoes.has(extname(arquivo)) || arquivo.endsWith('/theme.js')) continue
+for (const arquivo of await listar(srcDir)) {
+  if (!extensoes.has(extname(arquivo)) || /[\\/]theme\.js$/.test(arquivo)) continue
   const linhas = (await readFile(arquivo, 'utf8')).split('\n')
 
   linhas.forEach((texto, indice) => {
@@ -43,6 +46,11 @@ for (const arquivo of await listar(srcDir.pathname)) {
     }
     if (!texto.includes('TOV.') && /\btransition(?:Duration)?\s*:\s*['"`]/.test(texto)) {
       registrar(arquivo, linha, 'movimento fora dos tokens', texto)
+    }
+
+    // Ação destrutiva e aviso pertencem ao produto: nada de caixa cinza do sistema.
+    if (/(?:\bwindow\.(?:confirm|alert|prompt)|(?<![.\w])(?:confirm|alert|prompt))\s*\(/.test(texto)) {
+      registrar(arquivo, linha, 'diálogo nativo do navegador', texto)
     }
 
     const sombra = texto.match(/\bboxShadow\s*:\s*['"`]([^'"`]*)/)

@@ -50,6 +50,7 @@ export const TOV = {
   successBorder: 'rgba(30,107,67,.18)',
   warning: '#8C5210',
   warningTint: 'rgba(140,82,16,.12)',
+  warningTintSoft: 'rgba(140,82,16,.045)',
   warningBorder: 'rgba(140,82,16,.18)',
   info: '#356A82',
   infoTint: 'rgba(53,106,130,.11)',
@@ -111,6 +112,7 @@ export const TOV = {
     heroLg: 56,
   },
   sidebarW: 272,
+  railW: 72,
 
   radiusXs: 4,
   radiusNone: 0,
@@ -207,6 +209,11 @@ export const tovTheme = createTheme(
       caption: { fontSize: TOV.type.caption, lineHeight: 1.5 },
     },
     shape: { borderRadius: TOV.radiusMd },
+    breakpoints: {
+      // `tablet` (768px) é a faixa do iPad retrato: já recebe tabela e trilha
+      // de navegação, em vez da interface de celular que ia até 900px.
+      values: { xs: 0, sm: 600, tablet: 768, md: 900, lg: 1200, xl: 1536 },
+    },
     components: {
       MuiTypography: {
         defaultProps: {
@@ -365,23 +372,27 @@ export const tovTheme = createTheme(
       MuiTableCell: {
         styleOverrides: {
           root: {
-            height: 54,
-            padding: '12px 16px',
+            height: 44,
+            padding: '8px 16px',
             borderBottom: `1px solid ${TOV.divider}`,
             fontSize: TOV.type.body,
+            fontVariantNumeric: 'tabular-nums',
+            // Densidade compacta: aplicada pelo container da tabela.
+            '[data-densidade="compacta"] &': { height: 40, paddingTop: 4, paddingBottom: 4 },
           },
           head: {
-            height: 44,
+            height: 40,
             paddingTop: 8,
             paddingBottom: 8,
             backgroundColor: TOV.surfaceMuted,
             fontFamily: TOV.fontHead,
-            fontWeight: 700,
-            letterSpacing: '.11em',
+            fontWeight: 600,
+            letterSpacing: '.04em',
             textTransform: 'uppercase',
             color: TOV.caption,
-            fontSize: TOV.type.micro,
+            fontSize: TOV.type.caption,
             borderBottom: `1px solid ${TOV.border}`,
+            '[data-densidade="compacta"] &': { height: 40, paddingTop: 8, paddingBottom: 8 },
           },
           stickyHeader: {
             top: 0,
@@ -395,7 +406,6 @@ export const tovTheme = createTheme(
           root: {
             transition: `background-color ${TOV.durationFast} ${TOV.ease}`,
             '&.MuiTableRow-hover:hover': { backgroundColor: alpha(TOV.graphite, 0.035) },
-            '&:nth-of-type(even)': { backgroundColor: alpha(TOV.graphite, 0.018) },
             '&:last-child td': { borderBottom: 0 },
           },
         },

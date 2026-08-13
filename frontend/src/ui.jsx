@@ -1,5 +1,6 @@
+import { useCallback, useEffect, useState } from 'react'
 import {
-  Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Skeleton,
+  Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Skeleton,
   Typography, useMediaQuery, useTheme,
 } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
@@ -25,9 +26,145 @@ export function useDialogoTelaCheia() {
   return useMediaQuery(theme.breakpoints.down('sm'))
 }
 
+/**
+ * Verdadeiro a partir de 768px: o iPad retrato recebe tabela, não cartões.
+ * A sidebar completa continua aparecendo só em `md`; entre 600 e 900px quem
+ * navega é a trilha de ícones do Layout.
+ */
 export function useTelaDesktop() {
   const theme = useTheme()
-  return useMediaQuery(theme.breakpoints.up('md'), { noSsr: true })
+  return useMediaQuery(theme.breakpoints.up('tablet'), { noSsr: true })
+}
+
+const PREFIXO_PREFERENCIA = 'tov.pref.'
+
+/** Estado lembrado por usuário no navegador (densidade, página, por página). */
+export function usePreferencia(chave, inicial) {
+  const [valor, setValor] = useState(() => {
+    try {
+      const bruto = window.localStorage.getItem(PREFIXO_PREFERENCIA + chave)
+      return bruto == null ? inicial : JSON.parse(bruto)
+    } catch {
+      return inicial
+    }
+  })
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PREFIXO_PREFERENCIA + chave, JSON.stringify(valor))
+    } catch {
+      // Navegação privada ou storage cheio: a preferência vale só nesta sessão.
+    }
+  }, [chave, valor])
+  return [valor, setValor]
+}
+
+export const DENSIDADES = [
+  { valor: 'compacta', rotulo: 'Compacta' },
+  { valor: 'confortavel', rotulo: 'Confortável' },
+]
+
+/** Densidade da tabela, lembrada entre sessões. */
+export function useDensidade() {
+  return usePreferencia('densidade', 'compacta')
+}
+
+export function SeletorDensidade({ valor, onChange, sx }) {
+  return (
+    <Box
+      role="group"
+      aria-label="Densidade da tabela"
+      sx={{
+        display: 'inline-flex', height: 40, flexShrink: 0,
+        border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusSm, overflow: 'hidden',
+        bgcolor: TOV.surface, ...sx,
+      }}
+    >
+      {DENSIDADES.map((opcao, indice) => {
+        const ativo = valor === opcao.valor
+        return (
+          <Box
+            key={opcao.valor}
+            component="button"
+            type="button"
+            aria-pressed={ativo}
+            onClick={() => onChange(opcao.valor)}
+            sx={{
+              ...resetBotao,
+              minHeight: 38, px: 1.5, fontSize: TOV.type.bodySm, fontWeight: ativo ? 700 : 600,
+              color: ativo ? TOV.ink : TOV.caption,
+              bgcolor: ativo ? TOV.surfaceMuted : 'transparent',
+              borderLeft: indice > 0 ? `1px solid ${TOV.border}` : 0,
+              '&:hover': ativo ? {} : { color: TOV.ink },
+            }}
+          >
+            {opcao.rotulo}
+          </Box>
+        )
+      })}
+    </Box>
+  )
+}
+
+/**
+ * Barra de ação ancorada na base da janela, em qualquer largura.
+ * Só ocupa altura quando há algo pendente; no celular sobe acima da
+ * navegação inferior e no desktop respeita a sidebar.
+ */
+export function BarraAcaoFixa({ visivel, resumo, selo, acoes, rotulo = 'Alterações pendentes' }) {
+  if (!visivel) return null
+  return (
+    <>
+      {/* No celular a barra empilha resumo e botões: reserva mais altura. */}
+      <Box aria-hidden="true" sx={{ height: { xs: 148, sm: 88 } }} />
+      <Paper
+        role="region"
+        aria-label={rotulo}
+        elevation={0}
+        sx={{
+          position: 'fixed',
+          zIndex: (theme) => theme.zIndex.appBar + 1,
+          left: { xs: 0, sm: `${TOV.railW}px`, md: `${TOV.sidebarW}px` },
+          right: 0,
+          bottom: { xs: 'calc(66px + env(safe-area-inset-bottom))', sm: 0 },
+          pb: { xs: 0, sm: 'env(safe-area-inset-bottom)' },
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 2, flexWrap: 'wrap',
+          px: { xs: 2, sm: 3 }, py: 1.5,
+          borderRadius: TOV.radiusNone,
+          borderTop: `1px solid ${TOV.border}`,
+          bgcolor: TOV.surface,
+          boxShadow: TOV.shadowTop,
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0, flexGrow: 1 }}>
+          {selo}
+          {resumo && (
+            <Typography noWrap sx={{ fontSize: TOV.type.body, color: TOV.caption, minWidth: 0 }}>
+              {resumo}
+            </Typography>
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', gap: 1, flexShrink: 0, '& > *': { flexGrow: { xs: 1, sm: 0 } }, width: { xs: '100%', sm: 'auto' } }}>
+          {acoes}
+        </Box>
+      </Paper>
+    </>
+  )
+}
+
+/** Cmd/Ctrl+S sem acionar a impressão nem o "salvar página" do navegador. */
+export function useAtalhoSalvar(ativo, aoSalvar) {
+  const salvar = useCallback((evento) => {
+    if (!ativo) return
+    if (!(evento.key === 's' || evento.key === 'S') || !(evento.metaKey || evento.ctrlKey)) return
+    evento.preventDefault()
+    aoSalvar()
+  }, [ativo, aoSalvar])
+
+  useEffect(() => {
+    window.addEventListener('keydown', salvar)
+    return () => window.removeEventListener('keydown', salvar)
+  }, [salvar])
 }
 
 /** Filete estrutural neutro; coral fica reservado a ação, seleção e alerta. */
@@ -423,18 +560,40 @@ export function CartaoLista({ children, onClick, sx }) {
   )
 }
 
+/**
+ * Confirmação de ação destrutiva. `itens` lista o impacto real
+ * ("Leitura 2 · 24 notas"); o botão nomeia a ação, nunca "OK".
+ * O foco nunca começa no botão destrutivo.
+ */
 export function DialogoConfirmacao({
-  aberto, titulo, descricao, rotuloConfirmar = 'Excluir', processando, onConfirmar, onFechar,
+  aberto, titulo, descricao, itens, rotuloConfirmar = 'Excluir', processando, onConfirmar, onFechar,
 }) {
   return (
     <Dialog open={aberto} onClose={processando ? undefined : onFechar} maxWidth="xs" fullWidth>
       <DialogTitle>{titulo}</DialogTitle>
       <DialogContent>
         <Typography sx={{ fontSize: TOV.type.body, color: TOV.caption }}>{descricao}</Typography>
+        {itens?.length > 0 && (
+          <Box sx={{ mt: 2, border: `1px solid ${TOV.divider}`, borderRadius: TOV.radiusSm, overflow: 'hidden' }}>
+            {itens.map((item, indice) => (
+              <Box
+                key={item.chave ?? item.rotulo}
+                sx={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2,
+                  px: 1.5, py: 1.5, fontSize: TOV.type.body,
+                  borderTop: indice > 0 ? `1px solid ${TOV.divider}` : 0,
+                }}
+              >
+                <Box component="span" sx={{ fontWeight: 600, minWidth: 0, overflowWrap: 'anywhere' }}>{item.rotulo}</Box>
+                <Box component="span" sx={{ color: TOV.caption, flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{item.detalhe}</Box>
+              </Box>
+            ))}
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" onClick={onFechar} disabled={processando}>Cancelar</Button>
-        <Button variant="contained" color="error" onClick={onConfirmar} disabled={processando} autoFocus>
+        <Button variant="contained" color="error" onClick={onConfirmar} disabled={processando}>
           {processando ? 'Processando…' : rotuloConfirmar}
         </Button>
       </DialogActions>

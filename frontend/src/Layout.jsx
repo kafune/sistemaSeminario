@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useBlocker, useLocation, useNavigate } from 'react-router-dom'
 import {
-  AppBar, BottomNavigation, BottomNavigationAction, Box, Drawer, IconButton,
+  AppBar, BottomNavigation, BottomNavigationAction, Box, Drawer,
   ListItemIcon, ListItemText, Menu, MenuItem, Paper, Toolbar, Typography,
 } from '@mui/material'
-import MenuIcon from '@mui/icons-material/Menu'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import SpaceDashboardIcon from '@mui/icons-material/SpaceDashboard'
 import SchoolIcon from '@mui/icons-material/School'
@@ -31,21 +30,63 @@ import { UnsavedChangesContext } from './UnsavedChanges'
 const STG_URL = (import.meta.env.VITE_STG_URL?.trim() || 'https://stg.kafune.xyz').replace(/\/+$/, '')
 
 const MENU = [
-  { rotulo: 'Dashboard', rota: '/', icone: SpaceDashboardIcon, exato: true, perfis: ['ADMIN', 'SECRETARIA'] },
-  { rotulo: 'Início', rota: '/professor', icone: SpaceDashboardIcon, exato: true, perfis: ['PROFESSOR'] },
-  { rotulo: 'Minhas turmas', rota: '/professor/turmas', icone: SchoolIcon, perfis: ['PROFESSOR'] },
-  { rotulo: 'Alunos', rota: '/alunos', icone: SchoolIcon, perfis: ['ADMIN', 'SECRETARIA'] },
-  { rotulo: 'Professores', rota: '/professores', icone: PersonIcon, perfis: ['ADMIN', 'SECRETARIA'] },
-  { rotulo: 'Matérias', rota: '/materias', icone: MenuBookIcon, perfis: ['ADMIN', 'SECRETARIA'] },
-  { rotulo: 'Turmas', rota: '/turmas', icone: GroupsIcon, perfis: ['ADMIN', 'SECRETARIA'] },
-  { rotulo: 'Calendário', rota: '/calendario', icone: CalendarMonthIcon, perfis: ['ADMIN', 'SECRETARIA'] },
-  { rotulo: 'Notas e Faltas', rota: '/notas', icone: EditNoteIcon, perfis: ['ADMIN', 'SECRETARIA', 'PROFESSOR'] },
-  { rotulo: 'Materiais', rota: '/materiais', icone: FolderCopyOutlinedIcon, perfis: ['ADMIN', 'SECRETARIA', 'PROFESSOR'] },
-  { rotulo: 'Relatórios', rota: '/relatorios', icone: DescriptionIcon, perfis: ['ADMIN', 'SECRETARIA'] },
-  { rotulo: 'Leads', rota: '/leads', icone: CampaignIcon, perfis: ['ADMIN', 'MARKETING'] },
-  { rotulo: 'WhatsApp', rota: '/whatsapp', icone: WhatsAppIcon, perfis: ['ADMIN', 'SECRETARIA', 'MARKETING'] },
-  { rotulo: 'Usuários', rota: '/usuarios', icone: ManageAccountsIcon, perfis: ['ADMIN'] },
+  { rotulo: 'Dashboard', curto: 'Início', rota: '/', icone: SpaceDashboardIcon, exato: true, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Início', curto: 'Início', rota: '/professor', icone: SpaceDashboardIcon, exato: true, perfis: ['PROFESSOR'] },
+  { rotulo: 'Minhas turmas', curto: 'Turmas', rota: '/professor/turmas', icone: SchoolIcon, perfis: ['PROFESSOR'] },
+  { rotulo: 'Alunos', curto: 'Alunos', rota: '/alunos', icone: SchoolIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Professores', curto: 'Profs.', rota: '/professores', icone: PersonIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Matérias', curto: 'Matérias', rota: '/materias', icone: MenuBookIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Turmas', curto: 'Turmas', rota: '/turmas', icone: GroupsIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Calendário', curto: 'Agenda', rota: '/calendario', icone: CalendarMonthIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Notas e Faltas', curto: 'Notas', rota: '/notas', icone: EditNoteIcon, perfis: ['ADMIN', 'SECRETARIA', 'PROFESSOR'] },
+  { rotulo: 'Materiais', curto: 'Material', rota: '/materiais', icone: FolderCopyOutlinedIcon, perfis: ['ADMIN', 'SECRETARIA', 'PROFESSOR'] },
+  { rotulo: 'Relatórios', curto: 'Relatos', rota: '/relatorios', icone: DescriptionIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Leads', curto: 'Leads', rota: '/leads', icone: CampaignIcon, perfis: ['ADMIN', 'MARKETING'] },
+  { rotulo: 'WhatsApp', curto: 'Whats', rota: '/whatsapp', icone: WhatsAppIcon, perfis: ['ADMIN', 'SECRETARIA', 'MARKETING'] },
+  { rotulo: 'Usuários', curto: 'Usuários', rota: '/usuarios', icone: ManageAccountsIcon, perfis: ['ADMIN'] },
 ]
+
+/** Rotas da trilha do tablet, por perfil: o trabalho do dia em um toque. */
+const TRILHA = {
+  PROFESSOR: ['/professor', '/professor/turmas', '/notas', '/materiais'],
+  MARKETING: ['/leads', '/whatsapp'],
+  padrao: ['/', '/alunos', '/turmas', '/notas', '/calendario'],
+}
+
+/** Item da trilha vertical do tablet: ícone, rótulo curto e filete no ativo. */
+function ItemTrilha({ icone: Icone, rotulo, ativo, onClick, rotuloAcessivel }) {
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      aria-current={ativo ? 'page' : undefined}
+      aria-label={rotuloAcessivel}
+      sx={{
+        ...resetBotao,
+        position: 'relative',
+        width: 56, minHeight: 56, px: 0.5, py: 1,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5,
+        borderRadius: TOV.radiusSm,
+        color: ativo ? TOV.ink : TOV.onDarkMuted,
+        bgcolor: ativo ? TOV.surface : 'transparent',
+        transition: `background-color ${TOV.durationFast} ${TOV.ease}, color ${TOV.durationFast} ${TOV.ease}`,
+        '&::before': ativo ? {
+          content: '""', position: 'absolute', left: -8, top: 8, bottom: 8,
+          width: 4, borderRadius: `0 ${TOV.radiusXs}px ${TOV.radiusXs}px 0`, bgcolor: TOV.coral,
+        } : undefined,
+        '&:hover': ativo ? {} : { bgcolor: TOV.onDarkSurface, color: TOV.onDark },
+        '&:focus-visible': focusRingOnDark,
+        '& .MuiSvgIcon-root': { color: ativo ? TOV.coral : 'inherit' },
+      }}
+    >
+      <Icone sx={{ fontSize: TOV.type.titleSm }} />
+      <Box component="span" sx={{ fontSize: TOV.type.micro, fontWeight: 700, letterSpacing: '.04em', lineHeight: 1.2 }}>
+        {rotulo}
+      </Box>
+    </Box>
+  )
+}
 
 function ItemNav({ item, ativo, onClick }) {
   const Icone = item.icone
@@ -159,6 +200,9 @@ export default function Layout({ children }) {
   const usuario = getUser() || 'Usuário'
   const perfil = getPerfil()
   const menuVisivel = MENU.filter((item) => !item.perfis || item.perfis.includes(perfil))
+  const itensTrilha = (TRILHA[perfil] || TRILHA.padrao)
+    .map((rota) => menuVisivel.find((item) => item.rota === rota))
+    .filter(Boolean)
   const [menuAberto, setMenuAberto] = useState(false)
   const [notificacoesAbertas, setNotificacoesAbertas] = useState(false)
   const [alteracoesPendentes, setAlteracoesPendentes] = useState(null)
@@ -375,18 +419,11 @@ export default function Layout({ children }) {
           display: { xs: 'flex', md: 'none' }, bgcolor: TOV.surface,
           color: TOV.ink, borderBottom: `1px solid ${TOV.border}`,
           pt: 'env(safe-area-inset-top)',
+          left: { xs: 0, sm: `${TOV.railW}px` },
+          width: { xs: '100%', sm: `calc(100% - ${TOV.railW}px)` },
         }}
       >
         <Toolbar sx={{ gap: 1, minHeight: { xs: 60 } }}>
-          <IconButton
-            edge="start"
-            color="inherit"
-            aria-label="Abrir menu"
-            onClick={() => setMenuAberto(true)}
-            sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
-          >
-            <MenuIcon />
-          </IconButton>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
             <Box aria-hidden="true" sx={{ width: 4, height: 24, borderRadius: TOV.radiusFull, bgcolor: TOV.graphite }} />
             <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm, letterSpacing: '-.025em' }}>TOV</Typography>
@@ -419,6 +456,41 @@ export default function Layout({ children }) {
       >
         {conteudoMenu}
       </Drawer>
+
+      {/* Trilha de navegação — tablet (600–900px) */}
+      <Box
+        component="nav"
+        aria-label="Navegação principal"
+        sx={{
+          display: { xs: 'none', sm: 'flex', md: 'none' },
+          flexDirection: 'column', alignItems: 'center', gap: 0.5,
+          width: TOV.railW, flex: `0 0 ${TOV.railW}px`,
+          position: 'sticky', top: 0, height: '100vh', alignSelf: 'flex-start',
+          bgcolor: TOV.graphite, color: TOV.onDark,
+          borderRight: `1px solid ${TOV.darkHairline}`,
+          pt: 'calc(76px + env(safe-area-inset-top))',
+          pb: 'calc(16px + env(safe-area-inset-bottom))',
+          overflowY: 'auto',
+        }}
+      >
+        {itensTrilha.map((item) => (
+          <ItemTrilha
+            key={item.rota}
+            icone={item.icone}
+            rotulo={item.curto || item.rotulo}
+            rotuloAcessivel={item.rotulo}
+            ativo={estaAtivo(item)}
+            onClick={() => irPara(item.rota)}
+          />
+        ))}
+        <ItemTrilha
+          icone={MoreHorizIcon}
+          rotulo="Mais"
+          rotuloAcessivel="Abrir menu completo"
+          ativo={false}
+          onClick={() => setMenuAberto(true)}
+        />
+      </Box>
 
       {/* Sidebar fixa — desktop */}
       <Box

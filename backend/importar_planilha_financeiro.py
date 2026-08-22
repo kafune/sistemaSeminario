@@ -50,6 +50,7 @@ from app.models import (
     CondicaoFinanceiraAluno,
     Pagamento,
     PlanoFinanceiro,
+    TransacaoBancaria,
     Turma,
 )
 from app.schema import atualizar_schema
@@ -642,6 +643,83 @@ def limpar_importacao(db, correspondencias: list[dict], relatar=print) -> dict:
     return {"pagamentos": removidos, "cobrancas": apagadas, "preservadas": preservadas}
 
 
+def resumir_para_sobrescrever(db, correspondencias: list[dict]) -> dict:
+    """Conta o que a sobrescrita apagaria, sem apagar nada."""
+    codigos = [item["aluno"].cod_alu for item in correspondencias if item.get("aluno")]
+    if not codigos:
+        return {"cobrancas": 0, "pagamentos": 0, "valor": servico.ZERO, "avulsas": 0}
+    cobrancas = list(
+        db.scalars(
+            select(Cobranca).where(
+                Cobranca.cod_alu.in_(codigos),
+                Cobranca.tipo.in_(("MATRICULA", "MENSALIDADE")),
+            )
+        )
+    )
+    ids = [c.id for c in cobrancas]
+    pagamentos = (
+        list(db.scalars(select(Pagamento).where(Pagamento.cobranca_id.in_(ids)))) if ids else []
+    )
+    avulsas = db.scalar(
+        select(func.count())
+        .select_from(Cobranca)
+        .where(Cobranca.cod_alu.in_(codigos), Cobranca.tipo == "AVULSA")
+    ) or 0
+    return {
+        "cobrancas": len(cobrancas),
+        "pagamentos": len(pagamentos),
+        "valor": sum((servico.dinheiro(p.valor) for p in pagamentos), servico.ZERO),
+        "avulsas": int(avulsas),
+    }
+
+
+def sobrescrever(db, correspondencias: list[dict], relatar=print) -> dict:
+    """Apaga matrícula e mensalidade destes alunos para reconstruir da planilha.
+
+    Diferente de ``limpar_importacao``, aqui não importa quem criou: some tudo
+    que veio do plano, inclusive baixa lançada na tela. É o que a planilha
+    pede quando ela é a fonte da verdade e o banco tem sobra de tentativas
+    anteriores. Cobrança avulsa fica de pé: ela nunca veio do plano.
+
+    Recebimento bancário conciliado com uma cobrança que vai embora volta para
+    a fila de conciliação — o dinheiro entrou no banco de todo jeito.
+    """
+    resumo = resumir_para_sobrescrever(db, correspondencias)
+    codigos = [item["aluno"].cod_alu for item in correspondencias if item.get("aluno")]
+    if not codigos:
+        return resumo
+
+    cobrancas = list(
+        db.scalars(
+            select(Cobranca).where(
+                Cobranca.cod_alu.in_(codigos),
+                Cobranca.tipo.in_(("MATRICULA", "MENSALIDADE")),
+            )
+        )
+    )
+    ids = [c.id for c in cobrancas]
+    if ids:
+        for pagamento in db.scalars(select(Pagamento).where(Pagamento.cobranca_id.in_(ids))):
+            if pagamento.transacao_id:
+                transacao = db.get(TransacaoBancaria, pagamento.transacao_id)
+                if transacao:
+                    transacao.status = "PENDENTE"
+                    transacao.cobranca_id = None
+                    transacao.motivo = "Cobrança removida na reimportação da planilha"
+                    transacao.conciliada_em = None
+                    transacao.conciliada_por = None
+            db.delete(pagamento)
+        db.flush()
+    for cobranca in cobrancas:
+        db.delete(cobranca)
+    db.flush()
+    relatar(
+        f"Sobrescrita: {resumo['cobrancas']} cobrança(s) e {resumo['pagamentos']} baixa(s) "
+        f"removidas (R$ {resumo['valor']}); {resumo['avulsas']} avulsa(s) preservada(s)."
+    )
+    return resumo
+
+
 # ---- orquestração ----------------------------------------------------------
 
 def importar(
@@ -827,6 +905,14 @@ def main() -> None:
         help="Desfaz o que uma importação anterior da planilha criou (exige --aplicar)",
     )
     analisador.add_argument(
+        "--sobrescrever",
+        action="store_true",
+        help=(
+            "A planilha vira a verdade: apaga matrícula e mensalidade destes alunos, "
+            "inclusive baixa lançada na tela, e reconstrói (exige --aplicar)"
+        ),
+    )
+    analisador.add_argument(
         "--aplicar",
         action="store_true",
         help="Grava de verdade; sem esta opção o script só mostra o que faria",
@@ -886,6 +972,16 @@ def main() -> None:
                 print(f"  {turma.cod_tur:>3}  {turma.nome}")
             return
 
+        if args.sobrescrever:
+            aviso = resumir_para_sobrescrever(db, [i for i in entram])
+            print()
+            print(
+                f"SOBRESCREVER apagaria {aviso['cobrancas']} cobrança(s) e "
+                f"{aviso['pagamentos']} baixa(s), somando R$ {aviso['valor']}, "
+                f"para reconstruir tudo a partir da planilha."
+            )
+            print(f"  {aviso['avulsas']} cobrança(s) avulsa(s) ficam de pé.")
+
         turmas = sorted({item["cod_tur"] for item in entram})
         print()
         print(
@@ -896,6 +992,9 @@ def main() -> None:
         if not args.aplicar:
             print("\nSimulação: nada foi gravado. Repita com --aplicar para valer.")
             return
+
+        if args.sobrescrever:
+            sobrescrever(db, entram)
 
         resultado = importar(
             db,
@@ -912,8 +1011,10 @@ def main() -> None:
         if not resultado["confere"]:
             db.rollback()
             sys.exit(
-                "\nNada foi gravado: o resultado não bate com a planilha. "
-                "Confira --matricula, --mensalidade e --desconto-conjuge."
+                "\nNada foi gravado: o resultado não bate com a planilha.\n"
+                "Se o banco já tinha cobrança ou baixa destes alunos, veja com "
+                "--diagnostico; para a planilha valer sobre o que existe, use "
+                "--sobrescrever --aplicar."
             )
         db.commit()
         print("\nImportação concluída.")

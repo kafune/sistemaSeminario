@@ -29,6 +29,7 @@ from importar_planilha_financeiro import (
     nome_contido,
     normalizar,
     selecionar,
+    sobrescrever,
 )
 
 CABECALHO = [
@@ -631,6 +632,143 @@ class ResiduoDeImportacaoAnteriorTest(BaseCadastroTest):
             list(self.db.scalars(select(Cobranca).where(Cobranca.cod_alu == de_fora.cod_alu))),
             [],
         )
+
+
+
+class SobrescritaTest(BaseCadastroTest):
+    """A planilha vira a verdade sobre o que o banco já tem.
+
+    É o caso do servidor: cobrança gerada e baixa dada pela tela antes da
+    importação, e a planilha não conhece nada disso.
+    """
+
+    def preparar(self):
+        self.cadastrar_todos()
+        return selecionar(
+            self.db,
+            casar_nomes(self.db, self.pessoas),
+            aceitar_aproximados=False,
+            criar_novos=False,
+            turma_novos=None,
+        )[0]
+
+    def importar(self, entram, **ajustes):
+        parametros = {
+            "parcelas": 24,
+            "matricula": Decimal("100"),
+            "mensalidade": Decimal("200"),
+            "desconto_conjuge": Decimal("50"),
+            "primeira_mensalidade": date(2026, 8, 10),
+            "relatar": lambda *_: None,
+        }
+        parametros.update(ajustes)
+        return importar(self.db, entram, self.totais, **parametros)
+
+    def sujar(self, entram):
+        """Gera as cobranças pela turma e quita tudo pela tela, como no sistema."""
+        from app.models import PlanoFinanceiro
+
+        for cod_tur in {item["cod_tur"] for item in entram}:
+            plano = PlanoFinanceiro(
+                cod_tur=cod_tur,
+                valor_matricula=Decimal("100"),
+                valor_mensalidade=Decimal("200"),
+                parcelas=1,
+                dia_vencimento=10,
+                primeira_mensalidade=date(2026, 8, 10),
+                vencimento_matricula=date(2026, 8, 10),
+            )
+            self.db.add(plano)
+            self.db.flush()
+            servico.gerar_cobrancas_do_plano(self.db, plano, criado_por="SECRETARIA")
+        for cobranca in self.db.scalars(select(Cobranca).where(Cobranca.status == "ABERTA")):
+            servico.registrar_pagamento(self.db, cobranca, registrado_por="SECRETARIA")
+        self.db.flush()
+
+    def test_sem_sobrescrever_a_conferencia_reprova(self):
+        entram = self.preparar()
+        self.sujar(entram)
+        self.assertFalse(self.importar(entram)["confere"])
+
+    def test_sobrescrita_faz_a_planilha_valer(self):
+        entram = self.preparar()
+        self.sujar(entram)
+        pagas_antes = len(list(self.db.scalars(select(Pagamento))))
+        self.assertGreater(pagas_antes, 0)
+
+        resumo = sobrescrever(self.db, entram, relatar=lambda *_: None)
+        self.assertGreater(resumo["cobrancas"], 0)
+        self.assertEqual(resumo["pagamentos"], pagas_antes)
+        self.assertEqual(list(self.db.scalars(select(Pagamento))), [])
+
+        resultado = self.importar(entram)
+        self.assertTrue(resultado["confere"])
+        self.assertEqual(resultado["baixado"], Decimal("850.00"))
+
+    def test_sobrescrita_preserva_cobranca_avulsa(self):
+        entram = self.preparar()
+        self.sujar(entram)
+        alvo = entram[0]["aluno"]
+        servico.criar_cobranca(
+            self.db,
+            cod_alu=alvo.cod_alu,
+            cod_tur=entram[0]["cod_tur"],
+            plano_id=None,
+            tipo="AVULSA",
+            descricao="Segunda via de certificado",
+            valor=Decimal("35.00"),
+            vencimento=date(2026, 9, 1),
+            criado_por="SECRETARIA",
+        )
+        self.db.flush()
+
+        resumo = sobrescrever(self.db, entram, relatar=lambda *_: None)
+        self.assertEqual(resumo["avulsas"], 1)
+        avulsas = list(self.db.scalars(select(Cobranca).where(Cobranca.tipo == "AVULSA")))
+        self.assertEqual(len(avulsas), 1)
+        self.assertEqual(avulsas[0].valor, Decimal("35.00"))
+
+    def test_recebimento_bancario_volta_para_a_fila(self):
+        from app.models import TransacaoBancaria
+
+        entram = self.preparar()
+        self.sujar(entram)
+        cobranca = self.db.scalar(select(Cobranca).order_by(Cobranca.id))
+        transacao = TransacaoBancaria(
+            identificador="E123456789012345678901234",
+            meio="PIX",
+            valor=Decimal("100.00"),
+            data=date(2026, 8, 10),
+            status="CONCILIADA",
+            cobranca_id=cobranca.id,
+        )
+        self.db.add(transacao)
+        self.db.flush()
+        pagamento = self.db.scalar(
+            select(Pagamento).where(Pagamento.cobranca_id == cobranca.id)
+        )
+        pagamento.transacao_id = transacao.id
+        self.db.flush()
+
+        sobrescrever(self.db, entram, relatar=lambda *_: None)
+        self.db.refresh(transacao)
+        self.assertEqual(transacao.status, "PENDENTE")
+        self.assertIsNone(transacao.cobranca_id)
+
+    def test_sobrescrita_nao_mexe_em_quem_esta_fora_da_planilha(self):
+        entram = self.preparar()
+        de_fora = self.cadastrar("Aluno Fora da Planilha", self.manha)
+        self.sujar(entram)
+        cobrancas_dele = list(
+            self.db.scalars(select(Cobranca).where(Cobranca.cod_alu == de_fora.cod_alu))
+        )
+        self.assertGreater(len(cobrancas_dele), 0)
+
+        sobrescrever(self.db, entram, relatar=lambda *_: None)
+        ainda = list(
+            self.db.scalars(select(Cobranca).where(Cobranca.cod_alu == de_fora.cod_alu))
+        )
+        self.assertEqual(len(ainda), len(cobrancas_dele))
 
 
 class CamadasDeNomeTest(unittest.TestCase):

@@ -256,6 +256,34 @@ as cobranças que ela criou e que não receberam pagamento de outra origem. O qu
 a secretaria lançou na tela fica de pé — o script não apaga trabalho de gente.
 Depois é só rodar a importação de novo.
 
+### Quando a planilha é que está certa
+
+Se o banco já tem cobrança e baixa que a planilha não conhece — geração feita
+pela tela, tentativa anterior, lançamento de teste — e você quer que **a
+planilha valha**, use a sobrescrita:
+
+```bash
+# mostra quanto seria apagado, sem apagar
+... --sobrescrever --aceitar-aproximados
+
+# apaga e reconstrói
+... --sobrescrever --aceitar-aproximados --aplicar
+```
+
+Ela apaga **toda** matrícula e mensalidade dos alunos da planilha, inclusive
+baixa lançada na tela pela secretaria, e reconstrói do zero. É mais forte que
+`--limpar-importacao`, que só desfaz o que a própria planilha criou.
+
+O que ela **não** toca:
+
+* cobrança **avulsa** — essa nunca veio do plano;
+* aluno que não está na planilha, mesmo matriculado na mesma turma;
+* recebimento bancário — a baixa some, mas a transação volta para a fila de
+  conciliação, porque o dinheiro entrou no banco de qualquer forma.
+
+Depois da importação, o que a planilha não cobre se ajusta pelo sistema:
+mensalidade de outro mês, desconto que mudou, parcela a mais ou a menos.
+
 Duas garantias fecham o script:
 
 * **Ele confere o resultado contra a própria planilha** — aluno por aluno, na

@@ -76,6 +76,9 @@ class CondicaoFinanceiraAluno(Base):
     # por que aquele aluno paga menos.
     desconto_percentual: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2))
     desconto_motivo: Mapped[str | None] = mapped_column(String(120))
+    # O desconto de casal do Centro TOV abate as duas coisas: o cônjuge paga
+    # metade da matrícula e metade da mensalidade.
+    desconto_na_matricula: Mapped[str] = mapped_column(String(1), default="S")
     observacao: Mapped[str | None] = mapped_column(Text)
     criado_em: Mapped[datetime | None] = mapped_column(DateTime)
     atualizado_em: Mapped[datetime | None] = mapped_column(DateTime)

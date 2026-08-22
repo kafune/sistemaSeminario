@@ -81,24 +81,27 @@ cursar.
 
 ## Desconto
 
-Percentual abatido da mensalidade de um aluno, sempre com o **motivo** junto —
-é o desconto de casal (um dos dois paga menos), de irmãos ou de obreiro. Fica na
-**aba Financeiro da ficha do aluno**, ao lado da situação dele.
+Percentual abatido do que vem do plano da turma, sempre com o **motivo** junto —
+é o desconto de casal, de irmãos ou de obreiro. Fica na **aba Financeiro da
+ficha do aluno**, ao lado da situação dele.
 
-* Incide **só sobre a mensalidade**. A matrícula tem valor próprio na condição
-  da turma, e misturar as duas coisas num percentual único esconderia a
-  diferença.
+A regra do Centro TOV, tirada da planilha que a secretaria mantém à mão:
+matrícula de R$ 100 e mensalidade de R$ 200 por pessoa, e **o cônjuge paga 50%
+das duas** — o casal fecha em R$ 150 de matrículas e R$ 300 por mês. Por isso o
+desconto abate matrícula e mensalidade por padrão; o interruptor *Abater também
+a matrícula* existe para quem precisar do contrário.
+
 * O motivo é **obrigatório** quando há desconto. Quem confere a carteira seis
   meses depois precisa saber por que aquele aluno paga menos, e "porque sim" não
   sobrevive a uma auditoria nem a uma troca de secretária.
-* Salvar **recalcula as mensalidades em aberto** na hora. Mensalidade com
-  pagamento lançado não muda de valor — aparece como preservada.
+* Salvar **recalcula as cobranças em aberto** na hora. Cobrança com pagamento
+  lançado não muda de valor — aparece como preservada.
 * O percentual entra na descrição da cobrança (`Mensalidade 3/12 · Turma da
-  manhã · desconto 10%`), então o aluno vê o abatimento no próprio extrato sem
+  manhã · desconto 50%`), então o aluno vê o abatimento no próprio extrato sem
   precisar perguntar.
-* Desconto e transferência convivem: o percentual incide sobre a mensalidade já
-  resolvida pela condição. Voltar o aluno para "plano da turma" **não** apaga o
-  desconto — são duas perguntas diferentes (quantos meses × quanto por mês).
+* Desconto e transferência convivem: o percentual incide sobre os valores já
+  resolvidos pela condição. Voltar o aluno para "plano da turma" **não** apaga o
+  desconto — são duas perguntas diferentes (quantos meses × quanto cada um).
 
 Na régua da turma cada aluno com desconto ganha um selo verde, e o motivo
 aparece ao passar o mouse.
@@ -118,6 +121,56 @@ quem pede.
 
 Para desligar o acesso de alguém, use *Desativar* — o token é invalidado e um
 novo pode ser gerado depois.
+
+## Importar a planilha da secretaria
+
+`backend/importar_planilha_financeiro.py` carrega no sistema a planilha de
+controle que a secretaria mantinha à mão. Ela traz duas listas — regulares e
+transferidos — e marca o casal com `C`, mesclando as células de valor entre as
+duas linhas porque **o casal paga junto**. O script traduz isso:
+
+| Na planilha | No sistema |
+| --- | --- |
+| Linha com nome | Aluno matriculado na turma |
+| `C` com células mescladas | O **segundo** do par vira cônjuge, com o desconto |
+| Bloco `TRANSFERÊNCIA` | Condição de transferência, sem matrícula |
+| `VALOR PAGO` | Baixas, quitando em ordem de vencimento |
+| `CONTA` e `NOME NO RECIBO` | Observação do pagamento |
+
+O nome no extrato é o dado que mais some com o tempo — na planilha um depósito
+aparece como "Central Mailing List" — então ele vai para a observação da baixa,
+onde a conciliação bancária consegue reencontrá-lo.
+
+```bash
+cd backend
+# lista as turmas e explica o que falta
+python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx
+# simulação: mostra pessoa por pessoa o que faria
+python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx --turma 1 --parcelas 12
+# grava
+python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx --turma 1 --parcelas 12 --aplicar
+```
+
+**Sem `--aplicar` nada é gravado.** Os valores padrão são os da planilha atual
+(`--matricula 100`, `--mensalidade 200`, `--desconto-conjuge 50`,
+`--primeira-mensalidade 2026-08-10`).
+
+`--parcelas` é o **total de mensalidades do curso**, e não tem como ser deduzido:
+a planilha é a foto de agosto, com a matrícula e a primeira mensalidade.
+
+Duas garantias fecham o script:
+
+* **Ele confere o resultado contra os totais que a própria planilha declara**
+  (`Valor total pago até agora` e `Valor total a pagar em 10/ago`) e, aluno por
+  aluno, contra a coluna `VALOR A PAGAR`. Se algo não bater, **desfaz tudo** e
+  explica — a conta errada nunca chega ao banco.
+* **É idempotente**: aluno é reaproveitado pelo nome normalizado (sem acento,
+  sem caixa, sem espaço dobrado) e cobrança já existente não é duplicada, então
+  rodar duas vezes não estraga nada.
+
+No casal, o dinheiro entrou num depósito só: as baixas começam pelo titular e
+transbordam para o cônjuge. O total do casal fica idêntico ao da planilha; a
+divisão entre os dois é a escolha do script.
 
 ## Desempenho da lista
 
@@ -227,12 +280,16 @@ visto no extrato pela mesma porta e com a mesma identificação automática.
 `backend/tests/test_financeiro.py` cobre geração idempotente, vencimentos em
 mês curto, pagamento parcial e em lote, estorno, extrato, link do aluno, a
 condição de transferência (encolher, preservar parcela paga, voltar ao plano
-cheio), o desconto percentual (abatimento, arredondamento, motivo obrigatório,
-convivência com transferência), os filtros da lista (mês, busca, paginação,
-saldo do recorte) e os
+cheio), o desconto percentual (abatimento de matrícula e mensalidade, arredondamento,
+motivo obrigatório, convivência com transferência), os filtros da lista (mês,
+busca, paginação, saldo do recorte) e os
 caminhos da conciliação (código, CPF, nome, ambiguidade, reenvio e baixa
 automática desligada).
 
+`backend/tests/test_importacao_planilha.py` monta uma planilha com a mesma
+forma da real — casais mesclados, dois blocos, linhas de total — e confere a
+importação inteira, incluindo a recusa quando os valores não fecham.
+
 ```bash
-cd backend && python -m pytest tests/test_financeiro.py -q
+cd backend && python -m pytest tests/test_financeiro.py tests/test_importacao_planilha.py -q
 ```

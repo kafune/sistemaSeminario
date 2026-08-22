@@ -61,6 +61,8 @@ class DescontoInput(BaseModel):
 
     percentual: Decimal = Field(default=Decimal("0"), ge=0, le=100)
     motivo: str | None = Field(default=None, max_length=120)
+    # O desconto de casal do TOV abate matrícula e mensalidade.
+    na_matricula: bool = True
     # Ajusta as mensalidades já geradas, e não só as próximas.
     aplicar: bool = True
 
@@ -883,6 +885,7 @@ def _condicao_dict(condicao: CondicaoFinanceiraAluno | None) -> dict | None:
         if condicao.desconto_percentual
         else 0.0,
         "desconto_motivo": condicao.desconto_motivo,
+        "desconto_na_matricula": condicao.desconto_na_matricula == "S",
         "observacao": condicao.observacao,
         "atualizado_em": condicao.atualizado_em.isoformat()
         if condicao.atualizado_em
@@ -1085,6 +1088,7 @@ def salvar_desconto(
         db.add(condicao)
     condicao.desconto_percentual = percentual if percentual > servico.ZERO else None
     condicao.desconto_motivo = motivo if percentual > servico.ZERO else None
+    condicao.desconto_na_matricula = "S" if dados.na_matricula else "N"
     condicao.atualizado_em = datetime.now()
     condicao.atualizado_por = usuario
     db.flush()
@@ -1104,6 +1108,7 @@ def salvar_desconto(
         "desconto": {
             "percentual": float(percentual),
             "motivo": motivo,
+            "na_matricula": dados.na_matricula,
         } if percentual > servico.ZERO else None,
         "ajuste": ajuste,
     }

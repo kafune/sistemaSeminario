@@ -232,7 +232,9 @@ class PlanoEfetivo(NamedTuple):
     transferencia: bool
     desconto_percentual: Decimal = ZERO
     desconto_motivo: str | None = None
+    desconto_na_matricula: bool = False
     mensalidade_cheia: Decimal = ZERO
+    matricula_cheia: Decimal = ZERO
 
 
 def plano_efetivo(
@@ -290,11 +292,19 @@ def plano_efetivo(
     percentual = dinheiro(condicao.desconto_percentual)
     if percentual <= ZERO:
         return efetivo
+    na_matricula = condicao.desconto_na_matricula == "S"
     return efetivo._replace(
         mensalidade_cheia=efetivo.valor_mensalidade,
         valor_mensalidade=aplicar_desconto(efetivo.valor_mensalidade, percentual),
+        matricula_cheia=efetivo.valor_matricula,
+        valor_matricula=(
+            aplicar_desconto(efetivo.valor_matricula, percentual)
+            if na_matricula
+            else efetivo.valor_matricula
+        ),
         desconto_percentual=percentual,
         desconto_motivo=condicao.desconto_motivo,
+        desconto_na_matricula=na_matricula,
     )
 
 
@@ -317,6 +327,13 @@ def _vencimento_da_parcela(efetivo: PlanoEfetivo, numero: int) -> date:
     if numero == 1:
         return efetivo.primeira_mensalidade
     return somar_meses(efetivo.primeira_mensalidade, numero - 1, efetivo.dia_vencimento)
+
+
+def _descricao_matricula(efetivo: PlanoEfetivo, nome_turma: str) -> str:
+    partes = ["Matrícula", nome_turma]
+    if efetivo.desconto_na_matricula and efetivo.desconto_percentual > ZERO:
+        partes.append(f"desconto {formatar_percentual(efetivo.desconto_percentual)}")
+    return " · ".join(partes)
 
 
 def _descricao_mensalidade(numero: int, efetivo: PlanoEfetivo, nome_turma: str) -> str:
@@ -381,7 +398,7 @@ def aplicar_plano_ao_aluno(
             cod_tur=plano.cod_tur,
             plano_id=plano.id,
             tipo="MATRICULA",
-            descricao=f"Matrícula · {nome_turma}",
+            descricao=_descricao_matricula(efetivo, nome_turma),
             valor=efetivo.valor_matricula,
             vencimento=efetivo.vencimento_matricula,
             parcela=1,
@@ -403,6 +420,7 @@ def aplicar_plano_ao_aluno(
             matricula.valor = efetivo.valor_matricula
             matricula.vencimento = efetivo.vencimento_matricula
             matricula.competencia = competencia_de(efetivo.vencimento_matricula)
+            matricula.descricao = _descricao_matricula(efetivo, nome_turma)[:120]
             resultado["atualizadas"] += 1
 
     if efetivo.valor_mensalidade <= ZERO:
@@ -823,6 +841,13 @@ def extrato_aluno(db: Session, cod_alu: int, *, hoje: date | None = None) -> dic
             if efetivo
             else None,
             "mensalidade_com_desconto": float(efetivo.valor_mensalidade) if efetivo else None,
+            "desconto_na_matricula": bool(condicao and condicao.desconto_na_matricula == "S"),
+            "matricula_cheia": float(efetivo.matricula_cheia)
+            if efetivo and efetivo.matricula_cheia > ZERO
+            else float(efetivo.valor_matricula)
+            if efetivo
+            else None,
+            "matricula_com_desconto": float(efetivo.valor_matricula) if efetivo else None,
         },
         "resumo": {
             "total": float(total),

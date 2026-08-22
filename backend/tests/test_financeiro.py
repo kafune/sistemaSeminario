@@ -720,35 +720,91 @@ class DescontoDoAlunoTest(BaseFinanceiroTest):
         super().setUp()
         self.plano_padrao(self.manha, parcelas=4)
 
-    def desconto(self, aluno, percentual, motivo="Desconto de casal", aplicar=True):
+    def desconto(self, aluno, percentual, motivo="Desconto de casal", aplicar=True, na_matricula=True):
         return salvar_desconto(
             aluno.cod_alu,
-            DescontoInput(percentual=Decimal(str(percentual)), motivo=motivo, aplicar=aplicar),
+            DescontoInput(
+                percentual=Decimal(str(percentual)),
+                motivo=motivo,
+                aplicar=aplicar,
+                na_matricula=na_matricula,
+            ),
             "SECRETARIA",
             self.db,
         )
 
-    def test_desconto_abate_a_mensalidade_e_preserva_a_matricula(self):
+    def test_desconto_abate_matricula_e_mensalidade(self):
         self.desconto(self.ana, 10)
         gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
 
         cobrancas = self.cobrancas_de(self.ana)
         matricula = [c for c in cobrancas if c.tipo == "MATRICULA"][0]
         mensalidades = [c for c in cobrancas if c.tipo == "MENSALIDADE"]
-        self.assertEqual(matricula.valor, Decimal("150.00"))
+        self.assertEqual(matricula.valor, Decimal("135.00"))
         self.assertEqual({c.valor for c in mensalidades}, {Decimal("180.00")})
+        self.assertIn("desconto 10%", matricula.descricao)
         self.assertIn("desconto 10%", mensalidades[0].descricao)
-        # O colega sem desconto continua na mensalidade cheia.
+        # O colega sem desconto continua nos valores cheios.
         self.assertEqual(
             {c.valor for c in self.cobrancas_de(self.bruno) if c.tipo == "MENSALIDADE"},
             {Decimal("200.00")},
         )
 
+    def test_desconto_pode_ficar_so_na_mensalidade(self):
+        self.desconto(self.ana, 10, na_matricula=False)
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+
+        cobrancas = self.cobrancas_de(self.ana)
+        matricula = [c for c in cobrancas if c.tipo == "MATRICULA"][0]
+        self.assertEqual(matricula.valor, Decimal("150.00"))
+        self.assertNotIn("desconto", matricula.descricao)
+        self.assertEqual(
+            {c.valor for c in cobrancas if c.tipo == "MENSALIDADE"},
+            {Decimal("180.00")},
+        )
+
+    def test_regra_de_casal_do_centro_tov(self):
+        """A planilha de matrículas: matrícula 100, mensalidade 200, cônjuge com 50%.
+
+        O casal fecha em 150 de matrículas e 300 de mensalidade, que é o que a
+        secretaria cobra hoje na mão.
+        """
+        salvar_plano(
+            self.noite.cod_tur,
+            PlanoInput(
+                valor_matricula=Decimal("100.00"),
+                valor_mensalidade=Decimal("200.00"),
+                parcelas=1,
+                dia_vencimento=10,
+                primeira_mensalidade=date(2026, 8, 10),
+                vencimento_matricula=date(2026, 8, 10),
+            ),
+            "SECRETARIA",
+            self.db,
+        )
+        titular = self.carla
+        conjuge = Aluno(nome="Cônjuge da Carla", status="A", cod_tur=self.noite.cod_tur)
+        self.db.add(conjuge)
+        self.db.flush()
+        self.db.add(AluTurma(cod_tur=self.noite.cod_tur, cod_alu=conjuge.cod_alu, status="A"))
+        self.db.commit()
+
+        self.desconto(conjuge, 50, motivo="Casal — cônjuge com 50%")
+        gerar_cobrancas(self.noite.cod_tur, None, "SECRETARIA", self.db)
+
+        def total(aluno):
+            return sum(c.valor for c in self.cobrancas_de(aluno))
+
+        self.assertEqual(total(titular), Decimal("300.00"))   # 100 + 200
+        self.assertEqual(total(conjuge), Decimal("150.00"))   # 50 + 100
+        self.assertEqual(total(titular) + total(conjuge), Decimal("450.00"))
+
     def test_desconto_ajusta_mensalidade_ja_gerada(self):
         gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
         resposta = self.desconto(self.ana, 50)
 
-        self.assertEqual(resposta["ajuste"]["atualizadas"], 4)
+        # Quatro mensalidades e a matrícula.
+        self.assertEqual(resposta["ajuste"]["atualizadas"], 5)
         self.assertEqual(
             {c.valor for c in self.cobrancas_de(self.ana) if c.tipo == "MENSALIDADE"},
             {Decimal("100.00")},
@@ -836,6 +892,9 @@ class DescontoDoAlunoTest(BaseFinanceiroTest):
         self.assertEqual(extrato["condicao"]["desconto_motivo"], "Casal — cônjuge paga integral")
         self.assertEqual(extrato["condicao"]["mensalidade_cheia"], 200.0)
         self.assertEqual(extrato["condicao"]["mensalidade_com_desconto"], 180.0)
+        self.assertEqual(extrato["condicao"]["matricula_cheia"], 150.0)
+        self.assertEqual(extrato["condicao"]["matricula_com_desconto"], 135.0)
+        self.assertTrue(extrato["condicao"]["desconto_na_matricula"])
         self.assertEqual(extrato["condicao"]["mensalidades_previstas"], 4)
 
     def test_aluno_sem_turma_nao_recebe_desconto(self):

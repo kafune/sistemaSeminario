@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Alert, Box, Button, CircularProgress, InputAdornment, Snackbar, Table,
-  TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
-  Typography,
+  Alert, Box, Button, CircularProgress, FormControlLabel, InputAdornment,
+  Snackbar, Switch, Table, TableBody, TableCell, TableContainer, TableHead,
+  TableRow, TextField, Typography,
 } from '@mui/material'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import LinkOffIcon from '@mui/icons-material/LinkOff'
@@ -46,6 +46,7 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
   const [processando, setProcessando] = useState(false)
   const [percentual, setPercentual] = useState('')
   const [motivo, setMotivo] = useState('')
+  const [naMatricula, setNaMatricula] = useState(true)
   const [salvandoDesconto, setSalvandoDesconto] = useState(false)
   const [msg, setMsg] = useState('')
   const [ehErro, setEhErro] = useState(true)
@@ -59,6 +60,7 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
         setExtrato(resposta)
         setPercentual(textoPercentual(resposta.condicao?.desconto_percentual))
         setMotivo(resposta.condicao?.desconto_motivo || '')
+        setNaMatricula(resposta.condicao?.desconto_na_matricula !== false)
         aoCarregarExtrato?.(resposta)
       })
       .catch((e) => setErroCarga(e.message))
@@ -72,7 +74,9 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
   const condicao = extrato?.condicao
   const descontoAtual = condicao?.desconto_percentual || 0
   const percentualDigitado = numeroDoCampo(percentual) || 0
-  const descontoAlterado = percentualDigitado !== descontoAtual || motivo.trim() !== (condicao?.desconto_motivo || '')
+  const descontoAlterado = percentualDigitado !== descontoAtual
+    || motivo.trim() !== (condicao?.desconto_motivo || '')
+    || naMatricula !== (condicao?.desconto_na_matricula !== false)
   const faltaMotivo = percentualDigitado > 0 && !motivo.trim()
   const foraDaFaixa = percentualDigitado < 0 || percentualDigitado > 100
 
@@ -91,6 +95,7 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
       const resposta = await api.put(`/financeiro/alunos/${codAlu}/desconto`, {
         percentual: zerar ? 0 : percentualDigitado,
         motivo: zerar ? null : motivo.trim() || null,
+        na_matricula: naMatricula,
         aplicar: true,
       })
       avisar(
@@ -204,8 +209,9 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
           )}
         </Box>
         <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5, maxWidth: '72ch' }}>
-          Percentual abatido de cada mensalidade — é o desconto de casal, de irmãos ou de obreiro. O motivo fica
-          registrado junto e aparece para quem for conferir depois. A matrícula não entra no cálculo.
+          Percentual abatido do que vem do plano da turma — é o desconto de casal, de irmãos ou de obreiro. No
+          Centro TOV o cônjuge paga metade da matrícula e metade da mensalidade, e o motivo fica registrado junto,
+          para quem for conferir depois.
         </Typography>
 
         {!condicao?.cod_tur ? (
@@ -218,17 +224,24 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
           </Alert>
         ) : (
           <>
-            {descontoAtual > 0 && condicao.mensalidade_cheia != null && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2, fontSize: TOV.type.body, flexWrap: 'wrap' }}>
-                <LocalOfferOutlinedIcon sx={{ fontSize: TOV.type.bodyLg, color: TOV.success }} />
-                <Box component="span" sx={{ color: TOV.caption, textDecoration: 'line-through' }}>
-                  {formatarMoeda(condicao.mensalidade_cheia)}
-                </Box>
-                <Box component="span" aria-hidden="true" sx={{ color: TOV.caption }}>→</Box>
-                <Box component="span" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                  {formatarMoeda(condicao.mensalidade_com_desconto)}
-                </Box>
-                <Box component="span" sx={{ color: TOV.caption }}>por mês</Box>
+            {descontoAtual > 0 && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, mt: 2 }}>
+                {[
+                  ['Mensalidade', condicao.mensalidade_cheia, condicao.mensalidade_com_desconto, true],
+                  ['Matrícula', condicao.matricula_cheia, condicao.matricula_com_desconto, condicao.desconto_na_matricula],
+                ].filter(([, cheio, , incide]) => incide && cheio != null).map(([rotulo, cheio, comDesconto]) => (
+                  <Box key={rotulo} sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: TOV.type.body, flexWrap: 'wrap' }}>
+                    <LocalOfferOutlinedIcon sx={{ fontSize: TOV.type.bodyLg, color: TOV.success }} />
+                    <Box component="span" sx={{ color: TOV.caption, minWidth: 96 }}>{rotulo}</Box>
+                    <Box component="span" sx={{ color: TOV.caption, textDecoration: 'line-through' }}>
+                      {formatarMoeda(cheio)}
+                    </Box>
+                    <Box component="span" aria-hidden="true" sx={{ color: TOV.caption }}>→</Box>
+                    <Box component="span" sx={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                      {formatarMoeda(comDesconto)}
+                    </Box>
+                  </Box>
+                ))}
               </Box>
             )}
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '140px minmax(0,1fr)' }, gap: 2, mt: 2 }}>
@@ -248,6 +261,11 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
                 helperText={faltaMotivo ? 'Obrigatório: registre por que este aluno paga menos.' : 'Ex.: casal — cônjuge paga integral.'}
               />
             </Box>
+            <FormControlLabel
+              sx={{ mt: 0.5 }}
+              control={<Switch checked={naMatricula} onChange={(e) => setNaMatricula(e.target.checked)} />}
+              label="Abater também a matrícula"
+            />
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 1 }}>
               <Button
                 variant="contained"
@@ -263,7 +281,7 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
                 </Button>
               )}
               <Typography sx={{ fontSize: TOV.type.caption, color: TOV.caption, ml: { sm: 'auto' }, maxWidth: '46ch' }}>
-                As mensalidades em aberto são recalculadas na hora. As que já têm pagamento não mudam de valor.
+                As cobranças em aberto são recalculadas na hora. As que já têm pagamento não mudam de valor.
               </Typography>
             </Box>
           </>

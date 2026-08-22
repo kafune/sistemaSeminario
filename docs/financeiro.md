@@ -216,12 +216,54 @@ fim da linha.
 O `--env-file .env` é obrigatório: sem ele o compose não acha `TOV_DB_PASSWORD`
 e recusa a subir. O `--rm` apaga o container assim que o script termina.
 
+### Quando a conferência não fecha
+
+A conferência olha a **situação inteira do aluno** — matrícula e primeira
+mensalidade, venham de onde vierem — e compara com a planilha. Se ele já tinha
+cobrança ou baixa de antes, a soma passa do que a planilha diz e o script
+desfaz tudo. O sintoma é o valor no banco maior que o da planilha:
+
+```
+  pago     no banco   6400.00   planilha   1800.00
+  ! Gerson Caristo: pago 600.00 (planilha 150.00), em aberto 0.00 (planilha 300.00)
+```
+
+R$ 600 na parcela 1 de quem deve R$ 300 significa **dois conjuntos de
+cobrança**. A chave é `(aluno, turma, tipo, parcela)`, então o mesmo mês pode
+existir duas vezes se o aluno tiver cobrança em duas turmas — o que acontece
+quando uma rodada anterior gerou tudo numa turma só.
+
+Para ver o que existe, sem gravar nada:
+
+```bash
+docker compose --env-file .env run --rm \
+    -v /caminho/PLANILHA.xlsx:/planilha.xlsx:ro \
+    backend python importar_planilha_financeiro.py --arquivo /planilha.xlsx --diagnostico
+```
+
+Ele lista, por aluno, as cobranças agrupadas por turma, quem as criou e quem
+lançou cada baixa. Para desfazer o que uma importação anterior criou:
+
+```bash
+# simulação
+... --limpar-importacao
+# remove de verdade
+... --limpar-importacao --aplicar
+```
+
+A limpeza tira **só o que tem a marca `PLANILHA`**: as baixas que ela lançou e
+as cobranças que ela criou e que não receberam pagamento de outra origem. O que
+a secretaria lançou na tela fica de pé — o script não apaga trabalho de gente.
+Depois é só rodar a importação de novo.
+
 Duas garantias fecham o script:
 
 * **Ele confere o resultado contra a própria planilha** — aluno por aluno, na
   coluna `VALOR A PAGAR`, e no total de quem entrou. Se algo não bater, **desfaz
   tudo** e explica; a conta errada nunca chega ao banco. No casal, confere a
   soma dos dois, que é como a planilha lança.
+* **Só mexe em quem está na planilha.** Aluno matriculado na turma que a
+  planilha não cita não recebe cobrança nenhuma.
 * **É idempotente**: aluno é reaproveitado pelo nome, cobrança não é duplicada e
   a baixa desconta o que uma rodada anterior já lançou. Rodar duas vezes não
   paga a mesma conta duas vezes.

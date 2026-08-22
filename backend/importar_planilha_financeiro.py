@@ -504,6 +504,144 @@ def conferir(db, importados: list[dict], totais: dict, *, relatar=print) -> bool
     return bate
 
 
+# ---- diagnóstico e limpeza -------------------------------------------------
+
+def cobrancas_do_aluno(db, cod_alu: int) -> list[Cobranca]:
+    return list(
+        db.scalars(
+            select(Cobranca)
+            .where(Cobranca.cod_alu == cod_alu)
+            .order_by(Cobranca.cod_tur, Cobranca.vencimento, Cobranca.id)
+        )
+    )
+
+
+def diagnosticar(db, correspondencias: list[dict], relatar=print) -> dict:
+    """Mostra o que já existe no banco para cada aluno da planilha.
+
+    Serve para responder por que a conferência não fechou: quase sempre é
+    cobrança ou baixa que veio de antes — de uma importação anterior, de um
+    lançamento na tela ou de uma geração feita pelo plano da turma.
+    """
+    nomes_turma = {cod: nome for cod, nome in db.execute(select(Turma.cod_tur, Turma.nome))}
+    resumo = {
+        "com_cobranca": 0,
+        "em_mais_de_uma_turma": 0,
+        "com_pagamento": 0,
+        "por_origem": {},
+        "alunos_em_duas_turmas": [],
+    }
+    relatar("")
+    relatar("O que já existe no banco para estes alunos")
+    relatar("-" * 96)
+    for item in correspondencias:
+        aluno = item.get("aluno")
+        if aluno is None:
+            continue
+        cobrancas = cobrancas_do_aluno(db, aluno.cod_alu)
+        if not cobrancas:
+            continue
+        resumo["com_cobranca"] += 1
+        pagos = servico.pagos_por_cobranca(db, [c.id for c in cobrancas])
+        turmas = sorted({c.cod_tur for c in cobrancas if c.cod_tur is not None})
+        if len(turmas) > 1:
+            resumo["em_mais_de_uma_turma"] += 1
+            resumo["alunos_em_duas_turmas"].append(aluno.nome)
+
+        pagamentos = list(
+            db.scalars(
+                select(Pagamento).where(Pagamento.cobranca_id.in_([c.id for c in cobrancas]))
+            )
+        )
+        total_pago = sum((servico.dinheiro(p.valor) for p in pagamentos), servico.ZERO)
+        if pagamentos:
+            resumo["com_pagamento"] += 1
+        for pagamento in pagamentos:
+            origem = pagamento.registrado_por or "?"
+            resumo["por_origem"][origem] = resumo["por_origem"].get(origem, servico.ZERO) + servico.dinheiro(pagamento.valor)
+
+        alerta = "  <-- em mais de uma turma" if len(turmas) > 1 else ""
+        relatar(f"{aluno.nome} (#{aluno.cod_alu}){alerta}")
+        for cod_tur in turmas:
+            do_turma = [c for c in cobrancas if c.cod_tur == cod_tur]
+            primeira = [c for c in do_turma if c.parcela == 1 and c.tipo != "AVULSA"]
+            valor_primeira = sum((servico.dinheiro(c.valor) for c in primeira), servico.ZERO)
+            pago_primeira = sum((pagos.get(c.id, servico.ZERO) for c in primeira), servico.ZERO)
+            relatar(
+                f"    turma {cod_tur} {nomes_turma.get(cod_tur, '?'):<12} "
+                f"{len(do_turma):>3} cobrança(s) · parcela 1 soma {valor_primeira} "
+                f"(pago {pago_primeira}) · criadas por "
+                f"{', '.join(sorted({c.criado_por or '?' for c in do_turma}))}"
+            )
+        if pagamentos:
+            por_quem = {}
+            for pagamento in pagamentos:
+                quem = pagamento.registrado_por or "?"
+                por_quem[quem] = por_quem.get(quem, servico.ZERO) + servico.dinheiro(pagamento.valor)
+            detalhe = ", ".join(f"{quem} R$ {valor}" for quem, valor in sorted(por_quem.items()))
+            relatar(f"    baixas: R$ {total_pago} em {len(pagamentos)} lançamento(s) — {detalhe}")
+
+    relatar("")
+    relatar("Resumo")
+    relatar(f"  alunos com cobrança já criada ....... {resumo['com_cobranca']}")
+    relatar(f"  alunos com cobrança em duas turmas .. {resumo['em_mais_de_uma_turma']}")
+    relatar(f"  alunos com baixa lançada ............ {resumo['com_pagamento']}")
+    for origem, valor in sorted(resumo["por_origem"].items()):
+        relatar(f"    baixas registradas por {origem}: R$ {valor}")
+    if resumo["em_mais_de_uma_turma"]:
+        relatar("")
+        relatar(
+            "  Cobrança em duas turmas duplica o que o aluno deve: a chave é "
+            "(aluno, turma, tipo, parcela), então o mesmo mês existe duas vezes. "
+            "Use --limpar-importacao para desfazer o que a planilha criou antes."
+        )
+    return resumo
+
+
+def limpar_importacao(db, correspondencias: list[dict], relatar=print) -> dict:
+    """Desfaz o que uma importação anterior da planilha criou.
+
+    Remove só o que tem a marca ``PLANILHA``: as baixas que ela lançou e as
+    cobranças que ela criou e que não receberam nenhum outro pagamento. O que
+    a secretaria lançou na tela fica de pé — o script não apaga trabalho de
+    gente.
+    """
+    codigos = [item["aluno"].cod_alu for item in correspondencias if item.get("aluno")]
+    if not codigos:
+        return {"pagamentos": 0, "cobrancas": 0, "preservadas": 0}
+
+    cobrancas = list(
+        db.scalars(select(Cobranca).where(Cobranca.cod_alu.in_(codigos)))
+    )
+    ids = [c.id for c in cobrancas]
+    pagamentos = list(
+        db.scalars(select(Pagamento).where(Pagamento.cobranca_id.in_(ids)))
+    ) if ids else []
+
+    removidos = 0
+    for pagamento in pagamentos:
+        if pagamento.registrado_por == ORIGEM:
+            db.delete(pagamento)
+            removidos += 1
+    db.flush()
+
+    apagadas = preservadas = 0
+    for cobranca in cobrancas:
+        if cobranca.criado_por != ORIGEM:
+            continue
+        if servico.total_pago(db, cobranca.id) > servico.ZERO:
+            preservadas += 1
+            continue
+        db.delete(cobranca)
+        apagadas += 1
+    db.flush()
+    relatar(
+        f"Limpeza: {removidos} baixa(s) e {apagadas} cobrança(s) da importação removidas; "
+        f"{preservadas} cobrança(s) preservada(s) por ter pagamento de outra origem."
+    )
+    return {"pagamentos": removidos, "cobrancas": apagadas, "preservadas": preservadas}
+
+
 # ---- orquestração ----------------------------------------------------------
 
 def importar(
@@ -565,12 +703,30 @@ def importar(
     db.flush()
     relatar(f"Alunos: {criados} criado(s), {len(importados) - criados} já cadastrado(s).")
 
-    # 3. Cobranças conforme o plano e a condição de cada um.
+    # 3. Cobranças de quem está na planilha — e só dele.
+    #    A geração da turma inteira cobraria também quem a planilha não cita.
     cobrancas_criadas = transferencias = 0
-    for cod_tur in turmas:
-        geracao = servico.gerar_cobrancas_do_plano(db, planos[cod_tur], criado_por=ORIGEM)
-        cobrancas_criadas += geracao["criadas"]
-        transferencias += geracao["transferencias"]
+    nomes_turma = {cod: nome for cod, nome in db.execute(select(Turma.cod_tur, Turma.nome))}
+    for item in importados:
+        plano = planos[item["cod_tur"]]
+        condicao = db.scalar(
+            select(CondicaoFinanceiraAluno).where(
+                CondicaoFinanceiraAluno.cod_tur == item["cod_tur"],
+                CondicaoFinanceiraAluno.cod_alu == item["aluno"].cod_alu,
+            )
+        )
+        efetivo = servico.plano_efetivo(plano, condicao)
+        if efetivo.transferencia:
+            transferencias += 1
+        resultado = servico.aplicar_plano_ao_aluno(
+            db,
+            plano,
+            item["aluno"].cod_alu,
+            efetivo=efetivo,
+            nome_turma=nomes_turma.get(item["cod_tur"]) or f"Turma {item['cod_tur']}",
+            criado_por=ORIGEM,
+        )
+        cobrancas_criadas += resultado["criadas"]
     relatar(
         f"Cobranças: {cobrancas_criadas} criada(s), "
         f"{transferencias} aluno(s) com condição de transferência."
@@ -661,6 +817,16 @@ def main() -> None:
         "--criar-novos", action="store_true", help="Cadastra quem não foi encontrado"
     )
     analisador.add_argument(
+        "--diagnostico",
+        action="store_true",
+        help="Mostra o que já existe no banco para estes alunos e sai",
+    )
+    analisador.add_argument(
+        "--limpar-importacao",
+        action="store_true",
+        help="Desfaz o que uma importação anterior da planilha criou (exige --aplicar)",
+    )
+    analisador.add_argument(
         "--aplicar",
         action="store_true",
         help="Grava de verdade; sem esta opção o script só mostra o que faria",
@@ -687,6 +853,20 @@ def main() -> None:
             contagem[item["situacao"]] = contagem.get(item["situacao"], 0) + 1
         print("  correspondência: " + ", ".join(f"{v} {k.lower()}" for k, v in sorted(contagem.items())))
         relatar_correspondencia(correspondencias, db)
+
+        if args.diagnostico:
+            diagnosticar(db, correspondencias)
+            return
+
+        if args.limpar_importacao:
+            if not args.aplicar:
+                diagnosticar(db, correspondencias)
+                print("\nSimulação: repita com --aplicar para remover.")
+                return
+            limpar_importacao(db, correspondencias)
+            db.commit()
+            print("\nLimpeza concluída. Rode a importação de novo.")
+            return
 
         entram, de_fora = selecionar(
             db,

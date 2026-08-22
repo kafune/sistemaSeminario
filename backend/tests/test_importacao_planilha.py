@@ -21,9 +21,11 @@ from app.services import financeiro as servico
 from importar_planilha_financeiro import (
     assinatura,
     casar_nomes,
+    diagnosticar,
     chave_curta,
     importar,
     ler_planilha,
+    limpar_importacao,
     nome_contido,
     normalizar,
     selecionar,
@@ -525,6 +527,110 @@ class ImportacaoParcialTest(BaseCadastroTest):
             relatar=lambda *_: None,
         )
         self.assertFalse(resultado["confere"])
+
+
+
+class ResiduoDeImportacaoAnteriorTest(BaseCadastroTest):
+    """O cenário que apareceu no servidor: já havia cobrança de antes.
+
+    Uma rodada anterior gerou as cobranças com todo mundo numa turma só. Agora
+    cada aluno está na turma dele, e a chave é (aluno, turma, tipo, parcela) —
+    então o mesmo mês passa a existir duas vezes e a conferência estoura.
+    """
+
+    def preparar(self):
+        self.cadastrar_todos()
+        return selecionar(
+            self.db,
+            casar_nomes(self.db, self.pessoas),
+            aceitar_aproximados=False,
+            criar_novos=False,
+            turma_novos=None,
+        )[0]
+
+    def importar(self, entram, **ajustes):
+        parametros = {
+            "parcelas": 24,
+            "matricula": Decimal("100"),
+            "mensalidade": Decimal("200"),
+            "desconto_conjuge": Decimal("50"),
+            "primeira_mensalidade": date(2026, 8, 10),
+            "relatar": lambda *_: None,
+        }
+        parametros.update(ajustes)
+        return importar(self.db, entram, self.totais, **parametros)
+
+    def test_cobranca_de_outra_turma_derruba_a_conferencia(self):
+        entram = self.preparar()
+        # A rodada antiga jogou todo mundo na turma da manhã.
+        antiga = [{**item, "cod_tur": self.manha.cod_tur} for item in entram]
+        primeira = self.importar(antiga)
+        self.assertTrue(primeira["confere"])
+
+        # Agora, com cada um na turma real, o conjunto duplica.
+        segunda = self.importar(entram)
+        self.assertFalse(segunda["confere"])
+
+    def test_diagnostico_aponta_o_aluno_em_duas_turmas(self):
+        entram = self.preparar()
+        self.importar([{**item, "cod_tur": self.manha.cod_tur} for item in entram])
+        self.importar(entram)
+
+        correspondencias = casar_nomes(self.db, self.pessoas)
+        resumo = diagnosticar(self.db, correspondencias, relatar=lambda *_: None)
+        self.assertGreater(resumo["em_mais_de_uma_turma"], 0)
+        self.assertIn("PLANILHA", resumo["por_origem"])
+
+    def test_limpeza_devolve_o_banco_ao_estado_de_antes(self):
+        entram = self.preparar()
+        self.importar([{**item, "cod_tur": self.manha.cod_tur} for item in entram])
+
+        correspondencias = casar_nomes(self.db, self.pessoas)
+        limpeza = limpar_importacao(self.db, correspondencias, relatar=lambda *_: None)
+        self.assertGreater(limpeza["pagamentos"], 0)
+        self.assertGreater(limpeza["cobrancas"], 0)
+        self.assertEqual(limpeza["preservadas"], 0)
+        self.assertEqual(list(self.db.scalars(select(Cobranca))), [])
+
+        # Limpo, o import na turma certa fecha.
+        entram = selecionar(
+            self.db,
+            casar_nomes(self.db, self.pessoas),
+            aceitar_aproximados=False,
+            criar_novos=False,
+            turma_novos=None,
+        )[0]
+        self.assertTrue(self.importar(entram)["confere"])
+
+    def test_limpeza_nao_apaga_baixa_lancada_na_tela(self):
+        entram = self.preparar()
+        self.importar(entram)
+        # A secretaria quitou uma parcela pela tela, fora da planilha.
+        alvo = self.db.scalar(
+            select(Cobranca).where(Cobranca.status == "ABERTA").order_by(Cobranca.id)
+        )
+        servico.registrar_pagamento(self.db, alvo, registrado_por="SECRETARIA")
+        self.db.flush()
+
+        limpeza = limpar_importacao(
+            self.db, casar_nomes(self.db, self.pessoas), relatar=lambda *_: None
+        )
+        self.assertEqual(limpeza["preservadas"], 1)
+        sobrou = self.db.scalar(select(Cobranca).where(Cobranca.id == alvo.id))
+        self.assertIsNotNone(sobrou)
+        self.assertEqual(
+            len(list(self.db.scalars(select(Pagamento).where(Pagamento.registrado_por == "SECRETARIA")))),
+            1,
+        )
+
+    def test_geracao_nao_cobra_quem_esta_fora_da_planilha(self):
+        entram = self.preparar()
+        de_fora = self.cadastrar("Aluno Que Nao Esta Na Planilha", self.manha)
+        self.importar(entram)
+        self.assertEqual(
+            list(self.db.scalars(select(Cobranca).where(Cobranca.cod_alu == de_fora.cod_alu))),
+            [],
+        )
 
 
 class CamadasDeNomeTest(unittest.TestCase):

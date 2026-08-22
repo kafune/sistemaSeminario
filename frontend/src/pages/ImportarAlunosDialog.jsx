@@ -295,7 +295,7 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 0.5,
-                      bgcolor: TOV.offwhite,
+                      bgcolor: TOV.canvas,
                       borderBottom: `1px solid ${TOV.border}`,
                     }}>
                       <Checkbox
@@ -328,7 +328,7 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
                             cursor: 'pointer',
                             borderBottom: `1px solid ${TOV.border}`,
                             '&:last-child': { borderBottom: 0 },
-                            '&:hover': { bgcolor: TOV.offwhite },
+                            '&:hover': { bgcolor: TOV.canvas },
                           }}
                         >
                           <Checkbox
@@ -379,7 +379,7 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
 
         <Box sx={{ ...cardSx, boxShadow: 'none', border: `1px solid ${TOV.border}`, p: { xs: 2, sm: 2.5 } }}>
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <UploadFileIcon sx={{ color: TOV.slate, mt: 0.5 }} />
+            <UploadFileIcon sx={{ color: TOV.graphite, mt: 0.5 }} />
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Arquivo do computador</Typography>
               <Typography sx={{ mt: 1, color: TOV.caption, fontSize: TOV.type.body, lineHeight: 1.5 }}>

@@ -183,7 +183,7 @@ export default function TurmaDetalhe() {
 
       <Tabs value={aba} onChange={(_, v) => setAba(v)} textColor="primary" indicatorColor="primary"
         variant="scrollable" allowScrollButtonsMobile
-        sx={{ mb: 3, borderBottom: `2px solid ${TOV.divider}`, minHeight: 0, '& .MuiTab-root': { color: TOV.caption, px: { xs: 1.5, sm: 2.5 }, py: 1.5, fontSize: { xs: TOV.type.body, sm: TOV.type.body } }, '& .Mui-selected': { color: TOV.coral } }}>
+        sx={{ mb: 3, '& .MuiTab-root': { px: { xs: 1.5, sm: 2.5 } } }}>
         <Tab label={`Alunos (${alunos.length})`} />
         <Tab label={`Matérias e professores (${materias.length})`} />
       </Tabs>
@@ -218,7 +218,7 @@ export default function TurmaDetalhe() {
           </Box>}
 
           {/* Tabela — desktop */}
-          {telaDesktop && <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
+          {telaDesktop && <TableContainer component={Box} sx={{ overflow: 'hidden' }}>
             <Table sx={{ minWidth: 720 }}>
               <TableHead>
                 <TableRow>
@@ -239,8 +239,8 @@ export default function TurmaDetalhe() {
                     <TableCell>
                       <Box component="button" type="button" onClick={() => navigate(`/alunos/${a.cod_alu}`)} sx={{ ...resetBotao, fontWeight: 700, color: TOV.coral, '&:hover': { color: TOV.coralHover } }}>{a.nome}</Box>
                     </TableCell>
-                    <TableCell sx={{ color: TOV.slate }}>{a.celular || '—'}</TableCell>
-                    <TableCell sx={{ color: TOV.slate }}>{a.e_mail || '—'}</TableCell>
+                    <TableCell sx={{ color: TOV.graphite }}>{a.celular || '—'}</TableCell>
+                    <TableCell sx={{ color: TOV.graphite }}>{a.e_mail || '—'}</TableCell>
                     <TableCell align="right">
                       <IconButton size="small" color="error" title="Remover da turma" aria-label={`Remover ${a.nome} da turma`} onClick={() => setParaRemover({ tipo: 'aluno', item: a })}>
                         <DeleteIcon fontSize="small" />
@@ -294,7 +294,7 @@ export default function TurmaDetalhe() {
           </Box>}
 
           {/* Tabela — desktop */}
-          {telaDesktop && <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
+          {telaDesktop && <TableContainer component={Box} sx={{ overflow: 'hidden' }}>
             <Table sx={{ minWidth: 720 }}>
               <TableHead>
                 <TableRow>
@@ -312,9 +312,9 @@ export default function TurmaDetalhe() {
                 {materias.map((m) => (
                   <TableRow key={m.id} hover>
                     <TableCell sx={{ fontWeight: 600 }}>{m.materia_nome?.trim()}</TableCell>
-                    <TableCell sx={{ color: TOV.slate }}>{m.professor_nome || '—'}</TableCell>
-                    <TableCell sx={{ color: TOV.slate }}>{m.Ano || '—'}</TableCell>
-                    <TableCell sx={{ color: TOV.slate }}>{m.semestre ? `${m.semestre}º` : '—'}</TableCell>
+                    <TableCell sx={{ color: TOV.graphite }}>{m.professor_nome || '—'}</TableCell>
+                    <TableCell sx={{ color: TOV.graphite }}>{m.Ano || '—'}</TableCell>
+                    <TableCell sx={{ color: TOV.graphite }}>{m.semestre ? `${m.semestre}º` : '—'}</TableCell>
                     <TableCell align="right">
                       <IconButton size="small" title="Diário de faltas" aria-label="Abrir diário de faltas"
                         onClick={() => navigate(`/turmas/${codTur}/diario?vinculo=${m.id}`)}>

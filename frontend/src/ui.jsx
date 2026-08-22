@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Skeleton,
-  Typography, useMediaQuery, useTheme,
+  TableCell, TableRow, Typography, useMediaQuery, useTheme,
 } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
@@ -16,7 +16,7 @@ export const resetBotao = {
   font: 'inherit',
   color: 'inherit',
   textAlign: 'inherit',
-  minHeight: 44,
+  minHeight: TOV.controlHSm,
   cursor: 'pointer',
   '&:focus-visible': focusRing,
 }
@@ -68,18 +68,27 @@ export function useDensidade() {
   return usePreferencia('densidade', 'compacta')
 }
 
-export function SeletorDensidade({ valor, onChange, sx }) {
+/**
+ * Escolha única entre poucas opções, num controle só.
+ *
+ * Substitui a mistura de pílula própria com select do MUI: dois vocabulários
+ * e duas alturas para a mesma tarefa é o que mais lê como descuido numa barra
+ * de filtros.
+ */
+export function GrupoSegmentado({ rotulo, opcoes, valor, onChange, sx }) {
   return (
     <Box
       role="group"
-      aria-label="Densidade da tabela"
+      aria-label={rotulo}
       sx={{
-        display: 'inline-flex', height: 40, flexShrink: 0,
-        border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusSm, overflow: 'hidden',
-        bgcolor: TOV.surface, ...sx,
+        display: 'inline-flex', height: TOV.controlHSm, flexShrink: 0, maxWidth: '100%',
+        border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusSm,
+        bgcolor: TOV.surface, overflowX: 'auto', overscrollBehaviorInline: 'contain',
+        scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
+        ...sx,
       }}
     >
-      {DENSIDADES.map((opcao, indice) => {
+      {opcoes.map((opcao, indice) => {
         const ativo = valor === opcao.valor
         return (
           <Box
@@ -90,7 +99,8 @@ export function SeletorDensidade({ valor, onChange, sx }) {
             onClick={() => onChange(opcao.valor)}
             sx={{
               ...resetBotao,
-              minHeight: 38, px: 1.5, fontSize: TOV.type.bodySm, fontWeight: ativo ? 700 : 600,
+              alignSelf: 'stretch', minHeight: 0, px: 1.5, flexShrink: 0, whiteSpace: 'nowrap',
+              fontSize: TOV.type.bodySm, fontWeight: ativo ? 700 : 600,
               color: ativo ? TOV.ink : TOV.caption,
               bgcolor: ativo ? TOV.surfaceMuted : 'transparent',
               borderLeft: indice > 0 ? `1px solid ${TOV.border}` : 0,
@@ -102,6 +112,18 @@ export function SeletorDensidade({ valor, onChange, sx }) {
         )
       })}
     </Box>
+  )
+}
+
+export function SeletorDensidade({ valor, onChange, sx }) {
+  return (
+    <GrupoSegmentado
+      rotulo="Densidade da tabela"
+      opcoes={DENSIDADES}
+      valor={valor}
+      onChange={onChange}
+      sx={sx}
+    />
   )
 }
 
@@ -185,14 +207,64 @@ export function Eyebrow({ children, sx, ...props }) {
   )
 }
 
+const ACOES_CABECALHO = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 1,
+  flexWrap: 'wrap',
+  '& > *': { flexGrow: { xs: 1, sm: 0 } },
+  '& form': { flexGrow: { xs: 1, sm: 0 } },
+  '& .MuiOutlinedInput-root, & .MuiButton-root': { minHeight: TOV.controlH },
+}
+
 /**
- * Cabeçalho editorial de página.
+ * Cabeçalho de página em duas variantes.
+ *
+ * `editorial` (padrão) é a capa: régua, título grande e descrição. Vale para
+ * painel, detalhe e portal — telas em que a página se apresenta.
+ *
+ * `operacional` é para tela de trabalho: título e contagem na mesma linha das
+ * ações, sem régua e sem capa. Devolve cerca de 120px acima da dobra em toda
+ * lista, que é onde a secretaria passa o dia.
+ *
  * `subtitulo` continua aceito como alias de `descricao`.
  */
 export function CabecalhoPagina({
-  titulo, descricao, subtitulo, metadados, acoes, eyebrow, sx,
+  titulo, descricao, subtitulo, metadados, acoes, eyebrow, variante = 'editorial', sx,
 }) {
   const texto = descricao ?? subtitulo
+
+  if (variante === 'operacional') {
+    return (
+      <Box component="header" sx={{ mb: 2, ...sx }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, flexWrap: 'wrap', minWidth: 0 }}>
+            <Typography
+              component="h1"
+              sx={{
+                fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.title,
+                lineHeight: 1.2, letterSpacing: '-.02em', overflowWrap: 'anywhere',
+              }}
+            >
+              {titulo}
+            </Typography>
+            {metadados != null && (
+              <Box sx={{ fontSize: TOV.type.body, color: TOV.caption, fontVariantNumeric: 'tabular-nums' }}>
+                {metadados}
+              </Box>
+            )}
+          </Box>
+          {acoes && <Box sx={{ ...ACOES_CABECALHO, width: { xs: '100%', sm: 'auto' }, justifyContent: { sm: 'flex-end' } }}>{acoes}</Box>}
+        </Box>
+        {texto != null && (
+          <Typography sx={{ mt: 1, fontSize: TOV.type.bodySm, color: TOV.caption, maxWidth: '72ch' }}>
+            {texto}
+          </Typography>
+        )}
+      </Box>
+    )
+  }
+
   return (
     <Box
       component="header"
@@ -217,10 +289,14 @@ export function CabecalhoPagina({
               </Typography>
             )}
             {metadados != null && (
-              <>
-                {texto != null && <Box aria-hidden="true" sx={{ width: 4, height: 4, borderRadius: TOV.radiusFull, bgcolor: TOV.border }} />}
-                <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>{metadados}</Box>
-              </>
+              // Ponto e metadado no mesmo item de flex: quando a linha quebra,
+              // os dois descem juntos e o separador não fica órfão no fim.
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                {texto != null && <Box aria-hidden="true" sx={{ width: 4, height: 4, flex: '0 0 4px', borderRadius: TOV.radiusFull, bgcolor: TOV.border }} />}
+                {/* Sem `minWidth: 0` o item de flex não encolhe abaixo do
+                    conteúdo e o metadado longo empurra a largura da página. */}
+                <Box sx={{ minWidth: 0, fontSize: TOV.type.bodySm, color: TOV.caption }}>{metadados}</Box>
+              </Box>
             )}
           </Box>
         )}
@@ -228,14 +304,9 @@ export function CabecalhoPagina({
       {acoes && (
         <Box
           sx={{
-            display: 'flex',
-            alignItems: 'center',
+            ...ACOES_CABECALHO,
             justifyContent: { xs: 'stretch', sm: 'flex-start', md: 'flex-end' },
-            gap: 1,
-            flexWrap: 'wrap',
             width: { xs: '100%', md: 'auto' },
-            '& > *': { flexGrow: { xs: 1, sm: 0 } },
-            '& form': { flexGrow: { xs: 1, sm: 0 } },
           }}
         >
           {acoes}
@@ -270,7 +341,7 @@ export function Superficie({ variante = 'base', component = 'section', children,
   return (
     <Box
       component={component}
-      sx={{ borderRadius: `${TOV.radiusMd}px`, ...SUPERFICIES[variante], ...sx }}
+      sx={{ borderRadius: TOV.radiusMd, ...SUPERFICIES[variante], ...sx }}
       {...props}
     >
       {children}
@@ -291,6 +362,9 @@ export function BarraFiltros({ children, sx, ...props }) {
         gap: 1.5,
         flexWrap: 'wrap',
         '& .MuiTextField-root': { minWidth: { xs: '100%', sm: 180 } },
+        // A barra define o pe de altura: campo, select e botao fecham a mesma
+        // linha de base sem cada pagina cravar a sua altura.
+        '& .MuiOutlinedInput-root, & .MuiButton-root': { minHeight: TOV.controlHSm },
         ...sx,
       }}
       {...props}
@@ -301,7 +375,7 @@ export function BarraFiltros({ children, sx, ...props }) {
 }
 
 const STATUS_TONES = {
-  neutral: { color: TOV.graphite, bg: TOV.slateTint, border: TOV.slateBorder },
+  neutral: { color: TOV.graphite, bg: TOV.graphiteTint, border: TOV.graphiteBorder },
   muted: { color: TOV.caption, bg: TOV.captionTint, border: TOV.captionBorder },
   success: { color: TOV.success, bg: TOV.successTint, border: TOV.successBorder },
   warning: { color: TOV.warning, bg: TOV.warningTint, border: TOV.warningBorder },
@@ -352,10 +426,40 @@ export function PilulaStatus({ status, sx }) {
   return <StatusBadge tom={tom} dot sx={sx}>{label}</StatusBadge>
 }
 
-export function CardMetrica({ rotulo, valor, nota, destaque = false, icone, sx }) {
+/**
+ * Dado que o sistema calcula e o usuário não digita.
+ * Existe para não vestir de campo (borda, fundo, altura de input) algo que
+ * não aceita clique: quem vê uma caixa espera poder editar.
+ */
+export function Metadado({ rotulo, valor, nota, sx }) {
+  return (
+    <Box sx={{ minWidth: 0, ...sx }}>
+      <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em' }}>
+        {rotulo}
+      </Box>
+      <Box sx={{ mt: 0.5, fontSize: TOV.type.body, fontWeight: 700, color: TOV.ink, fontVariantNumeric: 'tabular-nums' }}>
+        {valor == null || valor === '' ? '—' : valor}
+      </Box>
+      {nota && <Box sx={{ mt: 0.5, fontSize: TOV.type.caption, color: TOV.caption }}>{nota}</Box>}
+    </Box>
+  )
+}
+
+/**
+ * Um dado operacional e a nota que o contextualiza.
+ *
+ * Com `onClick` o cartão vira botão e leva à lista correspondente — é assim
+ * que ele deve ser usado no painel: número que não abre a lista de onde saiu
+ * não muda decisão nenhuma, só informa o que já se sabia.
+ */
+export function CardMetrica({ rotulo, valor, nota, destaque = false, icone, onClick, sx }) {
+  const acionavel = typeof onClick === 'function'
   return (
     <Superficie
       variante={destaque ? 'inverse' : 'base'}
+      component={acionavel ? 'button' : 'section'}
+      type={acionavel ? 'button' : undefined}
+      onClick={onClick}
       sx={{
         minWidth: 0,
         p: { xs: 2, sm: 2.5, md: 3 },
@@ -368,6 +472,16 @@ export function CardMetrica({ rotulo, valor, nota, destaque = false, icone, sx }
           width: 3,
           bgcolor: TOV.onDarkBorderHover,
         } : undefined,
+        ...(acionavel ? {
+          appearance: 'none',
+          font: 'inherit',
+          textAlign: 'left',
+          width: '100%',
+          cursor: 'pointer',
+          transition: `border-color ${TOV.durationFast} ${TOV.ease}, background-color ${TOV.durationFast} ${TOV.ease}`,
+          '&:hover': { borderColor: destaque ? TOV.onDarkBorderStrong : TOV.graphite },
+          '&:focus-visible': focusRing,
+        } : null),
         ...sx,
       }}
     >
@@ -390,8 +504,15 @@ export function CardMetrica({ rotulo, valor, nota, destaque = false, icone, sx }
         {valor}
       </Typography>
       {nota && (
-        <Typography sx={{ mt: 1, fontSize: TOV.type.bodySm, color: destaque ? TOV.onDarkMuted : TOV.caption }}>
+        <Typography
+          component="div"
+          sx={{
+            mt: 1, fontSize: TOV.type.bodySm, color: destaque ? TOV.onDarkMuted : TOV.caption,
+            display: 'flex', alignItems: 'center', gap: 0.5,
+          }}
+        >
           {typeof nota === 'object' ? nota.texto : nota}
+          {acionavel && <Box component="span" aria-hidden="true" sx={{ fontWeight: 700 }}>→</Box>}
         </Typography>
       )}
     </Superficie>
@@ -422,7 +543,7 @@ export function EstadoVazio({
         ...sx,
       }}
     >
-      <Box sx={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusFull, bgcolor: TOV.slateTint, color: TOV.graphite, mb: 1.5 }}>
+      <Box sx={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusFull, bgcolor: TOV.graphiteTint, color: TOV.graphite, mb: 1.5 }}>
         <Icone sx={{ fontSize: TOV.type.titleSm }} />
       </Box>
       <Typography variant="h4" sx={{ fontSize: TOV.type.section, color: TOV.ink }}>{titulo}</Typography>
@@ -471,7 +592,7 @@ export function SkeletonCards({ quantidade = 3, altura = 150, colunas, sx }) {
       }}
     >
       {Array.from({ length: quantidade }, (_, i) => (
-        <Skeleton key={i} variant="rounded" height={altura} sx={{ borderRadius: `${TOV.radiusMd}px` }} />
+        <Skeleton key={i} variant="rounded" height={altura} sx={{ borderRadius: TOV.radiusMd }} />
       ))}
     </Box>
   )
@@ -492,6 +613,21 @@ export function SkeletonTabela({ linhas = 5, sx }) {
   )
 }
 
+/**
+ * Esqueleto com a forma da própria tabela: mesmas colunas, mesma altura de
+ * linha. Substitui o "Carregando…" centralizado, que muda o layout duas vezes
+ * (uma ao aparecer, outra ao virar tabela de verdade).
+ */
+export function LinhasSkeleton({ linhas = 6, colunas = 4 }) {
+  return Array.from({ length: linhas }, (_, linha) => (
+    <TableRow key={linha} aria-hidden="true">
+      {Array.from({ length: colunas }, (_, coluna) => (
+        <TableCell key={coluna}><Skeleton height={20} /></TableCell>
+      ))}
+    </TableRow>
+  ))
+}
+
 export function iniciais(nome) {
   if (!nome) return '—'
   const partes = String(nome).trim().split(/\s+/)
@@ -507,7 +643,7 @@ export function AvatarIniciais({ nome, tamanho = 76, radius = TOV.radiusXl, font
         width: tamanho,
         height: tamanho,
         flex: `0 0 ${tamanho}px`,
-        borderRadius: `${radius}px`,
+        borderRadius: radius,
         bgcolor: TOV.graphite,
         color: TOV.onDark,
         border: `1px solid ${TOV.onDarkBorder}`,
@@ -527,7 +663,7 @@ export function AvatarIniciais({ nome, tamanho = 76, radius = TOV.radiusXl, font
 
 export const cardSx = {
   bgcolor: TOV.surface,
-  borderRadius: `${TOV.radiusMd}px`,
+  borderRadius: TOV.radiusMd,
   border: `1px solid ${TOV.border}`,
   boxShadow: 'none',
 }

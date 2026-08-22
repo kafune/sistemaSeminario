@@ -11,6 +11,25 @@ import AlunoForm from './AlunoForm'
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
 const DIAS = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado']
 
+// Onde cada fila de trabalho aterrissa. Pendência que não abre a lista
+// correspondente vira número decorativo.
+const DESTINO_PENDENCIA = {
+  chamadas_abertas: '/turmas',
+  pre_cadastros: '/alunos?status=P',
+  notas_em_aberto: '/notas',
+  alunos_sem_turma: '/alunos?sem_turma=1',
+}
+
+// Com as chamadas abertas concentradas numa turma só, o painel abre a chamada
+// em vez de devolver o usuário à lista para procurar qual é. Com mais de uma
+// turma envolvida a lista é o destino certo — lá elas vêm marcadas.
+function destino(pendencia) {
+  if (pendencia.chave === 'chamadas_abertas' && pendencia.cod_tur) {
+    return `/turmas/${pendencia.cod_tur}/presencas`
+  }
+  return DESTINO_PENDENCIA[pendencia.chave]
+}
+
 function saudacao(h) {
   if (h < 12) return 'Bom dia'
   if (h < 18) return 'Boa tarde'
@@ -48,8 +67,23 @@ export default function Dashboard() {
 
   const maxCurso = dados ? Math.max(1, ...dados.matriculas_por_curso.map((c) => c.total)) : 1
 
+  // O censo é contexto, não decisão: vive numa linha de metadado, não em
+  // quatro cartões de 40px.
+  const censo = dados ? [
+    `${dados.alunos_ativos} ${dados.alunos_ativos === 1 ? 'aluno ativo' : 'alunos ativos'}`,
+    `${dados.turmas_total} ${dados.turmas_total === 1 ? 'turma' : 'turmas'}`,
+    `${dados.professores_ativos} ${dados.professores_ativos === 1 ? 'professor' : 'professores'}`,
+    `${dados.lancamentos_total.toLocaleString('pt-BR')} notas lançadas`,
+  ].join(' · ') : null
+
+  const pendencias = dados?.pendencias ?? []
+  // A superfície invertida marca a fila mais urgente que realmente tem fila —
+  // não a mais bonita do conjunto.
+  const chaveUrgente = pendencias.find((p) => p.total > 0)?.chave
+  const tudoEmDia = dados && pendencias.every((p) => p.total === 0)
+
   const acoes = (
-    <Button variant="contained" startIcon={<AddIcon />} onClick={() => setFormAberto(true)} sx={{ height: 46 }}>
+    <Button variant="contained" startIcon={<AddIcon />} onClick={() => setFormAberto(true)}>
       Novo aluno
     </Button>
   )
@@ -59,6 +93,7 @@ export default function Dashboard() {
       <CabecalhoPagina
         titulo={`${saudacao(agora.getHours())}, ${usuario}`}
         subtitulo={`${dataPorExtenso(agora)} · Semestre ${semestreAtual(agora)}`}
+        metadados={dados ? censo : null}
         acoes={acoes}
       />
 
@@ -66,17 +101,36 @@ export default function Dashboard() {
         <EstadoErro titulo="Não foi possível carregar o painel" descricao={erro} onTentarNovamente={carregar} sx={{ mb: 2.5 }} />
       )}
 
-      {/* Métricas */}
-      {!erro && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,1fr)' }, gap: { xs: 1.5, sm: 2 }, mb: 2.5 }}>
-        {!dados ? (
-          <SkeletonCards quantidade={4} altura={142} colunas="subgrid" sx={{ display: 'contents' }} />
+      {/* Filas de trabalho */}
+      {!erro && <Box component="section" aria-labelledby="painel-pendencias" sx={{ mb: 2.5 }}>
+        <Typography component="h2" id="painel-pendencias" variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 1.5 }}>
+          Precisa de atenção
+        </Typography>
+        {tudoEmDia ? (
+          <Superficie sx={{ p: { xs: 2.5, md: 3 } }}>
+            <EstadoVazio
+              compacto
+              titulo="Nada pendente"
+              descricao="Chamadas encerradas, pré-cadastros triados e notas do semestre lançadas."
+            />
+          </Superficie>
         ) : (
-          <>
-            <CardMetrica rotulo="Alunos ativos" valor={dados.alunos_ativos} nota={{ texto: `${dados.alunos_total} no total`, destaque: true }} />
-            <CardMetrica rotulo="Turmas ativas" valor={dados.turmas_total} nota={{ texto: `${dados.cursos_total} ${dados.cursos_total === 1 ? 'curso' : 'cursos'}` }} />
-            <CardMetrica rotulo="Lançamentos" valor={dados.lancamentos_total.toLocaleString('pt-BR')} nota={{ texto: 'notas registradas' }} />
-            <CardMetrica rotulo="Professores" valor={dados.professores_total} nota={{ texto: `${dados.professores_ativos} ativos`, destaque: true }} destaque />
-          </>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,1fr)' }, gap: { xs: 1.5, sm: 2 } }}>
+            {!dados ? (
+              <SkeletonCards quantidade={4} altura={142} colunas="subgrid" sx={{ display: 'contents' }} />
+            ) : (
+              pendencias.map((p) => (
+                <CardMetrica
+                  key={p.chave}
+                  rotulo={p.rotulo}
+                  valor={p.total}
+                  nota={p.nota}
+                  destaque={p.chave === chaveUrgente}
+                  onClick={() => navigate(destino(p))}
+                />
+              ))
+            )}
+          </Box>
         )}
       </Box>}
 
@@ -96,7 +150,7 @@ export default function Dashboard() {
               {dados.matriculas_por_curso.map((c, i) => (
                 <Box key={c.curso}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', fontSize: TOV.type.body, mb: 1 }}>
-                    <Box component="span" sx={{ fontWeight: 600, color: TOV.slate }}>{c.curso}</Box>
+                    <Box component="span" sx={{ fontWeight: 600, color: TOV.graphite }}>{c.curso}</Box>
                     <Box component="span" sx={{ fontWeight: 700 }}>{c.total}</Box>
                   </Box>
                   <Box sx={{ height: 8, bgcolor: TOV.surfaceMuted, borderRadius: TOV.radiusFull, overflow: 'hidden' }}>

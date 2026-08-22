@@ -20,7 +20,7 @@ export function intervaloGrade(mes) {
 
 function corEvento(status) {
   if (status === 'CANCELADA') return { bg: TOV.captionTint, color: TOV.caption }
-  if (status === 'REALIZADA') return { bg: TOV.slateTint, color: TOV.slate }
+  if (status === 'REALIZADA') return { bg: TOV.graphiteTint, color: TOV.graphite }
   return { bg: TOV.infoTint, color: TOV.info }
 }
 
@@ -54,7 +54,7 @@ export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
 
   if (!doMes.length) {
     return (
-      <Box sx={{ bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, p: 3, textAlign: 'center' }}>
+      <Box sx={{ bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusMd, p: 3, textAlign: 'center' }}>
         <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Nenhuma aula neste mês</Typography>
         <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mt: 1 }}>
           {onNovo ? 'Adicione a primeira aula ou avance para outro mês.' : 'Avance para outro mês para consultar a agenda.'}
@@ -67,8 +67,8 @@ export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       {[...grupos.entries()].map(([data, eventos]) => (
-        <Box key={data} sx={{ bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, overflow: 'hidden' }}>
-          <Box sx={{ px: 2, py: 1.5, bgcolor: TOV.offwhite, display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box key={data} sx={{ bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusMd, overflow: 'hidden' }}>
+          <Box sx={{ px: 2, py: 1.5, bgcolor: TOV.canvas, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography
               variant="h3"
               sx={{ fontSize: TOV.type.body, flex: 1 }}
@@ -96,7 +96,7 @@ export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
                     borderRadius: TOV.radiusSm, p: 1.5, bgcolor: 'transparent',
                     color: TOV.ink, font: 'inherit', textAlign: 'left', cursor: 'pointer',
                     display: 'flex', alignItems: 'flex-start', gap: 1.5,
-                    '&:active': { bgcolor: TOV.offwhite },
+                    '&:active': { bgcolor: TOV.canvas },
                     '&:focus-visible': focusRing,
                   }}
                 >
@@ -157,7 +157,7 @@ export default function CalendarioGrade({ mes, aulas, onSelecionar, onNovo }) {
               onDoubleClick={() => onNovo?.(iso)}
               sx={{
                 minHeight: 118, p: 1, borderRight: `1px solid ${TOV.border}`,
-                borderBottom: `1px solid ${TOV.border}`, bgcolor: fora ? TOV.offwhite : TOV.surfaceElevated,
+                borderBottom: `1px solid ${TOV.border}`, bgcolor: fora ? TOV.canvas : TOV.surfaceElevated,
               }}
             >
               <Box sx={{ fontSize: TOV.type.caption, fontWeight: 700, color: fora ? TOV.caption : TOV.ink, mb: 0.5 }}>{data.getDate()}</Box>

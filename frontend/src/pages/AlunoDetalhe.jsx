@@ -149,7 +149,6 @@ export default function AlunoDetalhe() {
             disabled={!whatsapp}
             startIcon={<WhatsAppIcon />}
             onClick={() => navigate(`/whatsapp?aluno=${aluno.cod_alu}`)}
-            sx={{ height: 46 }}
           >
             Enviar mensagem
           </Button>
@@ -158,7 +157,7 @@ export default function AlunoDetalhe() {
             disabled={!whatsapp}
             startIcon={<WhatsAppIcon />}
             onClick={() => window.open(`https://wa.me/${whatsapp}`, '_blank', 'noopener,noreferrer')}
-            sx={{ height: 48, color: TOV.success, borderColor: TOV.success }}
+            sx={{ color: TOV.success, borderColor: TOV.success }}
           >
             WhatsApp
           </Button>
@@ -244,7 +243,7 @@ export default function AlunoDetalhe() {
       </Box>}
 
       {/* Tabela — desktop */}
-      {telaDesktop && <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto' }}>
+      {telaDesktop && <TableContainer component={Box} sx={{ overflowX: 'auto' }}>
         <Box sx={{ p: '24px 28px 4px' }}>
           <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>
             Notas <Box component="span" sx={{ color: TOV.caption, fontSize: TOV.type.body, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
@@ -269,10 +268,10 @@ export default function AlunoDetalhe() {
               <TableRow key={n.id} hover>
                 <TableCell sx={{ fontWeight: 600 }}>{n.materia_nome}</TableCell>
                 <TableCell><Box component="span" sx={{ fontWeight: 700, color: n.nota != null ? TOV.ink : TOV.caption }}>{n.nota != null ? String(n.nota).replace('.', ',') : 'N/C'}</Box></TableCell>
-                <TableCell sx={{ color: TOV.slate }}>{n.falta ?? '—'}</TableCell>
-                <TableCell sx={{ color: TOV.slate }}>{n.ano || '—'}{n.semestre ? ` · ${n.semestre}º` : ''}</TableCell>
-                <TableCell sx={{ color: TOV.slate }}>{n.cursou === 'S' ? 'Sim' : n.cursou === 'N' ? 'Não' : (n.cursou || '—')}</TableCell>
-                <TableCell sx={{ color: TOV.slate }}>{n.professor_nome || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite }}>{n.falta ?? '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite }}>{n.ano || '—'}{n.semestre ? ` · ${n.semestre}º` : ''}</TableCell>
+                <TableCell sx={{ color: TOV.graphite }}>{n.cursou === 'S' ? 'Sim' : n.cursou === 'N' ? 'Não' : (n.cursou || '—')}</TableCell>
+                <TableCell sx={{ color: TOV.graphite }}>{n.professor_nome || '—'}</TableCell>
               </TableRow>
             ))}
           </TableBody>

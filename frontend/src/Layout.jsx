@@ -73,7 +73,7 @@ function ItemTrilha({ icone: Icone, rotulo, ativo, onClick, rotuloAcessivel }) {
         transition: `background-color ${TOV.durationFast} ${TOV.ease}, color ${TOV.durationFast} ${TOV.ease}`,
         '&::before': ativo ? {
           content: '""', position: 'absolute', left: -8, top: 8, bottom: 8,
-          width: 4, borderRadius: `0 ${TOV.radiusXs}px ${TOV.radiusXs}px 0`, bgcolor: TOV.coral,
+          width: 4, borderRadius: `0 ${TOV.radiusXs} ${TOV.radiusXs} 0`, bgcolor: TOV.coral,
         } : undefined,
         '&:hover': ativo ? {} : { bgcolor: TOV.onDarkSurface, color: TOV.onDark },
         '&:focus-visible': focusRingOnDark,
@@ -107,7 +107,7 @@ function ItemNav({ item, ativo, onClick }) {
         transition: `background-color ${TOV.durationFast} ${TOV.ease}, color ${TOV.durationFast} ${TOV.ease}`,
         '&::before': ativo ? {
           content: '""', position: 'absolute', left: 0, top: 10, bottom: 10,
-          width: 4, borderRadius: `0 ${TOV.radiusXs}px ${TOV.radiusXs}px 0`, bgcolor: TOV.coral,
+          width: 4, borderRadius: `0 ${TOV.radiusXs} ${TOV.radiusXs} 0`, bgcolor: TOV.coral,
         } : undefined,
         '&:hover': ativo ? {} : { bgcolor: TOV.onDarkSurface, color: TOV.onDark },
         '&:focus-visible': focusRingOnDark,
@@ -192,6 +192,33 @@ function SeletorSistema({ onTrocar }) {
       </Menu>
     </>
   )
+}
+
+/**
+ * Verdadeiro quando o `h1` da página saiu da tela.
+ *
+ * Enquanto ele está visível, repetir a seção na barra superior é a terceira
+ * vez que a mesma tela diz a mesma palavra — a navegação já marca o item
+ * ativo e o `h1` já nomeia a página.
+ */
+function useTituloForaDaTela(caminho) {
+  const [fora, setFora] = useState(false)
+
+  useEffect(() => {
+    const titulo = document.querySelector('main h1')
+    // Sem `h1` na tela não há duplicação a evitar: a barra nomeia a seção.
+    setFora(!titulo)
+    if (!titulo || typeof IntersectionObserver !== 'function') return undefined
+    const observador = new IntersectionObserver(
+      ([entrada]) => setFora(!entrada.isIntersecting),
+      // Desconta a própria barra fixa, senão o título "some" atrás dela.
+      { rootMargin: '-64px 0px 0px 0px' },
+    )
+    observador.observe(titulo)
+    return () => observador.disconnect()
+  }, [caminho])
+
+  return fora
 }
 
 export default function Layout({ children }) {
@@ -305,6 +332,7 @@ export default function Layout({ children }) {
     item.exato ? location.pathname === item.rota : location.pathname.startsWith(item.rota)
 
   const tituloAtual = menuVisivel.find(estaAtivo)?.rotulo || 'TOV'
+  const tituloForaDaTela = useTituloForaDaTela(location.pathname)
   const valorNavegacao = location.pathname === '/'
     ? '/'
     : location.pathname === '/professor'
@@ -427,7 +455,9 @@ export default function Layout({ children }) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
             <Box aria-hidden="true" sx={{ width: 4, height: 24, borderRadius: TOV.radiusFull, bgcolor: TOV.graphite }} />
             <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm, letterSpacing: '-.025em' }}>TOV</Typography>
-            <Typography noWrap sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{tituloAtual}</Typography>
+            {tituloForaDaTela && (
+              <Typography noWrap sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{tituloAtual}</Typography>
+            )}
           </Box>
           <Box sx={{ ml: 'auto' }}>
             <BotaoNotificacoes naoLidas={estadoNotificacoes.naoLidas} onClick={() => setNotificacoesAbertas(true)} />
@@ -551,7 +581,7 @@ export default function Layout({ children }) {
             height: 66,
             '& .MuiBottomNavigationAction-root': {
               minWidth: 64, minHeight: 60, color: TOV.caption, position: 'relative',
-              '&::before': { content: '""', position: 'absolute', top: 0, width: 28, height: 4, borderRadius: `0 0 ${TOV.radiusXs}px ${TOV.radiusXs}px`, bgcolor: 'transparent' },
+              '&::before': { content: '""', position: 'absolute', top: 0, width: 28, height: 4, borderRadius: `0 0 ${TOV.radiusXs} ${TOV.radiusXs}`, bgcolor: 'transparent' },
             },
             '& .Mui-selected': { color: TOV.coral, '&::before': { bgcolor: TOV.coral } },
             '& .MuiBottomNavigationAction-label': { fontSize: TOV.type.overline, fontWeight: 700 },

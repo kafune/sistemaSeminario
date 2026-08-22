@@ -88,7 +88,7 @@ export default function CalendarioPublico() {
   const mudarMes = (delta) => setMes(new Date(mes.getFullYear(), mes.getMonth() + delta, 1))
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: TOV.offwhite }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: TOV.canvas }}>
       <Box component="header" sx={{ bgcolor: TOV.graphite, color: TOV.onDark, px: { xs: 2, md: 5 }, py: 2.5, borderTop: `4px solid ${TOV.ink}` }}>
         <Box sx={{ maxWidth: 1240, mx: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <Box sx={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: TOV.onDarkSurface, border: `1px solid ${TOV.onDarkBorder}` }}>
@@ -119,7 +119,7 @@ export default function CalendarioPublico() {
                   '&::before': { content: '""', position: 'absolute', inset: '0 auto 0 0', width: 3, bgcolor: TOV.graphite },
                 }}
               >
-                <Box sx={{ width: 52, height: 52, flex: '0 0 52px', display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: TOV.slateTint, color: TOV.graphite }}>
+                <Box sx={{ width: 52, height: 52, flex: '0 0 52px', display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: TOV.graphiteTint, color: TOV.graphite }}>
                   <SchoolOutlinedIcon />
                 </Box>
                 <Box sx={{ minWidth: 0, flex: 1 }}>

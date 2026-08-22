@@ -22,7 +22,7 @@ function PillAcao({ children, escuro, disabled, carregando, onClick }) {
         textAlign: 'center', flexGrow: { xs: 1, sm: 0 }, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 1,
         opacity: disabled ? 0.45 : 1, userSelect: 'none',
         cursor: disabled ? 'not-allowed' : 'pointer',
-        bgcolor: escuro ? TOV.ink : TOV.offwhite, color: escuro ? TOV.onDark : TOV.ink,
+        bgcolor: escuro ? TOV.ink : TOV.canvas, color: escuro ? TOV.onDark : TOV.ink,
         transition: `background-color ${TOV.transitionFast}, color ${TOV.transitionFast}`,
         '&:hover': disabled ? {} : { bgcolor: escuro ? TOV.graphite : TOV.coralTint, color: escuro ? TOV.onDark : TOV.coral },
         '&:focus-visible': escuro ? focusRingOnDark : focusRing,
@@ -114,6 +114,7 @@ export default function Relatorios() {
   return (
     <Box>
       <CabecalhoPagina
+        variante="operacional"
         titulo="Relatórios e documentos"
         descricao="Gere boletins, históricos, diários e listas em PDF — individualmente, por turma ou em lote."
       />
@@ -122,7 +123,7 @@ export default function Relatorios() {
         {/* Por aluno */}
           <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 32px' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
-            <IconeCard letra="A" cor={TOV.graphite} bg={TOV.slateTint} />
+            <IconeCard letra="A" cor={TOV.graphite} bg={TOV.graphiteTint} />
             <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>Por aluno</Typography>
           </Box>
           <Autocomplete
@@ -145,7 +146,7 @@ export default function Relatorios() {
         {/* Por turma */}
           <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 32px' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
-            <IconeCard letra="T" cor={TOV.slate} bg={TOV.slateTint} />
+            <IconeCard letra="T" cor={TOV.graphite} bg={TOV.graphiteTint} />
             <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>Por turma</Typography>
           </Box>
           <TextField select fullWidth size="small" label="Turma" value={codTur}
@@ -197,7 +198,7 @@ export default function Relatorios() {
               onDrop={soltarArquivo}
               aria-describedby="ajuda-arquivo-relatorios"
               sx={{
-                ...resetBotao, width: '100%', flex: 1, border: `2px dashed ${arrastando ? TOV.coralOnDark : TOV.onDarkBorderStrong}`,
+                ...resetBotao, width: '100%', flex: 1, border: `1px dashed ${arrastando ? TOV.coralOnDark : TOV.onDarkBorderStrong}`,
                 borderRadius: TOV.radiusMd, p: { xs: '24px 16px', sm: '32px' }, display: 'flex', flexDirection: 'column', alignItems: 'center',
                 justifyContent: 'center', textAlign: 'center', cursor: 'pointer', transition: `border-color ${TOV.transitionFast}`,
                 bgcolor: arrastando ? TOV.coralTint : 'transparent', color: TOV.onDark,
@@ -213,7 +214,6 @@ export default function Relatorios() {
               variant="contained" disabled={!arquivoLote || gerandoLote}
               startIcon={gerandoLote ? <CircularProgress size={16} color="inherit" /> : null}
               onClick={gerarLote}
-              sx={{ height: 46 }}
             >
               {gerandoLote ? 'Gerando…' : 'Gerar ZIP'}
             </Button>

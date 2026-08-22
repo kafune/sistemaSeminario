@@ -11,14 +11,15 @@ import { TOV } from '../theme'
 import { useDirtyForm } from '../UnsavedChanges'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, LinhaCartao,
-  resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  LinhasSkeleton, SkeletonCards, resetBotao, useDialogoTelaCheia,
+  useTelaDesktop,
 } from '../ui'
 
 const VAZIA = { NOME: '', APELIDO: '', area: '', observa: '' }
 
 function PilulaArea({ area }) {
   return (
-    <Box component="span" sx={{ display: 'inline-block', px: 1.5, py: 0.5, bgcolor: TOV.offwhite, color: TOV.slate, borderRadius: TOV.radiusFull, fontSize: TOV.type.caption, fontWeight: 600 }}>
+    <Box component="span" sx={{ display: 'inline-block', px: 1.5, py: 0.5, bgcolor: TOV.canvas, color: TOV.graphite, borderRadius: TOV.radiusFull, fontSize: TOV.type.caption, fontWeight: 600 }}>
       {area || 'Sem área'}
     </Box>
   )
@@ -94,7 +95,7 @@ export default function Materias() {
         <TextField
           size="small" placeholder="Buscar matéria" value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          sx={{ minWidth: { xs: '100%', sm: 240 }, '& .MuiOutlinedInput-root': { height: 46 } }}
+          sx={{ minWidth: { xs: '100%', sm: 240 } }}
           inputProps={{ enterKeyHint: 'search', 'aria-label': 'Buscar matéria' }}
           InputProps={{
             startAdornment: (
@@ -114,15 +115,16 @@ export default function Materias() {
   return (
     <Box>
       <CabecalhoPagina
+        variante="operacional"
         titulo="Matérias"
-        subtitulo={carregando ? ' ' : `${materias.length} ${materias.length === 1 ? 'matéria' : 'matérias'} · ${areas} ${areas === 1 ? 'área' : 'áreas'}`}
+        metadados={carregando ? ' ' : `${materias.length} ${materias.length === 1 ? 'matéria' : 'matérias'} · ${areas} ${areas === 1 ? 'área' : 'áreas'}`}
         acoes={acoes}
       />
 
       {/* Lista em cards — celular/tablet */}
       {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {carregando && materias.length === 0 && (
-          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
+          <SkeletonCards quantidade={4} altura={112} colunas="1fr" />
         )}
         {!carregando && materias.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhuma matéria encontrada" descricao="Revise a busca ou cadastre uma nova matéria." /></CartaoLista>
@@ -137,7 +139,7 @@ export default function Materias() {
               <PilulaArea area={m.area?.trim()} />
             </Box>
             <LinhaCartao rotulo="Apelido" valor={m.APELIDO?.trim()} />
-            <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
+            <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.divider}` }}>
               <Button size="small" variant="outlined" fullWidth onClick={() => abrirForm(m)}>Editar</Button>
               <Button size="small" variant="outlined" color="error" fullWidth onClick={() => setParaExcluir(m)}>Excluir</Button>
             </Box>
@@ -146,7 +148,7 @@ export default function Materias() {
       </Box>}
 
       {/* Tabela — desktop */}
-      {telaDesktop && <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
+      {telaDesktop && <TableContainer component={Box} sx={{ overflowX: 'auto' }}>
         <Table sx={{ minWidth: 680 }}>
           <TableHead>
             <TableRow>
@@ -159,7 +161,7 @@ export default function Materias() {
           </TableHead>
           <TableBody>
             {carregando && materias.length === 0 && (
-              <TableRow><TableCell colSpan={5} sx={{ py: 5, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
+              <LinhasSkeleton colunas={5} />
             )}
             {!carregando && materias.length === 0 && (
               <TableRow><TableCell colSpan={5} sx={{ p: 0 }}><EstadoVazio titulo="Nenhuma matéria encontrada" descricao="Revise a busca ou cadastre uma nova matéria." /></TableCell></TableRow>
@@ -168,7 +170,7 @@ export default function Materias() {
               <TableRow key={m.cod_mat} hover>
                 <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>MT-{String(m.cod_mat).padStart(2, '0')}</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>{m.NOME?.trim()}</TableCell>
-                <TableCell sx={{ color: TOV.slate }}>{m.APELIDO?.trim() || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite }}>{m.APELIDO?.trim() || '—'}</TableCell>
                 <TableCell><PilulaArea area={m.area?.trim()} /></TableCell>
                 <TableCell align="right">
                   <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption }}>

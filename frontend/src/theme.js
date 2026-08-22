@@ -29,18 +29,11 @@ export const TOV = {
   borderHover: '#BFB5AD',
   divider: '#E4DDD5',
 
-  // Aliases mantidos para as telas existentes durante a consolidação.
-  offwhite: '#F5F2EE',
-  white: '#FFFEFC',
-  slate: '#2C3236',
-  desk: '#E4DDD5',
-
   coralTint: 'rgba(201,47,47,.09)',
-  coralTintSoft: 'rgba(201,47,47,.05)',
   coralTintStrong: 'rgba(201,47,47,.15)',
   coralBorder: 'rgba(201,47,47,.18)',
-  slateTint: 'rgba(44,50,54,.09)',
-  slateBorder: 'rgba(44,50,54,.13)',
+  graphiteTint: 'rgba(44,50,54,.09)',
+  graphiteBorder: 'rgba(44,50,54,.13)',
   captionTint: 'rgba(82,93,99,.12)',
   captionBorder: 'rgba(82,93,99,.15)',
   success: '#1E6B43',
@@ -50,7 +43,6 @@ export const TOV = {
   successBorder: 'rgba(30,107,67,.18)',
   warning: '#8C5210',
   warningTint: 'rgba(140,82,16,.12)',
-  warningTintSoft: 'rgba(140,82,16,.045)',
   warningBorder: 'rgba(140,82,16,.18)',
   info: '#356A82',
   infoTint: 'rgba(53,106,130,.11)',
@@ -114,19 +106,28 @@ export const TOV = {
   sidebarW: 272,
   railW: 72,
 
-  radiusXs: 4,
-  radiusNone: 0,
-  radiusSm: 8,
-  radiusMd: 14,
-  radiusLg: 16,
-  radiusXl: 20,
-  radius2xl: 24,
-  radiusDisplay: 32,
-  radiusFull: 9999,
-  radiusPill: 9999,
+  // Duas alturas de controle no sistema inteiro: 48 para acao primaria,
+  // formulario e dialogo; 44 para barra densa (filtros, regua da tabela).
+  // 44 tambem e o piso de alvo de toque, entao nada desce abaixo disso.
+  controlH: 48,
+  controlHSm: 44,
+
+  // Os raios carregam a unidade. O `sx` do MUI multiplica raio numerico por
+  // `shape.borderRadius`, entao `borderRadius: 8` viraria 112px e arredondaria
+  // a caixa inteira. Com string em px o valor vale igual no `sx`, nos
+  // `styleOverrides` e dentro de template literal.
+  radiusXs: '4px',
+  radiusNone: '0px',
+  radiusSm: '8px',
+  radiusMd: '14px',
+  radiusLg: '16px',
+  radiusXl: '20px',
+  radius2xl: '24px',
+  radiusDisplay: '32px',
+  radiusFull: '9999px',
+  radiusPill: '9999px',
   radiusMessage: '12px 2px 12px 12px',
   shadowHairline: 'inset 0 0 0 1px rgba(216,206,196,.6)',
-  shadowCard: '0 1px 3px rgba(20,22,24,.04), 0 1px 2px rgba(20,22,24,.06)',
   shadowRaised: '0 12px 32px -16px rgba(20,22,24,.12), 0 2px 6px rgba(20,22,24,.04)',
   shadowFloating: '0 20px 48px -20px rgba(20,22,24,.22), 0 4px 12px rgba(20,22,24,.06)',
   shadowTop: '0 -8px 24px rgba(20,22,24,.04)',
@@ -134,7 +135,6 @@ export const TOV = {
   shadowHeader: '0 12px 30px -28px rgba(20,22,24,.32)',
   shadowSuccess: '0 24px 60px -28px rgba(98,197,150,.48)',
   shadowMessage: '0 2px 5px rgba(20,22,24,.12)',
-  shadowBtn: 'none',
   durationFast: '150ms',
   durationBase: '250ms',
   ease: 'cubic-bezier(.2,.75,.25,1)',
@@ -208,7 +208,8 @@ export const tovTheme = createTheme(
       },
       caption: { fontSize: TOV.type.caption, lineHeight: 1.5 },
     },
-    shape: { borderRadius: TOV.radiusMd },
+    // O MUI exige numero sem unidade aqui; e o mesmo valor de `radiusMd`.
+    shape: { borderRadius: parseFloat(TOV.radiusMd) },
     breakpoints: {
       // `tablet` (768px) é a faixa do iPad retrato: já recebe tabela e trilha
       // de navegação, em vez da interface de celular que ia até 900px.
@@ -270,12 +271,12 @@ export const tovTheme = createTheme(
           root: {
             borderRadius: TOV.radiusSm,
             paddingInline: 16,
-            minHeight: 48,
+            minHeight: TOV.controlH,
             boxShadow: 'none',
             '&:focus-visible': focusRing,
             '&:active:not(.Mui-disabled)': { transform: 'translateY(1px)' },
           },
-          sizeSmall: { minHeight: 44, paddingInline: 16 },
+          sizeSmall: { minHeight: TOV.controlHSm, paddingInline: 16 },
           containedPrimary: {
             boxShadow: 'none',
             '&:hover': { boxShadow: 'none', backgroundColor: TOV.coralHover },
@@ -303,12 +304,12 @@ export const tovTheme = createTheme(
       MuiIconButton: {
         styleOverrides: {
           root: {
-            minWidth: 44,
-            minHeight: 44,
+            minWidth: TOV.controlHSm,
+            minHeight: TOV.controlHSm,
             borderRadius: TOV.radiusSm,
             '&:focus-visible': focusRing,
           },
-          sizeSmall: { minWidth: 44, minHeight: 44 },
+          sizeSmall: { minWidth: TOV.controlHSm, minHeight: TOV.controlHSm },
         },
       },
       MuiChip: {
@@ -320,7 +321,7 @@ export const tovTheme = createTheme(
             borderColor: TOV.border,
           },
           clickable: {
-            '&:hover': { backgroundColor: TOV.slateTint },
+            '&:hover': { backgroundColor: TOV.graphiteTint },
             '&:focus-visible': focusRing,
           },
         },
@@ -333,6 +334,7 @@ export const tovTheme = createTheme(
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
+            minHeight: TOV.controlH,
             borderRadius: TOV.radiusMd,
             backgroundColor: TOV.surface,
             transition: `box-shadow ${TOV.durationFast} ${TOV.ease}, background-color ${TOV.durationFast} ${TOV.ease}`,
@@ -347,6 +349,7 @@ export const tovTheme = createTheme(
             },
             '&.Mui-disabled': { backgroundColor: alpha(TOV.caption, 0.07) },
           },
+          sizeSmall: { minHeight: TOV.controlHSm },
           input: { paddingTop: 12, paddingBottom: 12 },
           inputSizeSmall: { paddingTop: 12, paddingBottom: 12 },
           notchedOutline: { borderColor: TOV.border, borderWidth: 1 },
@@ -434,15 +437,15 @@ export const tovTheme = createTheme(
       MuiDialogActions: { styleOverrides: { root: { padding: '12px 24px 24px', gap: 8 } } },
       MuiTabs: {
         styleOverrides: {
-          root: { minHeight: 48, borderBottom: `1px solid ${TOV.divider}` },
-          indicator: { height: 4, borderRadius: `${TOV.radiusXs}px ${TOV.radiusXs}px 0 0` },
+          root: { minHeight: TOV.controlH, borderBottom: `1px solid ${TOV.divider}` },
+          indicator: { height: 4, borderRadius: `${TOV.radiusXs} ${TOV.radiusXs} 0 0` },
         },
       },
       MuiTab: {
         styleOverrides: {
           root: {
-            minHeight: 48,
-            minWidth: 44,
+            minHeight: TOV.controlH,
+            minWidth: TOV.controlHSm,
             padding: '8px 16px',
             textTransform: 'none',
             fontWeight: 700,
@@ -497,8 +500,8 @@ export const tovTheme = createTheme(
       MuiPaginationItem: {
         styleOverrides: {
           root: {
-            minWidth: 44,
-            height: 44,
+            minWidth: TOV.controlHSm,
+            height: TOV.controlHSm,
             borderRadius: TOV.radiusSm,
             fontWeight: 700,
             '&.Mui-selected': { backgroundColor: TOV.coral, color: TOV.onDark },
@@ -515,7 +518,7 @@ export const tovTheme = createTheme(
       MuiMenuItem: {
         styleOverrides: {
           root: {
-            minHeight: 44,
+            minHeight: TOV.controlHSm,
             borderRadius: TOV.radiusSm,
             '&.Mui-selected': { backgroundColor: TOV.coralTint },
             '&.Mui-selected:hover': { backgroundColor: TOV.coralTintStrong },

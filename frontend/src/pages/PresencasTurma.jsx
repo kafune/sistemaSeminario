@@ -272,7 +272,7 @@ export default function PresencasTurma() {
                       ...resetBotao, minWidth: { xs: 210, lg: 0 }, width: '100%', px: 1.5, py: 1.5,
                       borderRadius: TOV.radiusSm, bgcolor: ativa ? TOV.coralTint : 'transparent',
                       border: `1px solid ${ativa ? TOV.coralBorder : 'transparent'}`,
-                      '&:hover': { bgcolor: ativa ? TOV.coralTint : TOV.slateTint },
+                      '&:hover': { bgcolor: ativa ? TOV.coralTint : TOV.graphiteTint },
                     }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
@@ -330,7 +330,7 @@ export default function PresencasTurma() {
                 )}
 
                 {telaDesktop && (
-                  <TableContainer component={Box} sx={{ ...cardSx, overflow: 'hidden' }}>
+                  <TableContainer component={Box} sx={{ overflow: 'hidden' }}>
                     <Table>
                       <TableHead>
                         <TableRow>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert, Box, Button, InputAdornment, Menu, Pagination, Snackbar, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography, IconButton,
@@ -14,21 +14,25 @@ import PictureAsPdfOutlinedIcon from '@mui/icons-material/PictureAsPdfOutlined'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { api, abrirArquivo } from '../api'
-import { TOV, focusRing } from '../theme'
+import { TOV } from '../theme'
 import {
-  BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio, LinhaCartao,
-  PilulaStatus, SeletorDensidade, resetBotao, useDensidade, usePreferencia, useTelaDesktop,
+  BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio, GrupoSegmentado,
+  LinhaCartao, LinhasSkeleton, PilulaStatus, SeletorDensidade, SkeletonCards,
+  useDensidade, usePreferencia, useTelaDesktop,
 } from '../ui'
 import AlunoForm from './AlunoForm'
 import ImportarAlunosDialog from './ImportarAlunosDialog'
 
 const OPCOES_POR_PAGINA = [25, 50, 100]
-const FILTROS = [
+// Um só eixo de recorte da lista: situação cadastral mais a fila de trabalho
+// "sem turma", que o painel linka. Valores viajam na URL.
+const RECORTES = [
   { rotulo: 'Todos', valor: '' },
   { rotulo: 'Pré-cadastros', valor: 'P' },
   { rotulo: 'Ativos', valor: 'A' },
   { rotulo: 'Inativos', valor: 'I' },
   { rotulo: 'Formados', valor: 'F' },
+  { rotulo: 'Sem turma', valor: 'sem_turma' },
 ]
 const ORDENACOES = [
   { rotulo: 'Nome (A–Z)', valor: 'nome_asc' },
@@ -37,33 +41,15 @@ const ORDENACOES = [
   { rotulo: 'Mais antigos', valor: 'antigos' },
 ]
 
-function ChipFiltro({ ativo, children, onClick }) {
-  return (
-    <Box
-      component="button"
-      type="button"
-      onClick={onClick}
-      aria-pressed={ativo}
-      sx={{
-        ...resetBotao,
-        px: 2, py: 1, borderRadius: TOV.radiusFull, fontSize: TOV.type.body, fontWeight: 600, userSelect: 'none',
-        minHeight: 44, flexShrink: 0,
-        bgcolor: ativo ? TOV.graphite : TOV.surface, color: ativo ? TOV.onDark : TOV.graphite,
-        border: `1px solid ${ativo ? TOV.graphite : TOV.border}`,
-        boxShadow: 'none',
-        '&:hover': ativo ? {} : { color: TOV.ink, borderColor: TOV.caption },
-        '&:focus-visible': focusRing,
-      }}
-    >
-      {children}
-    </Box>
-  )
-}
-
 export default function Alunos() {
+  // O painel manda para cá com o filtro na URL (`?status=P`, `?sem_turma=1`):
+  // a fila de trabalho abre já filtrada, e o link continua compartilhável.
+  const [parametros, setParametros] = useSearchParams()
+  const status = parametros.get('status') || ''
+  const semTurma = parametros.get('sem_turma') === '1'
+  const recorte = semTurma ? 'sem_turma' : status
   const [busca, setBusca] = useState('')
   const [buscaAtiva, setBuscaAtiva] = useState('')
-  const [status, setStatus] = useState('')
   const [ordenacao, setOrdenacao] = useState('nome_asc')
   const [dados, setDados] = useState({ total: 0, itens: [] })
   const [carregando, setCarregando] = useState(true)
@@ -83,8 +69,9 @@ export default function Alunos() {
     let ativo = true
     setCarregando(true)
     const filtroStatus = status ? `&status=${status}` : ''
+    const filtroSemTurma = semTurma ? '&sem_turma=true' : ''
     api
-      .get(`/alunos?busca=${encodeURIComponent(buscaAtiva)}${filtroStatus}&ordenacao=${ordenacao}&pagina=${pagina}&por_pagina=${porPagina}`, { signal: controller.signal })
+      .get(`/alunos?busca=${encodeURIComponent(buscaAtiva)}${filtroStatus}${filtroSemTurma}&ordenacao=${ordenacao}&pagina=${pagina}&por_pagina=${porPagina}`, { signal: controller.signal })
       .then((resposta) => { if (ativo) setDados(resposta) })
       .catch((e) => { if (ativo && e.name !== 'AbortError') setErro(e.message) })
       .finally(() => { if (ativo) setCarregando(false) })
@@ -92,7 +79,7 @@ export default function Alunos() {
       ativo = false
       controller.abort()
     }
-  }, [buscaAtiva, status, ordenacao, pagina, porPagina, versaoLista])
+  }, [buscaAtiva, status, semTurma, ordenacao, pagina, porPagina, versaoLista])
 
   // A primeira execução apenas registra a busca inicial: a página lembrada
   // da sessão anterior não pode ser descartada no carregamento.
@@ -114,6 +101,31 @@ export default function Alunos() {
   useEffect(() => {
     if (!carregando && pagina > totalPaginas) setPagina(1)
   }, [carregando, pagina, totalPaginas, setPagina])
+
+  const escolherRecorte = useCallback((valor) => {
+    const proximos = new URLSearchParams(parametros)
+    proximos.delete('status')
+    proximos.delete('sem_turma')
+    // "Sem turma" só faz sentido sobre quem está ativo no cadastro.
+    if (valor === 'sem_turma') {
+      proximos.set('sem_turma', '1')
+      proximos.set('status', 'A')
+    } else if (valor) {
+      proximos.set('status', valor)
+    }
+    setParametros(proximos, { replace: true })
+    setPagina(1)
+  }, [parametros, setParametros, setPagina])
+
+  const temFiltro = Boolean(recorte) || Boolean(buscaAtiva) || ordenacao !== 'nome_asc'
+
+  const limparFiltros = useCallback(() => {
+    setBusca('')
+    setBuscaAtiva('')
+    setOrdenacao('nome_asc')
+    setParametros(new URLSearchParams(), { replace: true })
+    setPagina(1)
+  }, [setParametros, setPagina])
 
   const recarregarLista = useCallback(() => {
     setPagina(1)
@@ -142,12 +154,11 @@ export default function Alunos() {
         />
       )}
       <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-        {telaDesktop && <SeletorDensidade valor={densidade} onChange={setDensidade} />}
         <TextField
           select size="small" value={porPagina}
           onChange={(e) => { setPorPagina(Number(e.target.value)); setPagina(1) }}
           inputProps={{ 'aria-label': 'Registros por página' }}
-          sx={{ width: 132, '& .MuiOutlinedInput-root': { height: 40 } }}
+          sx={{ width: 168, flexShrink: 0 }}
         >
           {OPCOES_POR_PAGINA.map((opcao) => (
             <MenuItem key={opcao} value={opcao}>{opcao} por página</MenuItem>
@@ -159,28 +170,10 @@ export default function Alunos() {
 
   const acoes = (
     <>
-      <Box component="form" onSubmit={pesquisar}>
-        <TextField
-          size="small" placeholder="Buscar por nome ou matrícula" value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          sx={{ minWidth: { xs: '100%', sm: 280 }, '& .MuiOutlinedInput-root': { height: 46, bgcolor: TOV.white } }}
-          inputProps={{ enterKeyHint: 'search', 'aria-label': 'Buscar por nome ou matrícula' }}
-          InputProps={{
-            startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ fontSize: TOV.type.titleSm, color: TOV.caption }} /></InputAdornment>),
-            endAdornment: busca ? (
-              <InputAdornment position="end">
-                <IconButton size="small" aria-label="Limpar busca" onClick={() => setBusca('')}>
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ) : undefined,
-          }}
-        />
-      </Box>
-      <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setImportacaoAberta(true)} sx={{ height: 46 }}>
+      <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setImportacaoAberta(true)}>
         Importar
       </Button>
-      <Button variant="contained" startIcon={<AddIcon />} onClick={() => setFormAberto(true)} sx={{ height: 46 }}>
+      <Button variant="contained" startIcon={<AddIcon />} onClick={() => setFormAberto(true)}>
         Novo aluno
       </Button>
     </>
@@ -189,49 +182,57 @@ export default function Alunos() {
   return (
     <Box>
       <CabecalhoPagina
+        variante="operacional"
         titulo="Alunos"
-        subtitulo={`${dados.total} ${dados.total === 1 ? 'registro' : 'registros'}`}
+        metadados={`${dados.total} ${dados.total === 1 ? 'registro' : 'registros'}`}
         acoes={acoes}
       />
 
-      <BarraFiltros
-        sx={{
-          display: 'flex', flexDirection: { xs: 'column', sm: 'row' },
-          alignItems: { sm: 'center' }, justifyContent: 'space-between',
-          gap: 1.5, mb: 2,
-        }}
-      >
-        <Box
-          aria-label="Filtrar alunos por status"
-          sx={{
-            display: 'flex', gap: 1.5, overflowX: 'auto', pb: 0.5,
-            width: '100%', maxWidth: '100%', minWidth: 0,
-            overscrollBehaviorInline: 'contain',
-            scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
-          }}
-        >
-          {FILTROS.map((f) => (
-            <ChipFiltro key={f.valor} ativo={status === f.valor} onClick={() => { setStatus(f.valor); setPagina(1) }}>
-              {f.rotulo}
-            </ChipFiltro>
-          ))}
+      <BarraFiltros sx={{ alignItems: { sm: 'center' }, mb: 2 }}>
+        <Box component="form" onSubmit={pesquisar} sx={{ flex: { xs: '1 1 100%', md: '1 1 280px' }, minWidth: 0 }}>
+          <TextField
+            size="small" fullWidth placeholder="Buscar por nome ou matrícula" value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            inputProps={{ enterKeyHint: 'search', 'aria-label': 'Buscar por nome ou matrícula' }}
+            InputProps={{
+              startAdornment: (<InputAdornment position="start"><SearchIcon sx={{ fontSize: TOV.type.titleSm, color: TOV.caption }} /></InputAdornment>),
+              endAdornment: busca ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" aria-label="Limpar busca" onClick={() => setBusca('')}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : undefined,
+            }}
+          />
         </Box>
+        <GrupoSegmentado
+          rotulo="Recorte da lista"
+          opcoes={RECORTES}
+          valor={recorte}
+          onChange={escolherRecorte}
+        />
         <TextField
-          select
-          size="small"
-          label="Ordenar por"
-          value={ordenacao}
+          select size="small" label="Ordenar por" value={ordenacao}
           onChange={(e) => { setOrdenacao(e.target.value); setPagina(1) }}
-          sx={{
-            width: { xs: '100%', sm: 190 }, flexShrink: 0,
-            '& .MuiOutlinedInput-root': { height: 46, bgcolor: TOV.white },
-          }}
+          sx={{ width: { xs: '100%', sm: 190 }, flexShrink: 0 }}
           inputProps={{ 'aria-label': 'Ordenar alunos' }}
         >
           {ORDENACOES.map((opcao) => (
             <MenuItem key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</MenuItem>
           ))}
         </TextField>
+        {telaDesktop && <SeletorDensidade valor={densidade} onChange={setDensidade} />}
+        {temFiltro && (
+          <Button
+            variant="text"
+            onClick={limparFiltros}
+            // Coral fica com a ação primária da tela; limpar filtro é utilitário.
+            sx={{ flexShrink: 0, color: TOV.caption, '&:hover': { color: TOV.ink, bgcolor: TOV.graphiteTint } }}
+          >
+            Limpar filtros
+          </Button>
+        )}
       </BarraFiltros>
 
       {barraTabela}
@@ -239,7 +240,7 @@ export default function Alunos() {
       {/* Lista em cards — celular */}
       {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {carregando && dados.itens.length === 0 && (
-          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
+          <SkeletonCards quantidade={4} altura={112} colunas="1fr" />
         )}
         {!carregando && dados.itens.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhum aluno encontrado" descricao="Ajuste a busca ou os filtros para ver outros registros." /></CartaoLista>
@@ -273,7 +274,7 @@ export default function Alunos() {
           </TableHead>
           <TableBody>
             {carregando && dados.itens.length === 0 && (
-              <TableRow><TableCell colSpan={6} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
+              <LinhasSkeleton colunas={6} />
             )}
             {!carregando && dados.itens.length === 0 && (
               <TableRow><TableCell colSpan={6} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum aluno encontrado" descricao="Ajuste a busca ou os filtros para ver outros registros." /></TableCell></TableRow>

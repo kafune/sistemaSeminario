@@ -898,7 +898,7 @@ function Compositor({
                 ))}
               </Box>
               {['image', 'document', 'audio'].includes(tipoMensagem) && (
-                <Box sx={{ border: `2px dashed ${TOV.captionTint}`, borderRadius: TOV.radiusLg, p: 2, mb: 2, textAlign: 'center' }}>
+                <Box sx={{ border: `1px dashed ${TOV.border}`, borderRadius: TOV.radiusLg, p: 2, mb: 2, textAlign: 'center' }}>
                   <Button component="label" startIcon={enviandoArquivo ? <CircularProgress size={16} /> : <UploadFileIcon />}>
                     {arquivo ? 'Trocar arquivo' : `Selecionar ${TIPOS.find(([v]) => v === tipoMensagem)?.[1].toLowerCase()}`}
                     <input
@@ -945,7 +945,7 @@ function Compositor({
                 <Box sx={{ mt: 2, minWidth: 0, maxWidth: '100%' }}>
                   <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body, mb: 1 }}>Cartões do carrossel</Typography>
                   {cartoes.map((cartao, indice) => (
-                    <Box key={indice} sx={{ bgcolor: TOV.offwhite, borderRadius: TOV.radiusLg, p: 2, mb: 1.5, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
+                    <Box key={indice} sx={{ bgcolor: TOV.canvas, borderRadius: TOV.radiusLg, p: 2, mb: 1.5, minWidth: 0, maxWidth: '100%', overflow: 'hidden' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                         <Typography sx={{ fontWeight: 700 }}>Cartão {indice + 1}</Typography>
                         {cartoes.length > 2 && <IconButton size="small" aria-label={`Remover cartão ${indice + 1}`} onClick={() => setCartoes(cartoes.filter((_, i) => i !== indice))}><DeleteIcon fontSize="small" /></IconButton>}
@@ -980,7 +980,7 @@ function Compositor({
                     Sequência montada · {sequencia.length + 1} mensagens
                   </Typography>
                   {sequencia.map((item, indice) => (
-                    <Box key={indice} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1, borderTop: indice ? `1px solid ${TOV.offwhite}` : 0 }}>
+                    <Box key={indice} sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1, borderTop: indice ? `1px solid ${TOV.divider}` : 0 }}>
                       <Chip size="small" label={indice + 1} />
                       <Typography sx={{ flex: 1, minWidth: 0, fontSize: TOV.type.caption, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {TIPOS.find(([valor]) => valor === item.tipo)?.[1]} · {item.mensagem || item.arquivo?.nome || 'Mídia'}
@@ -1139,7 +1139,7 @@ function Historico({ itens, onAbrir }) {
               sx={{
                 appearance: 'none', border: 0, bgcolor: 'transparent', color: 'inherit',
                 font: 'inherit', textAlign: 'left', cursor: 'pointer', p: '20px 0',
-                borderTop: indice ? `1px solid ${TOV.offwhite}` : 0,
+                borderTop: indice ? `1px solid ${TOV.divider}` : 0,
                 '&:hover h3': { color: TOV.coral },
                 '&:focus-visible': focusRing,
               }}
@@ -1161,7 +1161,7 @@ function Historico({ itens, onAbrir }) {
               </Typography>
               <Typography
                 sx={{
-                  fontSize: TOV.type.bodySm, color: TOV.slate, mt: 1, maxWidth: 760,
+                  fontSize: TOV.type.bodySm, color: TOV.graphite, mt: 1, maxWidth: 760,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}
               >
@@ -1479,8 +1479,9 @@ export default function WhatsApp() {
   return (
     <Box>
       <CabecalhoPagina
+        variante="operacional"
         titulo="WhatsApp"
-        subtitulo="Envie comunicados acadêmicos e nutra leads com públicos segregados."
+        descricao="Envie comunicados acadêmicos e nutra leads com públicos segregados."
       />
       <CardInstancia
         instancia={instancia}
@@ -1567,9 +1568,9 @@ export default function WhatsApp() {
                   Este disparo será {dadosDisparo.editar_id ? 'reagendado' : 'agendado'} para <b>{dataHora(dadosDisparo.agendado_para)}</b>.
                 </Alert>
               )}
-              <Box sx={{ maxHeight: 310, overflowY: 'auto', border: `1px solid ${TOV.offwhite}`, borderRadius: TOV.radiusLg }}>
+              <Box sx={{ maxHeight: 310, overflowY: 'auto', border: `1px solid ${TOV.divider}`, borderRadius: TOV.radiusLg }}>
                 {previa.itens.map((item, indice) => (
-                  <Box key={`${item.cod_alu}-${indice}`} sx={{ p: 1.5, borderTop: indice ? `1px solid ${TOV.offwhite}` : 0, display: 'flex', gap: 2 }}>
+                  <Box key={`${item.cod_alu}-${indice}`} sx={{ p: 1.5, borderTop: indice ? `1px solid ${TOV.divider}` : 0, display: 'flex', gap: 2 }}>
                     <Box sx={{ flex: 1 }}>
                       <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>{item.nome}</Typography>
                       <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>{item.celular || 'Sem celular'}</Typography>
@@ -1636,7 +1637,7 @@ export default function WhatsApp() {
                   ['Falhos', detalhe.total_falhos],
                   ['Ignorados', detalhe.total_invalidos],
                 ].map(([rotulo, valor]) => (
-                  <Box key={rotulo} sx={{ bgcolor: TOV.offwhite, borderRadius: TOV.radiusLg, p: 1.5, textAlign: 'center' }}>
+                  <Box key={rotulo} sx={{ bgcolor: TOV.canvas, borderRadius: TOV.radiusLg, p: 1.5, textAlign: 'center' }}>
                     <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.title }}>{valor}</Typography>
                     <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>{rotulo}</Typography>
                   </Box>
@@ -1649,7 +1650,7 @@ export default function WhatsApp() {
               <Divider />
               <Box sx={{ maxHeight: 330, overflowY: 'auto' }}>
                 {destinatariosDetalhe.map((item, indice) => (
-                  <Box key={item.id} sx={{ py: 1.5, borderTop: indice ? `1px solid ${TOV.offwhite}` : 0, display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                  <Box key={item.id} sx={{ py: 1.5, borderTop: indice ? `1px solid ${TOV.divider}` : 0, display: 'flex', gap: 1.5, alignItems: 'center' }}>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>{item.nome}</Typography>
                       <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>{item.celular || item.motivo}</Typography>

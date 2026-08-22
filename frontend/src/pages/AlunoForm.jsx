@@ -145,7 +145,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
             {aluno ? `Editar aluno ${aluno.cod_alu}` : 'Novo aluno'}
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, mt: 1.5 }}>
-            <Typography sx={{ color: TOV.slate, fontSize: TOV.type.body, fontWeight: 700 }}>
+            <Typography sx={{ color: TOV.graphite, fontSize: TOV.type.body, fontWeight: 700 }}>
               {ETAPAS[etapa][0]}
             </Typography>
             <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>

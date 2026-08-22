@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db, row_to_dict
-from ..models import Aluno, AluNota, Turma
+from ..models import Aluno, AluNota, AluTurma, Turma
 from ..services.matriculas import sincronizar_matricula
 
 router = APIRouter(prefix="/alunos", tags=["alunos"])
@@ -52,6 +52,7 @@ def listar(
     busca: str = "",
     cod_tur: int | None = None,
     status: str | None = None,
+    sem_turma: bool = False,
     ordenacao: Literal["nome_asc", "nome_desc", "recentes", "antigos"] = "nome_asc",
     pagina: int = 1,
     por_pagina: int = 50,
@@ -69,6 +70,11 @@ def listar(
         q = q.where(Aluno.cod_tur == cod_tur)
     if status:
         q = q.where(Aluno.status == status)
+    if sem_turma:
+        # Fila de trabalho do painel: ativo no cadastro, sem matrícula em turma.
+        q = q.where(
+            ~select(AluTurma.id).where(AluTurma.cod_alu == Aluno.cod_alu).exists()
+        )
     total = db.scalar(select(func.count()).select_from(q.subquery()))
     criterios_ordenacao = {
         "nome_asc": (Aluno.nome.asc(), Aluno.cod_alu.asc()),

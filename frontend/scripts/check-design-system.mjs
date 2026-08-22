@@ -44,6 +44,14 @@ for (const arquivo of await listar(srcDir)) {
     if (!texto.includes('TOV.') && /\bborderRadius\s*:\s*(?:['"`]\s*-?(?:\d|\.\d)|-?(?:\d|\.\d))/.test(texto)) {
       registrar(arquivo, linha, 'raio fora dos tokens', texto)
     }
+    // O `sx` do MUI multiplica raio numerico por `shape.borderRadius`: `8` vira
+    // 112px e arredonda a caixa inteira. Os tokens `TOV.radius*` ja trazem o px.
+    if (/\bborderRadius\s*:\s*-?(?:\d|\.\d)/.test(texto)) {
+      registrar(arquivo, linha, 'raio numérico é multiplicado pelo sx do MUI', texto)
+    }
+    if (/\$\{\s*TOV\.radius[A-Za-z0-9]*\s*\}\s*px/.test(texto)) {
+      registrar(arquivo, linha, 'raio com unidade duplicada', texto)
+    }
     if (!texto.includes('TOV.') && /\btransition(?:Duration)?\s*:\s*['"`]/.test(texto)) {
       registrar(arquivo, linha, 'movimento fora dos tokens', texto)
     }

@@ -280,7 +280,7 @@ export default function NotificationCenter({ aberto, onFechar, onNavigate, estad
               sx={{
                 px: 1.5, py: 1.5, borderRadius: TOV.radiusLg, mb: 0.5,
                 bgcolor: item.lida ? 'transparent' : TOV.coralTint,
-                borderLeft: `3px solid ${item.lida ? 'transparent' : TOV.coral}`,
+                borderLeft: `4px solid ${item.lida ? 'transparent' : TOV.coral}`,
               }}
             >
               <ListItemText

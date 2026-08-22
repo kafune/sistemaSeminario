@@ -44,7 +44,7 @@ function CarregandoRota() {
       <Skeleton width={44} height={8} sx={{ mb: 1.5 }} />
       <Skeleton width="min(420px, 74vw)" height={58} sx={{ mb: 3 }} />
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', lg: 'repeat(3,1fr)' }, gap: 2 }}>
-        {[0, 1, 2].map((i) => <Skeleton key={i} variant="rounded" height={150} sx={{ borderRadius: `${TOV.radiusMd}px` }} />)}
+        {[0, 1, 2].map((i) => <Skeleton key={i} variant="rounded" height={150} sx={{ borderRadius: TOV.radiusMd }} />)}
       </Box>
     </Box>
   )

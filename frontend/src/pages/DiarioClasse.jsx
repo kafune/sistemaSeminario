@@ -289,7 +289,7 @@ export default function DiarioClasse() {
 
       {dados && aulas.length > 0 && (
         <>
-          <TableContainer component={Box} sx={{ ...cardSx, overflow: 'auto', maxHeight: { xs: '65vh', md: '72vh' } }}>
+          <TableContainer component={Box} sx={{ overflow: 'auto', maxHeight: { xs: '65vh', md: '72vh' } }}>
             <Table
               size="small"
               aria-label={`Diário de ${vinculo?.materia_nome || 'classe'}`}
@@ -307,7 +307,7 @@ export default function DiarioClasse() {
                         px: 0.5,
                         minWidth: { xs: 44, md: 56 },
                         color: aula.data === hoje ? TOV.coral : TOV.caption,
-                        borderBottom: `2px solid ${aula.data === hoje ? TOV.coral : TOV.border}`,
+                        borderBottom: `1px solid ${aula.data === hoje ? TOV.coral : TOV.border}`,
                       }}
                     >
                       <Box sx={{ fontSize: TOV.type.overline, letterSpacing: 0 }}>{dataColuna(aula.data)}</Box>
@@ -364,7 +364,7 @@ export default function DiarioClasse() {
                               opacity: salvando ? 0.45 : 1,
                               cursor: futura ? 'not-allowed' : 'pointer',
                               transition: `background-color ${TOV.durationFast} ${TOV.ease}`,
-                              '&:hover:not(:disabled)': { bgcolor: TOV.slateTint },
+                              '&:hover:not(:disabled)': { bgcolor: TOV.graphiteTint },
                             }}
                           >
                             {estado.rotulo}

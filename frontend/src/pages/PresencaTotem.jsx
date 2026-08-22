@@ -89,7 +89,7 @@ function CabecalhoSecao({ id, titulo, quantidade, descricao, tom = 'neutral' }) 
             component="span"
             sx={{
               minWidth: 28, height: 28, px: 1, display: 'inline-grid', placeItems: 'center',
-              borderRadius: TOV.radiusFull, bgcolor: sucesso ? TOV.successTint : TOV.slateTint,
+              borderRadius: TOV.radiusFull, bgcolor: sucesso ? TOV.successTint : TOV.graphiteTint,
               color: sucesso ? TOV.success : TOV.graphite, fontSize: TOV.type.caption, fontWeight: 700,
               fontVariantNumeric: 'tabular-nums',
             }}
@@ -124,7 +124,7 @@ const CartaoAluno = memo(function CartaoAluno({ aluno, onSelecionar }) {
         transition: `border-color ${TOV.durationFast} ${TOV.ease}, transform ${TOV.durationFast} ${TOV.ease}, background-color ${TOV.durationFast} ${TOV.ease}`,
         '&::before': presente ? undefined : {
           content: '""', position: 'absolute', inset: '16px auto 16px 0', width: 4,
-          borderRadius: `0 ${TOV.radiusXs}px ${TOV.radiusXs}px 0`, bgcolor: TOV.coral,
+          borderRadius: `0 ${TOV.radiusXs} ${TOV.radiusXs} 0`, bgcolor: TOV.coral,
         },
         '@media (hover: hover)': {
           '&:hover': presente ? {} : { borderColor: TOV.borderHover, bgcolor: TOV.surfaceHover },
@@ -153,7 +153,7 @@ const CartaoAluno = memo(function CartaoAluno({ aluno, onSelecionar }) {
         aria-hidden="true"
         sx={{
           width: 42, height: 42, flex: '0 0 42px', display: 'grid', placeItems: 'center',
-          borderRadius: TOV.radiusMd, bgcolor: presente ? 'transparent' : TOV.slateTint,
+          borderRadius: TOV.radiusMd, bgcolor: presente ? 'transparent' : TOV.graphiteTint,
           color: presente ? TOV.success : TOV.coral,
         }}
       >
@@ -319,7 +319,7 @@ export default function PresencaTotem() {
         <Box sx={{ width: 'min(520px, 100%)', textAlign: 'center', bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: TOV.radius2xl, overflow: 'hidden' }}>
           <Box sx={{ height: 5, bgcolor: encerrada ? TOV.coral : TOV.warning }} />
           <Box sx={{ p: { xs: 3, sm: 5 } }}>
-            <Box sx={{ width: 76, height: 76, mx: 'auto', mb: 2.5, display: 'grid', placeItems: 'center', borderRadius: TOV.radius2xl, bgcolor: encerrada ? TOV.slateTint : TOV.warningTint, color: encerrada ? TOV.graphite : TOV.warning }}>
+            <Box sx={{ width: 76, height: 76, mx: 'auto', mb: 2.5, display: 'grid', placeItems: 'center', borderRadius: TOV.radius2xl, bgcolor: encerrada ? TOV.graphiteTint : TOV.warningTint, color: encerrada ? TOV.graphite : TOV.warning }}>
               {encerrada ? <HowToRegRoundedIcon sx={{ fontSize: TOV.type.display }} /> : <WifiOffRoundedIcon sx={{ fontSize: TOV.type.display }} />}
             </Box>
             <Typography variant="h1" sx={{ fontSize: { xs: TOV.type.displaySm, sm: TOV.type.display } }}>{encerrada ? 'Chamada encerrada' : 'Sem conexão no momento'}</Typography>
@@ -398,7 +398,7 @@ export default function PresencaTotem() {
         >
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'minmax(230px,.75fr) minmax(360px,1.25fr)' }, alignItems: 'center', gap: { xs: 2, sm: 3.5 }, p: { xs: 0, sm: 2 }, borderRadius: { sm: TOV.radiusXl }, bgcolor: { sm: TOV.glassSurface }, border: { sm: `1px solid ${TOV.border}` }, boxShadow: { sm: TOV.shadowRaised }, WebkitBackdropFilter: 'blur(16px)', backdropFilter: 'blur(16px)' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <Box aria-hidden="true" sx={{ width: 52, height: 52, flex: '0 0 52px', display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: TOV.slateTint, color: TOV.graphite }}>
+              <Box aria-hidden="true" sx={{ width: 52, height: 52, flex: '0 0 52px', display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: TOV.graphiteTint, color: TOV.graphite }}>
                 <TouchAppRoundedIcon sx={{ fontSize: TOV.type.titleLg }} />
               </Box>
               <Box>
@@ -431,7 +431,7 @@ export default function PresencaTotem() {
 
         {alunosFiltrados.length === 0 && (
           <Box sx={{ border: `1px dashed ${TOV.border}`, borderRadius: TOV.radiusXl, bgcolor: TOV.glassSurfaceFaint, py: { xs: 5, sm: 7 }, px: 3, textAlign: 'center' }}>
-            <Box sx={{ width: 60, height: 60, mx: 'auto', mb: 2, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusLg, bgcolor: TOV.slateTint, color: TOV.caption }}><SearchRoundedIcon sx={{ fontSize: TOV.type.titleLg }} /></Box>
+            <Box sx={{ width: 60, height: 60, mx: 'auto', mb: 2, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusLg, bgcolor: TOV.graphiteTint, color: TOV.caption }}><SearchRoundedIcon sx={{ fontSize: TOV.type.titleLg }} /></Box>
             <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm }}>{busca ? 'Nenhum nome encontrado' : 'A lista ainda está vazia'}</Typography>
             <Typography sx={{ color: TOV.caption, mt: 1 }}>{busca ? 'Confira a digitação ou tente apenas o primeiro nome.' : 'Peça à secretaria para conferir os alunos desta turma.'}</Typography>
           </Box>

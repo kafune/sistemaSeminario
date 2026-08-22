@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  Grid, InputAdornment, MenuItem, Pagination, Paper, Snackbar, Table, TableBody,
+  Grid, InputAdornment, MenuItem, Pagination, Snackbar, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
@@ -215,8 +215,9 @@ export default function Leads() {
   return (
     <Box>
       <CabecalhoPagina
+        variante="operacional"
         titulo="Leads"
-        subtitulo={carregando && !dados.itens.length ? 'Carregando base de marketing…' : `${dados.total} ${dados.total === 1 ? 'contato encontrado' : 'contatos encontrados'}`}
+        metadados={carregando && !dados.itens.length ? 'Carregando base de marketing…' : `${dados.total} ${dados.total === 1 ? 'contato encontrado' : 'contatos encontrados'}`}
         acoes={acoes}
       />
 
@@ -269,7 +270,7 @@ export default function Leads() {
         ))}
       </Box>}
 
-      {telaDesktop && <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
+      {telaDesktop && <TableContainer component={Box} sx={{ overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -295,7 +296,7 @@ export default function Leads() {
                   <Typography sx={{ fontSize: TOV.type.body }}>{lead.campanha || '—'}</Typography>
                   <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption }}>{lead.origem || 'Origem não informada'}</Typography>
                 </TableCell>
-                <TableCell sx={{ color: TOV.slate, maxWidth: 200 }}>{lead.tags || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite, maxWidth: 200 }}>{lead.tags || '—'}</TableCell>
                 <TableCell><Chip size="small" variant="outlined" label={FUNIL[lead.status_funil] || lead.status_funil} /></TableCell>
                 <TableCell><PilulaConsentimento status={lead.consentimento_status} /></TableCell>
                 <TableCell align="right">

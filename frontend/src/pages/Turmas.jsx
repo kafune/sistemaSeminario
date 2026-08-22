@@ -6,7 +6,10 @@ import {
 } from '@mui/material'
 import { api } from '../api'
 import { TOV, focusRing } from '../theme'
-import { CabecalhoPagina, DialogoConfirmacao, EstadoErro, SkeletonCards, resetBotao, useDialogoTelaCheia } from '../ui'
+import {
+  CabecalhoPagina, DialogoConfirmacao, EstadoErro, SkeletonCards, StatusBadge,
+  resetBotao, useDialogoTelaCheia,
+} from '../ui'
 import { useClearUnsavedChanges, useDirtyForm } from '../UnsavedChanges'
 
 function mesAno(iso) {
@@ -31,12 +34,21 @@ function CardTurma({ turma, onClick }) {
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Box component="span" sx={{ px: 1.5, py: 0.5, bgcolor: TOV.slateTint, color: TOV.graphite, borderRadius: TOV.radiusFull, fontSize: TOV.type.caption, fontWeight: 700 }}>#{turma.cod_tur}</Box>
-        {turma.horario && <Typography component="span" sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>{turma.horario}</Typography>}
+        <Box component="span" sx={{ px: 1.5, py: 0.5, bgcolor: TOV.graphiteTint, color: TOV.graphite, borderRadius: TOV.radiusFull, fontSize: TOV.type.caption, fontWeight: 700 }}>#{turma.cod_tur}</Box>
+        {/* O canto direito é o slot de estado: chamada aberta é o que pede
+            ação hoje, e quem chega do painel reconhece a turma sem abrir uma
+            por uma. O horário desce para a linha do curso. */}
+        {turma.chamadas_abertas > 0 && (
+          <StatusBadge tom="warning" dot>
+            {turma.chamadas_abertas === 1 ? 'Chamada aberta' : `${turma.chamadas_abertas} chamadas abertas`}
+          </StatusBadge>
+        )}
       </Box>
       <Typography variant="h3" sx={{ fontSize: TOV.type.title, mb: 1 }}>{turma.nome}</Typography>
-      <Typography sx={{ fontSize: TOV.type.body, color: TOV.caption, mb: 2.5 }}>{turma.curso || 'Curso não informado'}</Typography>
-      <Box sx={{ display: 'flex', gap: 3, pt: 2.5, borderTop: `1px solid ${TOV.offwhite}`, alignItems: 'flex-end' }}>
+      <Typography sx={{ fontSize: TOV.type.body, color: TOV.caption, mb: 2.5 }}>
+        {[turma.curso || 'Curso não informado', turma.horario].filter(Boolean).join(' · ')}
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 3, pt: 2.5, borderTop: `1px solid ${TOV.divider}`, alignItems: 'flex-end' }}>
         <Box>
           <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleLg }}>{turma.qtd_alunos ?? 0}</Box>
           <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>alunos</Box>
@@ -96,9 +108,10 @@ export default function Turmas() {
   return (
     <Box>
       <CabecalhoPagina
+        variante="operacional"
         titulo="Turmas"
-        subtitulo={turmas ? `${turmas.length} ${turmas.length === 1 ? 'turma' : 'turmas'} · ${cursos} ${cursos === 1 ? 'curso' : 'cursos'}` : ' '}
-        acoes={<Button variant="contained" onClick={abrirForm} sx={{ height: 46 }}>+ Nova turma</Button>}
+        metadados={turmas ? `${turmas.length} ${turmas.length === 1 ? 'turma' : 'turmas'} · ${cursos} ${cursos === 1 ? 'curso' : 'cursos'}` : ' '}
+        acoes={<Button variant="contained" onClick={abrirForm}>+ Nova turma</Button>}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', lg: 'repeat(3,1fr)' }, gap: 2.5 }}>

@@ -8,8 +8,9 @@ import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
 import { TOV } from '../theme'
 import {
-  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, iniciais,
-  resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio,
+  LinhasSkeleton, SkeletonCards, iniciais, resetBotao, useDialogoTelaCheia,
+  useTelaDesktop,
 } from '../ui'
 import { useDirtyForm } from '../UnsavedChanges'
 
@@ -109,15 +110,16 @@ export default function Usuarios() {
   return (
     <Box>
       <CabecalhoPagina
+        variante="operacional"
         titulo="Usuários"
-        subtitulo={carregando ? ' ' : `${usuarios.length} ${usuarios.length === 1 ? 'usuário com acesso' : 'usuários com acesso'} ao sistema`}
+        metadados={carregando ? ' ' : `${usuarios.length} ${usuarios.length === 1 ? 'usuário com acesso' : 'usuários com acesso'} ao sistema`}
         acoes={acoes}
       />
 
       {/* Lista em cards — celular/tablet */}
       {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {carregando && usuarios.length === 0 && (
-          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
+          <SkeletonCards quantidade={4} altura={112} colunas="1fr" />
         )}
         {!carregando && usuarios.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhum usuário cadastrado" descricao="Crie um acesso para começar." /></CartaoLista>
@@ -139,7 +141,7 @@ export default function Usuarios() {
                   <Chip size="small" variant="outlined" label={u.perfil || 'ADMIN'} />
                   {euMesmo && (
                     <Box component="span" sx={{
-                      px: 1.5, py: 0.5, borderRadius: TOV.radiusFull, bgcolor: TOV.slateTint,
+                      px: 1.5, py: 0.5, borderRadius: TOV.radiusFull, bgcolor: TOV.graphiteTint,
                       color: TOV.graphite, fontSize: TOV.type.overline, fontWeight: 700,
                     }}>
                       você
@@ -147,7 +149,7 @@ export default function Usuarios() {
                   )}
                 </Box>
               </Box>
-              <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
+              <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.divider}` }}>
                 <Button size="small" variant="outlined" fullWidth onClick={() => redefinir(u)}>Gerenciar acesso</Button>
                 <Button size="small" variant="outlined" color="error" fullWidth disabled={euMesmo} onClick={() => setParaExcluir(u)}>Excluir</Button>
               </Box>
@@ -157,7 +159,7 @@ export default function Usuarios() {
       </Box>}
 
       {/* Tabela — desktop */}
-      {telaDesktop && <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
+      {telaDesktop && <TableContainer component={Box} sx={{ overflowX: 'auto' }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -167,7 +169,7 @@ export default function Usuarios() {
           </TableHead>
           <TableBody>
             {carregando && usuarios.length === 0 && (
-              <TableRow><TableCell colSpan={2} sx={{ py: 5, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
+              <LinhasSkeleton colunas={2} />
             )}
             {!carregando && usuarios.length === 0 && (
               <TableRow><TableCell colSpan={2} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum usuário cadastrado" descricao="Crie um acesso para começar." /></TableCell></TableRow>
@@ -189,7 +191,7 @@ export default function Usuarios() {
                       <Chip size="small" variant="outlined" label={u.perfil || 'ADMIN'} />
                       {euMesmo && (
                         <Box component="span" sx={{
-                          px: 1.5, py: 0.5, borderRadius: TOV.radiusFull, bgcolor: TOV.slateTint,
+                          px: 1.5, py: 0.5, borderRadius: TOV.radiusFull, bgcolor: TOV.graphiteTint,
                           color: TOV.graphite, fontSize: TOV.type.overline, fontWeight: 700,
                         }}>
                           você

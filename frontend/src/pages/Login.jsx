@@ -89,7 +89,7 @@ export default function Login() {
           {sessaoExpirada && !erro && <Alert severity="warning" sx={{ mt: 3 }}>Sua sessão expirou. Entre novamente para continuar de onde parou.</Alert>}
           {erro && <Alert severity="error" sx={{ mt: 3 }}>{erro}</Alert>}
 
-          <Typography component="label" htmlFor="campo-usuario" sx={{ display: 'block', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.slate, mt: erro || sessaoExpirada ? 2 : 4, mb: 1 }}>Usuário</Typography>
+          <Typography component="label" htmlFor="campo-usuario" sx={{ display: 'block', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.graphite, mt: erro || sessaoExpirada ? 2 : 4, mb: 1 }}>Usuário</Typography>
           <TextField
             fullWidth value={user} autoFocus placeholder="ADMIN"
             id="campo-usuario"
@@ -97,7 +97,7 @@ export default function Login() {
             onChange={(e) => setUser(e.target.value.toUpperCase())}
           />
 
-          <Typography component="label" htmlFor="campo-senha" sx={{ display: 'block', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.slate, mt: 2.5, mb: 1 }}>Senha</Typography>
+          <Typography component="label" htmlFor="campo-senha" sx={{ display: 'block', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.graphite, mt: 2.5, mb: 1 }}>Senha</Typography>
           <TextField
             fullWidth type={mostrarSenha ? 'text' : 'password'} value={senha} placeholder="••••••••"
             id="campo-senha"
@@ -118,7 +118,7 @@ export default function Login() {
             onChange={(e) => setSenha(e.target.value)}
           />
 
-          <Button type="submit" variant="contained" fullWidth disabled={carregando} sx={{ mt: 4, height: 52, fontSize: TOV.type.bodyLg }}>
+          <Button type="submit" variant="contained" fullWidth disabled={carregando} sx={{ mt: 4, fontSize: TOV.type.bodyLg }}>
             {carregando ? 'Entrando…' : 'Entrar'}
           </Button>
           <Typography sx={{ mt: 2.5, textAlign: 'center', fontSize: TOV.type.bodySm, color: TOV.caption }}>

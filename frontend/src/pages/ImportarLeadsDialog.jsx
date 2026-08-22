@@ -171,7 +171,7 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
 
         <Box sx={{ ...cardSx, boxShadow: 'none', border: `1px solid ${TOV.border}`, p: { xs: 2, sm: 2.5 } }}>
           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <CloudSyncIcon sx={{ color: TOV.slate, mt: 0.5 }} />
+            <CloudSyncIcon sx={{ color: TOV.graphite, mt: 0.5 }} />
             <Box>
               <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Planilha do Google Forms</Typography>
               <Typography sx={{ mt: 1, color: TOV.caption, fontSize: TOV.type.body, lineHeight: 1.55 }}>
@@ -197,7 +197,7 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
                     key={item.id}
                     sx={{
                       p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5,
-                      borderTop: indice ? `1px solid ${TOV.offwhite}` : 0,
+                      borderTop: indice ? `1px solid ${TOV.divider}` : 0,
                     }}
                   >
                     <Box sx={{ flex: 1, minWidth: 0 }}>

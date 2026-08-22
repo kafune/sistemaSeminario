@@ -177,6 +177,7 @@ export default function Materiais() {
   return (
     <Box>
       <CabecalhoPagina
+        variante="operacional"
         titulo="Materiais didáticos"
         descricao="Compartilhe arquivos para a matéria inteira ou organize-os por aula específica."
         acoes={(
@@ -233,7 +234,7 @@ export default function Materiais() {
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', xl: 'repeat(2, minmax(0, 1fr))' }, gap: 1.5 }}>
           {materiaisFiltrados.map((material) => (
             <Box key={material.id} component="article" sx={{ ...cardSx, p: { xs: 2, sm: 2.5 }, display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-              <Box aria-hidden="true" sx={{ width: 46, height: 46, borderRadius: TOV.radiusSm, bgcolor: TOV.slateTint, color: TOV.graphite, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <Box aria-hidden="true" sx={{ width: 46, height: 46, borderRadius: TOV.radiusSm, bgcolor: TOV.graphiteTint, color: TOV.graphite, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                 <InsertDriveFileOutlinedIcon />
               </Box>
               <Box sx={{ minWidth: 0, flexGrow: 1 }}>
@@ -249,13 +250,13 @@ export default function Materiais() {
                   </StatusBadge>
                 </Box>
                 {material.aula && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: TOV.slate, fontSize: TOV.type.bodySm, mt: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: TOV.graphite, fontSize: TOV.type.bodySm, mt: 1.5 }}>
                     <EventOutlinedIcon sx={{ fontSize: TOV.type.bodyLg }} />
                     {rotuloAula(material.aula)}
                   </Box>
                 )}
                 {!material.aula && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: TOV.slate, fontSize: TOV.type.bodySm, mt: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: TOV.graphite, fontSize: TOV.type.bodySm, mt: 1.5 }}>
                     <MenuBookOutlinedIcon sx={{ fontSize: TOV.type.bodyLg }} /> Disponível em todas as aulas da matéria
                   </Box>
                 )}
@@ -285,7 +286,7 @@ export default function Materiais() {
           </TextField>
           <TextField fullWidth label="Título (opcional)" value={titulo} onChange={(e) => setTitulo(e.target.value)} inputProps={{ maxLength: 150 }} helperText="Se ficar vazio, será usado o nome do arquivo." />
           <TextField fullWidth multiline minRows={3} label="Descrição (opcional)" value={descricao} onChange={(e) => setDescricao(e.target.value)} inputProps={{ maxLength: 2000 }} />
-          <Box sx={{ border: `1px dashed ${arquivo ? TOV.coral : TOV.border}`, borderRadius: `${TOV.radiusMd}px`, p: 2.5, bgcolor: arquivo ? TOV.coralTint : TOV.offwhite, textAlign: 'center' }}>
+          <Box sx={{ border: `1px dashed ${arquivo ? TOV.coral : TOV.border}`, borderRadius: TOV.radiusMd, p: 2.5, bgcolor: arquivo ? TOV.coralTint : TOV.canvas, textAlign: 'center' }}>
             <UploadFileIcon sx={{ fontSize: TOV.type.displaySm, color: arquivo ? TOV.coral : TOV.caption }} />
             <Typography sx={{ fontWeight: 700, mt: 0.5, overflowWrap: 'anywhere' }}>{arquivo?.name || 'Selecione o arquivo do material'}</Typography>
             <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5 }}>

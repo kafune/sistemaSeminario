@@ -60,15 +60,32 @@ def listar(db: Session = Depends(get_db)):
         .group_by(AluTurma.cod_tur)
         .subquery()
     )
+    # Chamada aberta é a única informação da turma que pede ação hoje: entra
+    # na mesma consulta para a lista poder marcar quais turmas estão travadas.
+    abertas = (
+        select(
+            Chamada.cod_tur.label("cod_tur"),
+            func.count(Chamada.id).label("chamadas_abertas"),
+        )
+        .where(Chamada.status == "ABERTA")
+        .group_by(Chamada.cod_tur)
+        .subquery()
+    )
     consulta = (
-        select(Turma, func.coalesce(contagens.c.qtd_alunos, 0))
+        select(
+            Turma,
+            func.coalesce(contagens.c.qtd_alunos, 0),
+            func.coalesce(abertas.c.chamadas_abertas, 0),
+        )
         .join(contagens, contagens.c.cod_tur == Turma.cod_tur, isouter=True)
+        .join(abertas, abertas.c.cod_tur == Turma.cod_tur, isouter=True)
         .order_by(Turma.nome)
     )
     itens = []
-    for turma, quantidade in db.execute(consulta):
+    for turma, quantidade, chamadas_abertas in db.execute(consulta):
         dados = row_to_dict(turma)
         dados["qtd_alunos"] = int(quantidade or 0)
+        dados["chamadas_abertas"] = int(chamadas_abertas or 0)
         itens.append(dados)
     return itens
 

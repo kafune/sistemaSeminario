@@ -274,7 +274,7 @@ export default function Calendario() {
 
   return (
     <Box sx={{ minWidth: 0, maxWidth: '100%' }}>
-      <CabecalhoPagina titulo="Calendário de aulas" subtitulo="Turmas, matérias e professores em uma única agenda" acoes={acoes} />
+      <CabecalhoPagina variante="operacional" titulo="Calendário de aulas" descricao="Turmas, matérias e professores em uma única agenda" acoes={acoes} />
 
       <Box sx={{ ...cardSx, p: 2.5, mb: 2 }}>
         <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -371,7 +371,7 @@ export default function Calendario() {
               <Typography variant="overline" sx={{ color: TOV.caption, display: 'block', mb: 1 }}>1. Escolha a turma</Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {!turmasCompartilhamento.length && (
-                  <Box sx={{ p: 2, border: `1px dashed ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.offwhite }}>
+                  <Box sx={{ p: 2, border: `1px dashed ${TOV.border}`, borderRadius: TOV.radiusSm, bgcolor: TOV.canvas }}>
                     <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>Nenhuma turma disponível</Typography>
                     <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5 }}>Vincule uma matéria a uma turma para criar a agenda dela.</Typography>
                   </Box>
@@ -389,16 +389,16 @@ export default function Calendario() {
                         appearance: 'none', width: '100%', minHeight: 72, p: 1.5,
                         display: 'grid', gridTemplateColumns: '42px minmax(0, 1fr) 24px',
                         alignItems: 'center', gap: 1.5, textAlign: 'left', cursor: 'pointer',
-                        borderRadius: `${TOV.radiusSm}px`,
+                        borderRadius: TOV.radiusSm,
                         border: `1px solid ${selecionada ? TOV.coral : TOV.border}`,
                         bgcolor: selecionada ? TOV.coralTint : TOV.surface,
                         color: TOV.ink, font: 'inherit',
                         transition: `border-color ${TOV.durationFast} ${TOV.ease}, background-color ${TOV.durationFast} ${TOV.ease}`,
-                        '&:hover': { borderColor: selecionada ? TOV.coral : TOV.caption, bgcolor: selecionada ? TOV.coralTint : TOV.offwhite },
+                        '&:hover': { borderColor: selecionada ? TOV.coral : TOV.caption, bgcolor: selecionada ? TOV.coralTint : TOV.canvas },
                         '&:focus-visible': focusRing,
                       }}
                     >
-                      <Box sx={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: selecionada ? TOV.coral : TOV.slateTint, color: selecionada ? TOV.onDark : TOV.graphite }}>
+                      <Box sx={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusMd, bgcolor: selecionada ? TOV.coral : TOV.graphiteTint, color: selecionada ? TOV.onDark : TOV.graphite }}>
                         <SchoolOutlinedIcon fontSize="small" />
                       </Box>
                       <Box sx={{ minWidth: 0 }}>
@@ -417,7 +417,7 @@ export default function Calendario() {
             <Box sx={{ minWidth: 0 }}>
               <Typography variant="overline" sx={{ color: TOV.caption, display: 'block', mb: 1 }}>2. Compartilhe o link</Typography>
               {turmaCompartilhamento ? (
-                <Box sx={{ border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, overflow: 'hidden', bgcolor: TOV.surface }}>
+                <Box sx={{ border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusMd, overflow: 'hidden', bgcolor: TOV.surface }}>
                   <Box sx={{ p: { xs: 2, sm: 2.5 }, bgcolor: TOV.graphite, color: TOV.onDark, position: 'relative', overflow: 'hidden' }}>
                     <Box aria-hidden="true" sx={{ position: 'absolute', width: 152, height: 152, borderRadius: TOV.radiusFull, bgcolor: TOV.onDarkDecoration, right: -48, top: -76 }} />
                     <Typography sx={{ color: TOV.onDarkMuted, fontSize: TOV.type.caption, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Agenda da turma</Typography>
@@ -445,7 +445,7 @@ export default function Calendario() {
                   </Box>
                 </Box>
               ) : (
-                <Box sx={{ minHeight: 250, display: 'grid', placeItems: 'center', textAlign: 'center', border: `1px dashed ${TOV.border}`, borderRadius: `${TOV.radiusMd}px`, p: 3, bgcolor: TOV.offwhite }}>
+                <Box sx={{ minHeight: 250, display: 'grid', placeItems: 'center', textAlign: 'center', border: `1px dashed ${TOV.border}`, borderRadius: TOV.radiusMd, p: 3, bgcolor: TOV.canvas }}>
                   <Box>
                     <Box sx={{ width: 52, height: 52, display: 'grid', placeItems: 'center', mx: 'auto', mb: 1.5, borderRadius: TOV.radiusFull, bgcolor: TOV.surface, color: TOV.graphite, border: `1px solid ${TOV.border}` }}>
                       <SchoolOutlinedIcon />

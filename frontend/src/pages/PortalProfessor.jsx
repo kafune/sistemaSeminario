@@ -25,7 +25,7 @@ function CartaoTurma({ turma, onAbrir }) {
   return (
     <Box component="article" sx={{ ...cardSx, p: 2.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-        <Box aria-hidden="true" sx={{ width: 46, height: 46, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusSm, bgcolor: TOV.slateTint, color: TOV.graphite, flexShrink: 0 }}><MenuBookOutlinedIcon /></Box>
+        <Box aria-hidden="true" sx={{ width: 46, height: 46, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusSm, bgcolor: TOV.graphiteTint, color: TOV.graphite, flexShrink: 0 }}><MenuBookOutlinedIcon /></Box>
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
           <Typography component="h2" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.section, overflowWrap: 'anywhere' }}>{turma.materia_nome}</Typography>
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>{[turma.turma_nome, periodo].filter(Boolean).join(' · ')}</Typography>
@@ -41,7 +41,7 @@ function CartaoTurma({ turma, onAbrir }) {
       </Box>
       <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', color: TOV.caption, fontSize: TOV.type.caption, mb: 1 }}><span>Notas lançadas</span><span>{progresso}%</span></Box>
-        <Box sx={{ height: 8, bgcolor: TOV.slateTint, borderRadius: TOV.radiusFull, overflow: 'hidden' }}><Box sx={{ width: `${progresso}%`, height: '100%', bgcolor: progresso === 100 ? TOV.success : TOV.graphite, borderRadius: TOV.radiusFull }} /></Box>
+        <Box sx={{ height: 8, bgcolor: TOV.graphiteTint, borderRadius: TOV.radiusFull, overflow: 'hidden' }}><Box sx={{ width: `${progresso}%`, height: '100%', bgcolor: progresso === 100 ? TOV.success : TOV.graphite, borderRadius: TOV.radiusFull }} /></Box>
       </Box>
       <Button variant="outlined" endIcon={<ArrowForwardRoundedIcon />} onClick={onAbrir} sx={{ mt: 'auto', alignSelf: 'flex-start' }}>Abrir turma</Button>
     </Box>
@@ -87,7 +87,7 @@ export default function PortalProfessor({ somenteTurmas = false }) {
                     <Typography sx={{ color: aula.data === new Date().toISOString().slice(0, 10) ? TOV.coral : TOV.caption, fontWeight: 700, fontSize: TOV.type.caption, textTransform: 'uppercase' }}>{dataLonga(aula.data)}{aula.hora_inicio ? ` · ${aula.hora_inicio}` : ''}</Typography>
                     <Typography sx={{ fontWeight: 700, mt: 1 }}>{aula.materia_nome}</Typography>
                     <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>{aula.turma_nome}</Typography>
-                    <Typography sx={{ color: TOV.slate, fontSize: TOV.type.bodySm, mt: 1 }}>{aula.tema || 'Tema ainda não informado'}</Typography>
+                    <Typography sx={{ color: TOV.graphite, fontSize: TOV.type.bodySm, mt: 1 }}>{aula.tema || 'Tema ainda não informado'}</Typography>
                   </Box>
                 ))}
               </Box>

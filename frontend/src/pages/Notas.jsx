@@ -13,8 +13,10 @@ import TuneIcon from '@mui/icons-material/Tune'
 import { api, abrirArquivo, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
-  BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CartaoLista, DialogoConfirmacao,
-  EstadoVazio, StatusBadge, cardSx, useAtalhoSalvar, useTelaDesktop,
+  BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CartaoLista,
+  DialogoConfirmacao, EstadoVazio, LinhasSkeleton, Metadado, SkeletonCards,
+  StatusBadge,
+  cardSx, useAtalhoSalvar, useTelaDesktop,
 } from '../ui'
 import { useUnsavedChanges } from '../UnsavedChanges'
 
@@ -28,6 +30,17 @@ const rotuloTipo = (tipo) => TIPOS_ATIVIDADE.find((item) => item.valor === tipo)
 const formatarPontos = (valor) => Number(valor || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
 
 /** Rótulo de um seletor (uppercase caption) acima do campo. */
+/** Professor e período: o que qualifica a matéria sem competir com o nome. */
+function contextoMateria(m) {
+  return [m.professor_nome, m.Ano && m.semestre ? `${m.Ano}/${m.semestre}` : null]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+function resumoMateria(m) {
+  return [m.materia_nome?.trim(), contextoMateria(m)].filter(Boolean).join(' · ')
+}
+
 function RotuloCampo({ children, htmlFor, id }) {
   return (
     <Box id={id} component="label" htmlFor={htmlFor} sx={{ display: 'block', fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>{children}</Box>
@@ -332,11 +345,7 @@ export default function Notas() {
         error={invalida}
         onChange={(e) => editarLinha(l.cod_alu, campo, e.target.value)}
         inputProps={{ style: { textAlign: 'center', fontWeight: 700 }, 'aria-label': `Nota de ${l.nome}`, ...props }}
-        sx={{
-          width: 88,
-          '& .MuiOutlinedInput-root': { height: 42 },
-          ...(invalida ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.warning : TOV.border } }),
-        }}
+        sx={{ width: 88 }}
       />
     )
   }
@@ -360,11 +369,7 @@ export default function Notas() {
           style: { textAlign: 'center', fontWeight: 700 },
           'aria-label': `${atividade.nome} de ${linha.nome}`,
         }}
-        sx={{
-          width: celular ? '100%' : 88,
-          '& .MuiOutlinedInput-root': { height: 42 },
-          ...(invalida ? {} : { '& fieldset': { borderColor: linha._dirty ? TOV.warning : TOV.border } }),
-        }}
+        sx={{ width: celular ? '100%' : 88 }}
       />
     )
   }
@@ -372,6 +377,7 @@ export default function Notas() {
   return (
     <Box>
       <CabecalhoPagina
+        variante="operacional"
         titulo="Notas e faltas"
         descricao="As notas são editadas na grade; as faltas vêm automaticamente das chamadas encerradas."
       />
@@ -382,7 +388,7 @@ export default function Notas() {
           <RotuloCampo id="notas-turma-label" htmlFor="notas-turma">Turma</RotuloCampo>
           <TextField id="notas-turma" select size="small" fullWidth value={codTur} onChange={(e) => setCodTur(e.target.value)}
             SelectProps={{ SelectDisplayProps: { 'aria-labelledby': 'notas-turma-label' } }}
-            sx={{ '& .MuiOutlinedInput-root': { height: 48 } }} displayEmpty>
+            displayEmpty>
             <MenuItem value=""><em>Selecione a turma</em></MenuItem>
             {turmas.map((t) => <MenuItem key={t.cod_tur} value={t.cod_tur}>{t.nome}</MenuItem>)}
           </TextField>
@@ -390,30 +396,31 @@ export default function Notas() {
         <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 230px' }, minWidth: 0, maxWidth: { sm: 320 } }}>
           <RotuloCampo id="notas-materia-label" htmlFor="notas-materia">Matéria</RotuloCampo>
           <TextField id="notas-materia" select size="small" fullWidth value={docSel?.id ?? ''} onChange={(e) => escolherMateria(e.target.value)}
-            SelectProps={{ SelectDisplayProps: { 'aria-labelledby': 'notas-materia-label' } }}
-            disabled={!codTur} sx={{ '& .MuiOutlinedInput-root': { height: 48 } }} displayEmpty>
+            SelectProps={{
+              SelectDisplayProps: { 'aria-labelledby': 'notas-materia-label' },
+              // O item de menu abre em duas linhas; o campo fechado continua
+              // numa só, senão o select cresce e sai da altura do sistema.
+              renderValue: (valor) => {
+                if (!valor) return <em>{codTur ? (materiasTurma.length ? 'Selecione a matéria' : 'Sem matérias vinculadas') : 'Escolha a turma antes'}</em>
+                const m = materiasTurma.find((item) => item.id === valor)
+                return m ? resumoMateria(m) : ''
+              },
+            }}
+            disabled={!codTur} displayEmpty>
             <MenuItem value=""><em>{codTur ? (materiasTurma.length ? 'Selecione a matéria' : 'Sem matérias vinculadas') : 'Escolha a turma antes'}</em></MenuItem>
             {materiasTurma.map((m) => (
-              <MenuItem key={m.id} value={m.id}>
-                {[m.materia_nome?.trim(), m.professor_nome, m.Ano && m.semestre ? `${m.Ano}/${m.semestre}` : null].filter(Boolean).join(' · ')}
+              <MenuItem key={m.id} value={m.id} sx={{ display: 'block', py: 1 }}>
+                <Box sx={{ fontWeight: 600 }}>{m.materia_nome?.trim() || 'Sem nome'}</Box>
+                {contextoMateria(m) && (
+                  <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{contextoMateria(m)}</Box>
+                )}
               </MenuItem>
             ))}
           </TextField>
         </Box>
-        <Box sx={{ flex: { xs: '1 1 40%', sm: '0 0 110px' } }}>
-          <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>Ano</Box>
-          <Box sx={{ height: 48, px: 2, display: 'flex', alignItems: 'center', border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.surface, fontWeight: 600 }}>
-            {ano || '—'}
-          </Box>
-        </Box>
-        <Box sx={{ flex: { xs: '1 1 40%', sm: '0 0 110px' } }}>
-          <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', mb: 1 }}>Semestre</Box>
-          <Box sx={{ height: 48, px: 2, display: 'flex', alignItems: 'center', border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.surface, fontWeight: 600 }}>
-            {semestre ? `${semestre}º` : '—'}
-          </Box>
-        </Box>
+        <Metadado rotulo="Período" valor={ano || semestre ? `${ano || '—'}${semestre ? ` · ${semestre}º sem.` : ''}` : '—'} sx={{ flex: { xs: '1 1 40%', sm: '0 0 auto' }, pb: 1.5 }} />
         <Box sx={{ ml: { md: 'auto' }, display: 'flex', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, '& > *': { flexGrow: { xs: 1, md: 0 } } }}>
-          {getPerfil() !== 'PROFESSOR' && <Button variant="outlined" startIcon={<PictureAsPdfIcon />} disabled={!docSel} sx={{ height: 48 }}
+          {getPerfil() !== 'PROFESSOR' && <Button variant="outlined" startIcon={<PictureAsPdfIcon />} disabled={!docSel}
             onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?docturma_id=${docSel.id}`).catch((e) => avisar(e.message))}>
             Diário (PDF)
           </Button>}
@@ -438,7 +445,7 @@ export default function Notas() {
           {atividades.length > 0 && (
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}>
               {atividades.map((atividade) => (
-                <Box key={atividade.id} sx={{ px: 1.5, py: 1, border: `1px solid ${TOV.border}`, borderRadius: `${TOV.radiusSm}px`, bgcolor: TOV.offwhite }}>
+                <Box key={atividade.id} sx={{ px: 1.5, py: 1, border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusSm, bgcolor: TOV.canvas }}>
                   <Typography sx={{ fontSize: TOV.type.overline, color: TOV.caption, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>{rotuloTipo(atividade.tipo)}</Typography>
                   <Typography sx={{ fontSize: TOV.type.body, fontWeight: 700 }}>{atividade.nome} · {formatarPontos(atividade.valor_maximo)} pts</Typography>
                 </Box>
@@ -468,13 +475,13 @@ export default function Notas() {
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {carregandoGrade && (
-                <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando grade…</CartaoLista>
+                <SkeletonCards quantidade={4} altura={132} colunas="1fr" />
               )}
               {!carregandoGrade && linhas.length === 0 && (
                 <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhum aluno matriculado nesta turma.</CartaoLista>
               )}
               {!carregandoGrade && linhas.map((l, i) => (
-                <CartaoLista key={l.cod_alu} sx={{ borderLeft: `4px solid ${l._dirty ? TOV.warning : 'transparent'}`, bgcolor: l._dirty ? TOV.warningTintSoft : TOV.surface }}>
+                <CartaoLista key={l.cod_alu} sx={{ borderLeft: `4px solid ${l._dirty ? TOV.warning : 'transparent'}` }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                     <Box component="span" sx={{ color: TOV.caption, fontWeight: 600, fontSize: TOV.type.bodySm, flexShrink: 0 }}>{String(i + 1).padStart(2, '0')}</Box>
                     <Box sx={{ fontWeight: 700, fontSize: TOV.type.body, lineHeight: 1.3, minWidth: 0, flexGrow: 1 }}>
@@ -492,9 +499,8 @@ export default function Notas() {
                         error={notaInvalida(l)}
                         onChange={(e) => editarLinha(l.cod_alu, 'nota', e.target.value)}
                         inputProps={{ min: 0, max: 10, step: 0.1, inputMode: 'decimal', style: { fontWeight: 700 } }}
-                        sx={notaInvalida(l) ? {} : { '& fieldset': { borderColor: l._dirty ? TOV.warning : TOV.border } }}
                       />
-                      <TextField size="small" fullWidth label="Faltas da chamada" value={l.falta} InputProps={{ readOnly: true }} />
+                      <Metadado rotulo="Faltas" valor={l.falta} nota="das chamadas encerradas" sx={{ flex: 1, alignSelf: 'center' }} />
                     </Box>
                   ) : (
                     <>
@@ -515,8 +521,8 @@ export default function Notas() {
           </Box>}
 
           {/* Grade em tabela — desktop */}
-          {telaDesktop && <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', p: '20px 28px', borderBottom: `2px solid ${TOV.offwhite}` }}>
+          {telaDesktop && <TableContainer component={Box} sx={{ overflowX: 'auto' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', p: '20px 28px', borderBottom: `1px solid ${TOV.divider}` }}>
               <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>{linhas.length} {linhas.length === 1 ? 'aluno' : 'alunos'}</Typography>
               <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>
                 {profResponsavel ? `Prof. responsável: ${profResponsavel} · ` : ''}edite direto na grade e salve tudo de uma vez
@@ -546,13 +552,13 @@ export default function Notas() {
               </TableHead>
               <TableBody>
                 {carregandoGrade && (
-                  <TableRow><TableCell colSpan={atividades.length > 0 ? atividades.length + 5 : 5} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Carregando grade…</TableCell></TableRow>
+                  <LinhasSkeleton colunas={atividades.length > 0 ? atividades.length + 5 : 5} />
                 )}
                 {!carregandoGrade && linhas.length === 0 && (
                   <TableRow><TableCell colSpan={atividades.length > 0 ? atividades.length + 5 : 5} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhum aluno matriculado nesta turma.</TableCell></TableRow>
                 )}
                 {!carregandoGrade && linhas.map((l, i) => (
-                  <TableRow key={l.cod_alu} sx={{ bgcolor: l._dirty ? TOV.warningTintSoft : 'transparent', '& td': { borderLeft: l._dirty ? `4px solid ${TOV.warning}` : '4px solid transparent' }, '& td:not(:first-of-type)': { borderLeft: 'none' } }}>
+                  <TableRow key={l.cod_alu} sx={{ '& td': { borderLeft: l._dirty ? `4px solid ${TOV.warning}` : '4px solid transparent' }, '& td:not(:first-of-type)': { borderLeft: 'none' } }}>
                     <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{String(i + 1).padStart(2, '0')}</TableCell>
                     <TableCell sx={{ fontWeight: 600 }}>{l.nome}</TableCell>
                     {atividades.length === 0 ? (
@@ -565,7 +571,7 @@ export default function Notas() {
                         <TableCell sx={{ fontWeight: 700, color: TOV.ink }}>{totalLinha(l) == null ? '—' : formatarPontos(totalLinha(l))}</TableCell>
                       </>
                     )}
-                    <TableCell sx={{ fontWeight: 700, color: TOV.slate }}>{l.falta}</TableCell>
+                    <TableCell sx={{ fontWeight: 700, color: TOV.graphite }}>{l.falta}</TableCell>
                     <TableCell>
                       <Switch checked={l.cursou} inputProps={{ 'aria-label': `Marcar se ${l.nome} cursou a matéria` }} onChange={(e) => editarLinha(l.cod_alu, 'cursou', e.target.checked)} />
                     </TableCell>
@@ -624,7 +630,7 @@ export default function Notas() {
                 alignItems: 'start',
                 p: 1.5,
                 border: `1px solid ${TOV.border}`,
-                borderRadius: `${TOV.radiusSm}px`,
+                borderRadius: TOV.radiusSm,
               }}
             >
               <TextField

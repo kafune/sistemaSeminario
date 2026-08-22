@@ -14,7 +14,8 @@ import { emailValido, formatarCepInput, formatarCpfInput, formatarTelefoneInput 
 import { useDirtyForm } from '../UnsavedChanges'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, LinhaCartao,
-  PilulaStatus, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  LinhasSkeleton, PilulaStatus, SkeletonCards, resetBotao,
+  useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 
 const VAZIO = {
@@ -149,7 +150,7 @@ export default function Professores() {
         <TextField
           size="small" placeholder="Buscar professor" value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          sx={{ minWidth: { xs: '100%', sm: 240 }, '& .MuiOutlinedInput-root': { height: 46 } }}
+          sx={{ minWidth: { xs: '100%', sm: 240 } }}
           inputProps={{ enterKeyHint: 'search', 'aria-label': 'Buscar professor' }}
           InputProps={{
             startAdornment: (
@@ -172,15 +173,16 @@ export default function Professores() {
   return (
     <Box>
       <CabecalhoPagina
+        variante="operacional"
         titulo="Professores"
-        subtitulo={carregando ? ' ' : `${professores.length} ${professores.length === 1 ? 'professor' : 'professores'} · ${ativos} ativos`}
+        metadados={carregando ? ' ' : `${professores.length} ${professores.length === 1 ? 'professor' : 'professores'} · ${ativos} ativos`}
         acoes={acoes}
       />
 
       {/* Lista em cards — celular/tablet */}
       {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         {carregando && professores.length === 0 && (
-          <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Carregando…</CartaoLista>
+          <SkeletonCards quantidade={4} altura={112} colunas="1fr" />
         )}
         {!carregando && professores.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></CartaoLista>
@@ -200,7 +202,7 @@ export default function Professores() {
             <LinhaCartao rotulo="E-mail" valor={p.e_mail} />
             <LinhaCartao rotulo="Acesso" valor={p.usuario_acesso || 'Ainda não criado'} />
             <LinhaCartao rotulo="Áreas indicadas" valor={p.materias_atuacao} />
-            <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.offwhite}` }}>
+            <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.divider}` }}>
               <Button size="small" variant="outlined" fullWidth disabled={!!p.usuario_acesso || criandoConvite} onClick={() => criarConviteAcesso(p)}>{p.usuario_acesso ? 'Acesso criado' : 'Criar acesso'}</Button>
               <Button size="small" variant="outlined" fullWidth onClick={() => abrirForm(p)}>Editar</Button>
               <Button size="small" variant="outlined" color="error" fullWidth onClick={() => setParaExcluir(p)}>Excluir</Button>
@@ -210,7 +212,7 @@ export default function Professores() {
       </Box>}
 
       {/* Tabela — desktop */}
-      {telaDesktop && <TableContainer component={Paper} elevation={0} sx={{ boxShadow: TOV.shadowCard }}>
+      {telaDesktop && <TableContainer component={Box} sx={{ overflowX: 'auto' }}>
         <Table sx={{ minWidth: 920 }}>
           <TableHead>
             <TableRow>
@@ -227,7 +229,7 @@ export default function Professores() {
           </TableHead>
           <TableBody>
             {carregando && professores.length === 0 && (
-              <TableRow><TableCell colSpan={9} sx={{ py: 5, textAlign: 'center', color: TOV.caption }}>Carregando…</TableCell></TableRow>
+              <LinhasSkeleton colunas={9} />
             )}
             {!carregando && professores.length === 0 && (
               <TableRow><TableCell colSpan={9} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></TableCell></TableRow>
@@ -236,11 +238,11 @@ export default function Professores() {
               <TableRow key={p.cod_pro} hover>
                 <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{String(p.cod_pro).padStart(2, '0')}</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>{p.nome}</TableCell>
-                <TableCell sx={{ color: TOV.slate }}>{p.sigla || '—'}</TableCell>
-                <TableCell sx={{ color: TOV.slate }}>{p.fone1 || p.celular || '—'}</TableCell>
-                <TableCell sx={{ color: TOV.slate }}>{p.e_mail || '—'}</TableCell>
-                <TableCell sx={{ color: TOV.slate }}>{p.usuario_acesso || '—'}</TableCell>
-                <TableCell sx={{ color: TOV.slate, maxWidth: 260 }}>
+                <TableCell sx={{ color: TOV.graphite }}>{p.sigla || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite }}>{p.fone1 || p.celular || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite }}>{p.e_mail || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite }}>{p.usuario_acesso || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite, maxWidth: 260 }}>
                   <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.materias_atuacao || ''}>
                     {p.materias_atuacao || '—'}
                   </Box>
@@ -390,7 +392,7 @@ export default function Professores() {
       <Dialog open={!!convite} onClose={() => setConvite(null)} maxWidth="sm" fullWidth>
         <DialogTitle>{convite?.tipo === 'acesso' ? 'Link de acesso às notas' : 'Link de autocadastro'}</DialogTitle>
         <DialogContent>
-          <Box sx={{ color: TOV.slate, fontSize: TOV.type.body, mb: 2 }}>
+          <Box sx={{ color: TOV.graphite, fontSize: TOV.type.body, mb: 2 }}>
             {convite?.tipo === 'acesso'
               ? `Envie este link a ${convite.professor_nome}. Ele poderá criar a senha e acessar somente as próprias turmas. O link expira em 7 dias.`
               : 'Envie este link a um professor. Ele é individual, expira em 30 dias e deixa de funcionar após o primeiro cadastro.'}

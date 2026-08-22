@@ -58,7 +58,7 @@ export default function AutocadastroProfessor() {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: TOV.offwhite }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: TOV.canvas }}>
       <Box component="header" sx={{ bgcolor: TOV.graphite, color: TOV.onDark, px: 2, py: 2.5, borderTop: `4px solid ${TOV.ink}` }}>
         <Box sx={{ maxWidth: 900, mx: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <SchoolIcon />

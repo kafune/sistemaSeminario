@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Alert, Box, Button, Menu, MenuItem, Snackbar, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Typography,
+  Alert, Box, Button, Menu, MenuItem, Snackbar, Tab, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, Tabs, Typography,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DescriptionIcon from '@mui/icons-material/Description'
 import EditIcon from '@mui/icons-material/Edit'
-import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
@@ -16,6 +15,7 @@ import {
   EstadoErro, Regua, SkeletonCards, Superficie, cardSx, resetBotao, useTelaDesktop,
 } from '../ui'
 import AlunoForm from './AlunoForm'
+import FinanceiroAlunoPainel from './FinanceiroAlunoPainel'
 
 function Campo({ rotulo, valor }) {
   return (
@@ -52,6 +52,7 @@ export default function AlunoDetalhe() {
   const { codAlu } = useParams()
   const [aluno, setAluno] = useState(null)
   const [notas, setNotas] = useState([])
+  const [aba, setAba] = useState(0)
   const [editando, setEditando] = useState(false)
   const [confirmarExclusao, setConfirmarExclusao] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
@@ -162,13 +163,6 @@ export default function AlunoDetalhe() {
           >
             WhatsApp
           </Button>
-          <Button
-            variant="outlined"
-            startIcon={<PaidOutlinedIcon />}
-            onClick={() => navigate(`/financeiro/alunos/${aluno.cod_alu}`)}
-          >
-            Financeiro
-          </Button>
           <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setEditando(true)}>Editar</Button>
           <Button
             variant="outlined"
@@ -187,6 +181,19 @@ export default function AlunoDetalhe() {
         </Box>
       </Box>
 
+      <Tabs
+        value={aba} onChange={(_, valor) => setAba(valor)}
+        textColor="primary" indicatorColor="primary"
+        variant="scrollable" allowScrollButtonsMobile
+        sx={{ mb: 3, '& .MuiTab-root': { px: { xs: 1.5, sm: 2.5 } } }}
+      >
+        <Tab label="Cadastro e notas" />
+        <Tab label="Financeiro" />
+      </Tabs>
+
+      {aba === 1 && <FinanceiroAlunoPainel codAlu={codAlu} />}
+
+      {aba === 0 && (<>
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 300px' }, gap: 2.5, mb: 2.5 }}>
       <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 32px' } }}>
           <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 3 }}>Dados cadastrais</Typography>
@@ -291,6 +298,7 @@ export default function AlunoDetalhe() {
           Excluir aluno
         </Button>
       </Box>
+      </>)}
 
       <DialogoConfirmacao
         aberto={confirmarExclusao}

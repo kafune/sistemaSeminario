@@ -22,6 +22,7 @@ from app.routers.financeiro import (
     CobrancaInput,
     CondicaoInput,
     ConfiguracaoInput,
+    DescontoInput,
     PagamentoInput,
     PagamentoLoteInput,
     PlanoInput,
@@ -48,6 +49,7 @@ from app.routers.financeiro import (
     resumo,
     salvar_condicao,
     salvar_configuracao,
+    salvar_desconto,
     salvar_plano,
     situacao_da_turma,
     vincular_recebimento,
@@ -710,6 +712,156 @@ class FiltrosDaListaTest(BaseFinanceiroTest):
             {aluno["nome"] for aluno in opcoes_alunos(cod_tur=self.noite.cod_tur, db=self.db)},
             {"Carla Dias"},
         )
+
+
+
+class DescontoDoAlunoTest(BaseFinanceiroTest):
+    def setUp(self):
+        super().setUp()
+        self.plano_padrao(self.manha, parcelas=4)
+
+    def desconto(self, aluno, percentual, motivo="Desconto de casal", aplicar=True):
+        return salvar_desconto(
+            aluno.cod_alu,
+            DescontoInput(percentual=Decimal(str(percentual)), motivo=motivo, aplicar=aplicar),
+            "SECRETARIA",
+            self.db,
+        )
+
+    def test_desconto_abate_a_mensalidade_e_preserva_a_matricula(self):
+        self.desconto(self.ana, 10)
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+
+        cobrancas = self.cobrancas_de(self.ana)
+        matricula = [c for c in cobrancas if c.tipo == "MATRICULA"][0]
+        mensalidades = [c for c in cobrancas if c.tipo == "MENSALIDADE"]
+        self.assertEqual(matricula.valor, Decimal("150.00"))
+        self.assertEqual({c.valor for c in mensalidades}, {Decimal("180.00")})
+        self.assertIn("desconto 10%", mensalidades[0].descricao)
+        # O colega sem desconto continua na mensalidade cheia.
+        self.assertEqual(
+            {c.valor for c in self.cobrancas_de(self.bruno) if c.tipo == "MENSALIDADE"},
+            {Decimal("200.00")},
+        )
+
+    def test_desconto_ajusta_mensalidade_ja_gerada(self):
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        resposta = self.desconto(self.ana, 50)
+
+        self.assertEqual(resposta["ajuste"]["atualizadas"], 4)
+        self.assertEqual(
+            {c.valor for c in self.cobrancas_de(self.ana) if c.tipo == "MENSALIDADE"},
+            {Decimal("100.00")},
+        )
+
+    def test_mensalidade_paga_nao_muda_de_valor(self):
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        primeira = [c for c in self.cobrancas_de(self.ana) if c.parcela == 1 and c.tipo == "MENSALIDADE"][0]
+        lancar_pagamento(primeira.id, PagamentoInput(), "FINANCEIRO", self.db)
+
+        resposta = self.desconto(self.ana, 25)
+        # A matrícula não entra: ela não tem desconto e continua igual.
+        self.assertEqual(resposta["ajuste"]["preservadas"], 1)
+        self.db.refresh(primeira)
+        self.assertEqual(primeira.valor, Decimal("200.00"))
+        self.assertEqual(
+            {c.valor for c in self.cobrancas_de(self.ana) if c.tipo == "MENSALIDADE" and c.parcela > 1},
+            {Decimal("150.00")},
+        )
+
+    def test_percentual_quebrado_arredonda_ao_centavo(self):
+        self.desconto(self.ana, Decimal("12.5"))
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        mensalidades = [c for c in self.cobrancas_de(self.ana) if c.tipo == "MENSALIDADE"]
+        self.assertEqual({c.valor for c in mensalidades}, {Decimal("175.00")})
+        self.assertIn("desconto 12,5%", mensalidades[0].descricao)
+
+    def test_desconto_exige_motivo(self):
+        with self.assertRaises(HTTPException) as erro:
+            salvar_desconto(
+                self.ana.cod_alu,
+                DescontoInput(percentual=Decimal("10"), motivo="  "),
+                "SECRETARIA",
+                self.db,
+            )
+        self.assertEqual(erro.exception.status_code, 400)
+
+    def test_zerar_o_desconto_devolve_a_mensalidade_cheia(self):
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        self.desconto(self.ana, 30)
+        self.desconto(self.ana, 0, motivo=None)
+        self.assertEqual(
+            {c.valor for c in self.cobrancas_de(self.ana) if c.tipo == "MENSALIDADE"},
+            {Decimal("200.00")},
+        )
+
+    def test_desconto_convive_com_transferencia(self):
+        salvar_condicao(
+            self.manha.cod_tur,
+            self.ana.cod_alu,
+            CondicaoInput(tipo="TRANSFERENCIA", parcelas=2, cobra_matricula=False),
+            "SECRETARIA",
+            self.db,
+        )
+        self.desconto(self.ana, 20)
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+
+        cobrancas = self.cobrancas_de(self.ana)
+        self.assertEqual([c.tipo for c in cobrancas], ["MENSALIDADE"] * 2)
+        self.assertEqual({c.valor for c in cobrancas}, {Decimal("160.00")})
+        self.assertIn("transferência", cobrancas[0].descricao)
+        self.assertIn("desconto 20%", cobrancas[0].descricao)
+
+    def test_voltar_ao_plano_da_turma_nao_apaga_o_desconto(self):
+        salvar_condicao(
+            self.manha.cod_tur,
+            self.ana.cod_alu,
+            CondicaoInput(tipo="TRANSFERENCIA", parcelas=2),
+            "SECRETARIA",
+            self.db,
+        )
+        self.desconto(self.ana, 10)
+        remover_condicao(self.manha.cod_tur, self.ana.cod_alu, True, "SECRETARIA", self.db)
+
+        mensalidades = [c for c in self.cobrancas_de(self.ana) if c.tipo == "MENSALIDADE"]
+        self.assertEqual(len(mensalidades), 4)  # voltou ao plano cheio da turma
+        self.assertEqual({c.valor for c in mensalidades}, {Decimal("180.00")})  # com o desconto
+
+    def test_extrato_mostra_o_desconto_vigente(self):
+        self.desconto(self.ana, 10, motivo="Casal — cônjuge paga integral")
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        extrato = extrato_do_aluno(self.ana.cod_alu, self.db)
+
+        self.assertEqual(extrato["condicao"]["desconto_percentual"], 10.0)
+        self.assertEqual(extrato["condicao"]["desconto_motivo"], "Casal — cônjuge paga integral")
+        self.assertEqual(extrato["condicao"]["mensalidade_cheia"], 200.0)
+        self.assertEqual(extrato["condicao"]["mensalidade_com_desconto"], 180.0)
+        self.assertEqual(extrato["condicao"]["mensalidades_previstas"], 4)
+
+    def test_aluno_sem_turma_nao_recebe_desconto(self):
+        solto = Aluno(nome="Sem Turma", status="A")
+        self.db.add(solto)
+        self.db.commit()
+        with self.assertRaises(HTTPException) as erro:
+            self.desconto(solto, 10)
+        self.assertEqual(erro.exception.status_code, 400)
+
+    def test_turma_mostra_quem_tem_desconto(self):
+        self.desconto(self.ana, 10)
+        visao = situacao_da_turma(self.manha.cod_tur, self.db)
+        por_nome = {aluno["nome"]: aluno for aluno in visao["alunos"]}
+        self.assertEqual(por_nome["Ana Souza"]["condicao"]["desconto_percentual"], 10.0)
+        self.assertIsNone(por_nome["Bruno Lima"]["condicao"])
+
+
+class ArredondamentoDoDescontoTest(unittest.TestCase):
+    def test_desconto_e_percentual_formatado(self):
+        self.assertEqual(servico.aplicar_desconto(Decimal("200.00"), Decimal("10")), Decimal("180.00"))
+        self.assertEqual(servico.aplicar_desconto(Decimal("333.33"), Decimal("33")), Decimal("223.33"))
+        self.assertEqual(servico.aplicar_desconto(Decimal("200.00"), Decimal("0")), Decimal("200.00"))
+        self.assertEqual(servico.aplicar_desconto(Decimal("200.00"), Decimal("100")), Decimal("0.00"))
+        self.assertEqual(servico.formatar_percentual(Decimal("10.00")), "10%")
+        self.assertEqual(servico.formatar_percentual(Decimal("12.50")), "12,5%")
 
 
 

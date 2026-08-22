@@ -13,7 +13,7 @@ qual cobrança pertence.**
 | Tabela | Papel |
 | --- | --- |
 | `planos_financeiros` | Regra da turma: matrícula, mensalidade, nº de parcelas, dia de vencimento |
-| `condicoes_financeiras_aluno` | Exceção ao plano para um aluno (transferência) |
+| `condicoes_financeiras_aluno` | Exceção ao plano para um aluno: transferência e desconto |
 | `cobrancas` | Título de um aluno (`MATRICULA`, `MENSALIDADE` ou `AVULSA`) |
 | `pagamentos` | Baixa total ou parcial de uma cobrança |
 | `transacoes_bancarias` | Aviso de crédito PIX/boleto, antes de virar baixa |
@@ -63,6 +63,8 @@ Em **Financeiro › turma › lista de alunos › Condição**:
 | Mensalidade própria | segue o valor da turma |
 | Cobrar matrícula inicial | ligado por padrão; desligue para quem já pagou na escola de origem |
 
+O desconto percentual é editado à parte, na ficha do aluno — veja abaixo.
+
 Ao salvar, as cobranças já geradas são **ajustadas na hora**, não só as
 próximas: as parcelas que sobraram do novo plano são removidas, as demais
 ganham valor e vencimento certos, e a numeração vira `1/3`, `2/3`… O retorno da
@@ -76,6 +78,30 @@ Voltar o aluno para *Plano da turma* recria as parcelas que tinham sido
 cortadas. A geração da turma inteira respeita a condição de cada um: rodar
 "Gerar cobranças" não devolve ao aluno de transferência os meses que ele não vai
 cursar.
+
+## Desconto
+
+Percentual abatido da mensalidade de um aluno, sempre com o **motivo** junto —
+é o desconto de casal (um dos dois paga menos), de irmãos ou de obreiro. Fica na
+**aba Financeiro da ficha do aluno**, ao lado da situação dele.
+
+* Incide **só sobre a mensalidade**. A matrícula tem valor próprio na condição
+  da turma, e misturar as duas coisas num percentual único esconderia a
+  diferença.
+* O motivo é **obrigatório** quando há desconto. Quem confere a carteira seis
+  meses depois precisa saber por que aquele aluno paga menos, e "porque sim" não
+  sobrevive a uma auditoria nem a uma troca de secretária.
+* Salvar **recalcula as mensalidades em aberto** na hora. Mensalidade com
+  pagamento lançado não muda de valor — aparece como preservada.
+* O percentual entra na descrição da cobrança (`Mensalidade 3/12 · Turma da
+  manhã · desconto 10%`), então o aluno vê o abatimento no próprio extrato sem
+  precisar perguntar.
+* Desconto e transferência convivem: o percentual incide sobre a mensalidade já
+  resolvida pela condição. Voltar o aluno para "plano da turma" **não** apaga o
+  desconto — são duas perguntas diferentes (quantos meses × quanto por mês).
+
+Na régua da turma cada aluno com desconto ganha um selo verde, e o motivo
+aparece ao passar o mouse.
 
 ## O aluno
 
@@ -201,7 +227,9 @@ visto no extrato pela mesma porta e com a mesma identificação automática.
 `backend/tests/test_financeiro.py` cobre geração idempotente, vencimentos em
 mês curto, pagamento parcial e em lote, estorno, extrato, link do aluno, a
 condição de transferência (encolher, preservar parcela paga, voltar ao plano
-cheio), os filtros da lista (mês, busca, paginação, saldo do recorte) e os
+cheio), o desconto percentual (abatimento, arredondamento, motivo obrigatório,
+convivência com transferência), os filtros da lista (mês, busca, paginação,
+saldo do recorte) e os
 caminhos da conciliação (código, CPF, nome, ambiguidade, reenvio e baixa
 automática desligada).
 

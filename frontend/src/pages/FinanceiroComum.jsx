@@ -56,6 +56,12 @@ export function numeroDoCampo(texto) {
   return Number.isFinite(numero) ? numero : null
 }
 
+/** 10 vira "10"; 12.5 vira "12,5" — o "%" fica com quem exibe. */
+export function textoPercentual(valor) {
+  if (!valor) return ''
+  return String(valor).replace('.', ',').replace(/,0+$/, '')
+}
+
 export function textoDoValor(numero) {
   if (numero == null || numero === '') return ''
   return Number(numero).toFixed(2).replace('.', ',')

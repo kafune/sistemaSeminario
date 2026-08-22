@@ -56,6 +56,15 @@ class PlanoInput(BaseModel):
     observacao: str | None = Field(default=None, max_length=2000)
 
 
+class DescontoInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    percentual: Decimal = Field(default=Decimal("0"), ge=0, le=100)
+    motivo: str | None = Field(default=None, max_length=120)
+    # Ajusta as mensalidades já geradas, e não só as próximas.
+    aplicar: bool = True
+
+
 class CondicaoInput(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
@@ -852,6 +861,8 @@ def gerar_cobrancas(
 
 # ---- condição do aluno na turma -------------------------------------------
 
+_AJUSTE_VAZIO = {"criadas": 0, "atualizadas": 0, "removidas": 0, "preservadas": 0}
+
 def _condicao_dict(condicao: CondicaoFinanceiraAluno | None) -> dict | None:
     if condicao is None:
         return None
@@ -868,6 +879,10 @@ def _condicao_dict(condicao: CondicaoFinanceiraAluno | None) -> dict | None:
         "valor_matricula": float(servico.dinheiro(condicao.valor_matricula))
         if condicao.valor_matricula is not None
         else None,
+        "desconto_percentual": float(servico.dinheiro(condicao.desconto_percentual))
+        if condicao.desconto_percentual
+        else 0.0,
+        "desconto_motivo": condicao.desconto_motivo,
         "observacao": condicao.observacao,
         "atualizado_em": condicao.atualizado_em.isoformat()
         if condicao.atualizado_em
@@ -886,7 +901,7 @@ def _reaplicar_plano(
     """Refaz as cobranças do aluno a partir do plano dele, já com a condição."""
     plano = db.scalar(select(PlanoFinanceiro).where(PlanoFinanceiro.cod_tur == cod_tur))
     if plano is None:
-        return {"criadas": 0, "atualizadas": 0, "removidas": 0, "preservadas": 0}
+        return _AJUSTE_VAZIO.copy()
     turma = db.get(Turma, cod_tur)
     condicao = db.scalar(
         select(CondicaoFinanceiraAluno).where(
@@ -972,7 +987,7 @@ def salvar_condicao(
     ajuste = (
         _reaplicar_plano(db, cod_tur, cod_alu, usuario=usuario)
         if dados.aplicar
-        else {"criadas": 0, "atualizadas": 0, "removidas": 0, "preservadas": 0}
+        else _AJUSTE_VAZIO.copy()
     )
     db.commit()
     return {"condicao": _condicao_dict(condicao), "ajuste": ajuste}
@@ -995,15 +1010,104 @@ def remover_condicao(
     )
     if condicao is None:
         raise HTTPException(404, "Este aluno não possui condição própria")
-    db.delete(condicao)
+    if condicao.desconto_percentual:
+        # Voltar ao plano da turma é sobre quantos meses ele cursa; o desconto
+        # de casal é outra conversa e não pode sumir junto.
+        condicao.tipo = "REGULAR"
+        condicao.parcelas = None
+        condicao.primeira_mensalidade = None
+        condicao.valor_mensalidade = None
+        condicao.valor_matricula = None
+        condicao.cobra_matricula = "S"
+        condicao.atualizado_em = datetime.now()
+        condicao.atualizado_por = usuario
+    else:
+        db.delete(condicao)
     db.flush()
     ajuste = (
         _reaplicar_plano(db, cod_tur, cod_alu, usuario=usuario)
         if aplicar
-        else {"criadas": 0, "atualizadas": 0, "removidas": 0, "preservadas": 0}
+        else _AJUSTE_VAZIO.copy()
     )
     db.commit()
     return {"ok": True, "ajuste": ajuste}
+
+
+def _turma_do_aluno(db: Session, cod_alu: int) -> int | None:
+    """Turma atual do aluno, pelo campo resumido ou pelo vínculo."""
+    aluno = db.get(Aluno, cod_alu)
+    if aluno is None:
+        raise HTTPException(404, "Aluno não encontrado")
+    if aluno.cod_tur is not None:
+        return aluno.cod_tur
+    return db.scalar(select(AluTurma.cod_tur).where(AluTurma.cod_alu == cod_alu))
+
+
+@router.put("/alunos/{cod_alu}/desconto")
+def salvar_desconto(
+    cod_alu: int,
+    dados: DescontoInput,
+    usuario: str = Depends(usuario_atual),
+    db: Session = Depends(get_db),
+):
+    """Desconto percentual na mensalidade deste aluno, com o motivo.
+
+    É o desconto de casal, de irmãos, de obreiro: um dos dois paga menos e a
+    escola precisa saber por quê seis meses depois. Incide sobre a mensalidade;
+    a matrícula tem valor próprio na condição da turma.
+    """
+    cod_tur = _turma_do_aluno(db, cod_alu)
+    if cod_tur is None:
+        raise HTTPException(
+            400,
+            "Matricule o aluno em uma turma antes de definir o desconto.",
+        )
+    percentual = servico.dinheiro(dados.percentual)
+    motivo = (dados.motivo or "").strip() or None
+    if percentual > servico.ZERO and not motivo:
+        raise HTTPException(400, "Informe o motivo do desconto.")
+
+    condicao = db.scalar(
+        select(CondicaoFinanceiraAluno).where(
+            CondicaoFinanceiraAluno.cod_tur == cod_tur,
+            CondicaoFinanceiraAluno.cod_alu == cod_alu,
+        )
+    )
+    if condicao is None:
+        if percentual <= servico.ZERO:
+            return {"desconto": None, "ajuste": _AJUSTE_VAZIO.copy()}
+        condicao = CondicaoFinanceiraAluno(
+            cod_alu=cod_alu,
+            cod_tur=cod_tur,
+            tipo="REGULAR",
+            criado_em=datetime.now(),
+        )
+        db.add(condicao)
+    condicao.desconto_percentual = percentual if percentual > servico.ZERO else None
+    condicao.desconto_motivo = motivo if percentual > servico.ZERO else None
+    condicao.atualizado_em = datetime.now()
+    condicao.atualizado_por = usuario
+    db.flush()
+
+    # Sem desconto e sem transferência a linha não guarda mais nada.
+    if percentual <= servico.ZERO and condicao.tipo == "REGULAR":
+        db.delete(condicao)
+        db.flush()
+
+    ajuste = (
+        _reaplicar_plano(db, cod_tur, cod_alu, usuario=usuario)
+        if dados.aplicar
+        else _AJUSTE_VAZIO.copy()
+    )
+    db.commit()
+    return {
+        "desconto": {
+            "percentual": float(percentual),
+            "motivo": motivo,
+        } if percentual > servico.ZERO else None,
+        "ajuste": ajuste,
+    }
+
 
 
 # ---- aluno -----------------------------------------------------------------

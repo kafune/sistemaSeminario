@@ -19,7 +19,7 @@ import {
   Superficie, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import { formatarDataBr, formatarMoeda } from '../formatters'
-import { SeloSituacao, numeroDoCampo, textoDoValor } from './FinanceiroComum'
+import { SeloSituacao, numeroDoCampo, textoDoValor, textoPercentual } from './FinanceiroComum'
 
 const PLANO_VAZIO = {
   valor_matricula: '',
@@ -345,11 +345,18 @@ export default function FinanceiroTurma() {
                   >
                     {aluno.nome}
                   </Box>
-                  {aluno.transferencia && (
-                    <StatusBadge tom="info" sx={{ mt: 0.5 }}>
-                      Transferência · {aluno.mensalidades_previstas} mês(es)
-                    </StatusBadge>
-                  )}
+                  <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 0.5 }}>
+                    {aluno.transferencia && (
+                      <StatusBadge tom="info">
+                        Transferência · {aluno.mensalidades_previstas} mês(es)
+                      </StatusBadge>
+                    )}
+                    {aluno.condicao?.desconto_percentual > 0 && (
+                      <StatusBadge tom="success">
+                        {textoPercentual(aluno.condicao.desconto_percentual)}% de desconto
+                      </StatusBadge>
+                    )}
+                  </Box>
                 </Box>
                 <SeloSituacao situacao={aluno.situacao} sx={{ flexShrink: 0 }} />
               </Box>
@@ -410,13 +417,20 @@ export default function FinanceiroTurma() {
                     <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{aluno.cobrancas} cobrança(s)</Box>
                   </TableCell>
                   <TableCell>
-                    {aluno.transferencia ? (
-                      <StatusBadge tom="info">Transferência · {aluno.mensalidades_previstas} mês(es)</StatusBadge>
-                    ) : (
-                      <Box component="span" sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>
-                        Plano da turma{aluno.mensalidades_previstas ? ` · ${aluno.mensalidades_previstas} mês(es)` : ''}
-                      </Box>
-                    )}
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {aluno.transferencia ? (
+                        <StatusBadge tom="info">Transferência · {aluno.mensalidades_previstas} mês(es)</StatusBadge>
+                      ) : (
+                        <Box component="span" sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>
+                          Plano da turma{aluno.mensalidades_previstas ? ` · ${aluno.mensalidades_previstas} mês(es)` : ''}
+                        </Box>
+                      )}
+                      {aluno.condicao?.desconto_percentual > 0 && (
+                        <StatusBadge tom="success" title={aluno.condicao.desconto_motivo || undefined}>
+                          {textoPercentual(aluno.condicao.desconto_percentual)}% de desconto
+                        </StatusBadge>
+                      )}
+                    </Box>
                   </TableCell>
                   <TableCell align="center">
                     {aluno.matricula_paga == null ? (
@@ -516,6 +530,13 @@ export default function FinanceiroTurma() {
             </>
           )}
 
+          {alunoCondicao?.condicao?.desconto_percentual > 0 && (
+            <Alert severity="success" icon={false}>
+              Este aluno tem {textoPercentual(alunoCondicao.condicao.desconto_percentual)}% de desconto
+              {alunoCondicao.condicao.desconto_motivo ? ` (${alunoCondicao.condicao.desconto_motivo})` : ''}.
+              O desconto continua valendo e é editado na aba Financeiro da ficha dele.
+            </Alert>
+          )}
           <Alert severity="warning" icon={false}>
             As cobranças já geradas são ajustadas na hora: as que sobrarem do novo plano são removidas e as demais
             ganham o valor e o vencimento certos. Parcela que já tem pagamento nunca é apagada.

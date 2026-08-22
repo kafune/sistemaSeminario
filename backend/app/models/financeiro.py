@@ -71,6 +71,11 @@ class CondicaoFinanceiraAluno(Base):
     valor_mensalidade: Mapped[Decimal | None] = mapped_column(DECIMAL(10, 2))
     cobra_matricula: Mapped[str] = mapped_column(String(1), default="S")
     valor_matricula: Mapped[Decimal | None] = mapped_column(DECIMAL(10, 2))
+    # Desconto de casal, de irmãos, de obreiro: percentual sobre a mensalidade,
+    # sempre com o motivo junto — quem confere seis meses depois precisa saber
+    # por que aquele aluno paga menos.
+    desconto_percentual: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2))
+    desconto_motivo: Mapped[str | None] = mapped_column(String(120))
     observacao: Mapped[str | None] = mapped_column(Text)
     criado_em: Mapped[datetime | None] = mapped_column(DateTime)
     atualizado_em: Mapped[datetime | None] = mapped_column(DateTime)

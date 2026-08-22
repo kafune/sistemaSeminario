@@ -54,6 +54,19 @@ def dinheiro(valor) -> Decimal:
     return Decimal(str(valor or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+def aplicar_desconto(valor: Decimal, percentual: Decimal) -> Decimal:
+    """Valor com o percentual abatido, arredondado ao centavo."""
+    if percentual <= ZERO:
+        return dinheiro(valor)
+    return dinheiro(dinheiro(valor) * (Decimal("100") - dinheiro(percentual)) / Decimal("100"))
+
+
+def formatar_percentual(percentual: Decimal) -> str:
+    """10 vira "10%"; 12.50 vira "12,5%"."""
+    texto = f"{dinheiro(percentual).normalize():f}"
+    return f"{texto.replace('.', ',')}%"
+
+
 def referencia_de(cobranca_id: int) -> str:
     """Código curto que o aluno informa no PIX e que o banco devolve."""
     return f"TOV{cobranca_id:06d}"
@@ -188,7 +201,8 @@ def criar_cobranca(
         cod_tur=cod_tur,
         plano_id=plano_id,
         tipo=tipo,
-        descricao=descricao,
+        # A coluna tem 120: nome de turma comprido não pode derrubar a geração.
+        descricao=descricao[:120],
         parcela=parcela,
         total_parcelas=total_parcelas,
         competencia=competencia_de(vencimento),
@@ -216,6 +230,9 @@ class PlanoEfetivo(NamedTuple):
     primeira_mensalidade: date
     dia_vencimento: int
     transferencia: bool
+    desconto_percentual: Decimal = ZERO
+    desconto_motivo: str | None = None
+    mensalidade_cheia: Decimal = ZERO
 
 
 def plano_efetivo(
@@ -242,29 +259,42 @@ def plano_efetivo(
         dia_vencimento=dia,
         transferencia=False,
     )
-    if condicao is None or condicao.tipo == "REGULAR":
+    if condicao is None:
         return efetivo
 
+    if condicao.tipo == "TRANSFERENCIA":
+        efetivo = efetivo._replace(
+            valor_matricula=(
+                ZERO
+                if condicao.cobra_matricula != "S"
+                else dinheiro(condicao.valor_matricula)
+                if condicao.valor_matricula is not None
+                else efetivo.valor_matricula
+            ),
+            valor_mensalidade=(
+                dinheiro(condicao.valor_mensalidade)
+                if condicao.valor_mensalidade is not None
+                else efetivo.valor_mensalidade
+            ),
+            parcelas=(
+                max(int(condicao.parcelas), 0)
+                if condicao.parcelas is not None
+                else efetivo.parcelas
+            ),
+            primeira_mensalidade=condicao.primeira_mensalidade or efetivo.primeira_mensalidade,
+            transferencia=True,
+        )
+
+    # O desconto vale para quem segue o plano da turma e para quem veio de
+    # transferência: ele incide sobre a mensalidade já resolvida.
+    percentual = dinheiro(condicao.desconto_percentual)
+    if percentual <= ZERO:
+        return efetivo
     return efetivo._replace(
-        valor_matricula=(
-            ZERO
-            if condicao.cobra_matricula != "S"
-            else dinheiro(condicao.valor_matricula)
-            if condicao.valor_matricula is not None
-            else efetivo.valor_matricula
-        ),
-        valor_mensalidade=(
-            dinheiro(condicao.valor_mensalidade)
-            if condicao.valor_mensalidade is not None
-            else efetivo.valor_mensalidade
-        ),
-        parcelas=(
-            max(int(condicao.parcelas), 0)
-            if condicao.parcelas is not None
-            else efetivo.parcelas
-        ),
-        primeira_mensalidade=condicao.primeira_mensalidade or efetivo.primeira_mensalidade,
-        transferencia=True,
+        mensalidade_cheia=efetivo.valor_mensalidade,
+        valor_mensalidade=aplicar_desconto(efetivo.valor_mensalidade, percentual),
+        desconto_percentual=percentual,
+        desconto_motivo=condicao.desconto_motivo,
     )
 
 
@@ -290,8 +320,12 @@ def _vencimento_da_parcela(efetivo: PlanoEfetivo, numero: int) -> date:
 
 
 def _descricao_mensalidade(numero: int, efetivo: PlanoEfetivo, nome_turma: str) -> str:
-    sufixo = " · transferência" if efetivo.transferencia else ""
-    return f"Mensalidade {numero}/{efetivo.parcelas} · {nome_turma}{sufixo}"
+    partes = [f"Mensalidade {numero}/{efetivo.parcelas}", nome_turma]
+    if efetivo.transferencia:
+        partes.append("transferência")
+    if efetivo.desconto_percentual > ZERO:
+        partes.append(f"desconto {formatar_percentual(efetivo.desconto_percentual)}")
+    return " · ".join(partes)
 
 
 def aplicar_plano_ao_aluno(
@@ -749,12 +783,46 @@ def extrato_aluno(db: Session, cod_alu: int, *, hoje: date | None = None) -> dic
                 proximo = {"vencimento": cobranca.vencimento, "item": item}
 
     config = configuracao(db)
+    condicao = (
+        db.scalar(
+            select(CondicaoFinanceiraAluno).where(
+                CondicaoFinanceiraAluno.cod_alu == cod_alu,
+                CondicaoFinanceiraAluno.cod_tur == aluno.cod_tur,
+            )
+        )
+        if aluno.cod_tur is not None
+        else None
+    )
+    plano = (
+        db.scalar(select(PlanoFinanceiro).where(PlanoFinanceiro.cod_tur == aluno.cod_tur))
+        if aluno.cod_tur is not None
+        else None
+    )
+    efetivo = plano_efetivo(plano, condicao, hoje=hoje) if plano else None
     return {
         "aluno": {
             "cod_alu": aluno.cod_alu,
             "nome": aluno.nome,
             "status": aluno.status,
+            "cod_tur": aluno.cod_tur,
             "turma_nome": nomes_turma.get(aluno.cod_tur),
+        },
+        "condicao": {
+            "cod_tur": aluno.cod_tur,
+            "tem_plano": plano is not None,
+            "tipo": condicao.tipo if condicao else "REGULAR",
+            "transferencia": bool(efetivo and efetivo.transferencia),
+            "mensalidades_previstas": efetivo.parcelas if efetivo else None,
+            "desconto_percentual": float(dinheiro(condicao.desconto_percentual))
+            if condicao and condicao.desconto_percentual
+            else 0.0,
+            "desconto_motivo": condicao.desconto_motivo if condicao else None,
+            "mensalidade_cheia": float(efetivo.mensalidade_cheia)
+            if efetivo and efetivo.mensalidade_cheia > ZERO
+            else float(efetivo.valor_mensalidade)
+            if efetivo
+            else None,
+            "mensalidade_com_desconto": float(efetivo.valor_mensalidade) if efetivo else None,
         },
         "resumo": {
             "total": float(total),

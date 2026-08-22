@@ -19,7 +19,8 @@ do Centro TOV. Banco de dados novo e vazio — sem migração de dados legados.
   e geração em lote a partir de planilha (CSV/XLSX/XLS)
 - **Financeiro**: plano de cobrança por turma (matrícula inicial +
   mensalidades), condição própria para o aluno de transferência (paga menos
-  meses, a partir do mês em que entrou), geração idempotente das cobranças
+  meses, a partir do mês em que entrou), desconto percentual por aluno com
+  motivo registrado (casal, irmãos), geração idempotente das cobranças
   por aluno, baixa individual ou em lote, estorno, cobrança avulsa, lista
   paginada com filtro por mês, extrato do aluno com link pessoal de consulta
   e conciliação de PIX/boleto informados pelo banco — com perfil de acesso

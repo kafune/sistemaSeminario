@@ -127,11 +127,17 @@ novo pode ser gerado depois.
 `backend/importar_planilha_financeiro.py` carrega no sistema a planilha de
 controle que a secretaria mantinha à mão. Ela traz duas listas — regulares e
 transferidos — e marca o casal com `C`, mesclando as células de valor entre as
-duas linhas porque **o casal paga junto**. O script traduz isso:
+duas linhas porque **o casal paga junto**.
+
+As pessoas estão **misturadas entre as turmas**, e a planilha não diz de quem é
+qual. Então o script não escolhe turma: ele **casa cada nome com o aluno já
+cadastrado** e usa a turma em que essa pessoa está. Ninguém é movido de turma
+pela importação, e o plano é aplicado a **todas as turmas** que tenham alguém na
+planilha.
 
 | Na planilha | No sistema |
 | --- | --- |
-| Linha com nome | Aluno matriculado na turma |
+| Nome | Aluno já cadastrado, na turma dele |
 | `C` com células mescladas | O **segundo** do par vira cônjuge, com o desconto |
 | Bloco `TRANSFERÊNCIA` | Condição de transferência, sem matrícula |
 | `VALOR PAGO` | Baixas, quitando em ordem de vencimento |
@@ -141,36 +147,54 @@ O nome no extrato é o dado que mais some com o tempo — na planilha um depósi
 aparece como "Central Mailing List" — então ele vai para a observação da baixa,
 onde a conciliação bancária consegue reencontrá-lo.
 
+### Como os nomes são casados
+
+| Situação | O que é | O que o script faz |
+| --- | --- | --- |
+| `exato` | Nome idêntico, ignorando acento, caixa e espaço dobrado | Importa |
+| `PARECIDO` | Um único candidato pelo primeiro nome + último sobrenome, ou 88% de semelhança | Só com `--aceitar-aproximados` |
+| `AMBÍGUO` | Mais de um candidato | **Nunca** escolhe; fica de fora |
+| `não cadastrado` | Ninguém parecido | Só com `--criar-novos --turma-novos N` |
+
+Sem opção nenhuma, entra só quem casou exato — e o relatório lista, nome por
+nome, quem ficou de fora e por quê. É de propósito: apontar o dinheiro para o
+aluno errado é pior do que importar menos gente.
+
 ```bash
 cd backend
-# lista as turmas e explica o que falta
+# relatório de correspondência de nomes; não grava nada
 python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx
-# simulação: mostra pessoa por pessoa o que faria
-python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx --turma 1 --parcelas 12
-# grava
-python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx --turma 1 --parcelas 12 --aplicar
+
+# grava quem casou exatamente
+python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx --aplicar
+
+# aceita os parecidos e cadastra quem falta
+python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx \
+    --aceitar-aproximados --criar-novos --turma-novos 1 --aplicar
 ```
 
-**Sem `--aplicar` nada é gravado.** Os valores padrão são os da planilha atual
-(`--matricula 100`, `--mensalidade 200`, `--desconto-conjuge 50`,
-`--primeira-mensalidade 2026-08-10`).
+**Sem `--aplicar` nada é gravado.** Os padrões são os do curso atual:
+`--parcelas 24` (dois anos), `--matricula 100`, `--mensalidade 200`,
+`--desconto-conjuge 50`, `--primeira-mensalidade 2026-08-10`.
 
-`--parcelas` é o **total de mensalidades do curso**, e não tem como ser deduzido:
-a planilha é a foto de agosto, com a matrícula e a primeira mensalidade.
+`--parcelas-transferencia` define de uma vez quantos meses o pessoal do bloco de
+transferência vai pagar. Quem tiver um número próprio se ajusta depois em
+**Financeiro › turma › Condição** — a planilha não registra isso.
 
 Duas garantias fecham o script:
 
-* **Ele confere o resultado contra os totais que a própria planilha declara**
-  (`Valor total pago até agora` e `Valor total a pagar em 10/ago`) e, aluno por
-  aluno, contra a coluna `VALOR A PAGAR`. Se algo não bater, **desfaz tudo** e
-  explica — a conta errada nunca chega ao banco.
-* **É idempotente**: aluno é reaproveitado pelo nome normalizado (sem acento,
-  sem caixa, sem espaço dobrado) e cobrança já existente não é duplicada, então
-  rodar duas vezes não estraga nada.
+* **Ele confere o resultado contra a própria planilha** — aluno por aluno, na
+  coluna `VALOR A PAGAR`, e no total de quem entrou. Se algo não bater, **desfaz
+  tudo** e explica; a conta errada nunca chega ao banco. No casal, confere a
+  soma dos dois, que é como a planilha lança.
+* **É idempotente**: aluno é reaproveitado pelo nome, cobrança não é duplicada e
+  a baixa desconta o que uma rodada anterior já lançou. Rodar duas vezes não
+  paga a mesma conta duas vezes.
 
 No casal, o dinheiro entrou num depósito só: as baixas começam pelo titular e
-transbordam para o cônjuge. O total do casal fica idêntico ao da planilha; a
-divisão entre os dois é a escolha do script.
+transbordam para o cônjuge — inclusive quando os dois estão em turmas
+diferentes. O total do casal fica idêntico ao da planilha; a divisão entre os
+dois é escolha do script.
 
 ## Desempenho da lista
 
@@ -287,8 +311,10 @@ caminhos da conciliação (código, CPF, nome, ambiguidade, reenvio e baixa
 automática desligada).
 
 `backend/tests/test_importacao_planilha.py` monta uma planilha com a mesma
-forma da real — casais mesclados, dois blocos, linhas de total — e confere a
-importação inteira, incluindo a recusa quando os valores não fecham.
+forma da real — casais mesclados, dois blocos, linhas de total — e cobre o
+casamento de nomes (exato, parecido, ambíguo, ausente), a importação em duas
+turmas, o casal separado entre elas, a idempotência e a recusa quando os
+valores não fecham.
 
 ```bash
 cd backend && python -m pytest tests/test_financeiro.py tests/test_importacao_planilha.py -q

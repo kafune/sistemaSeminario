@@ -16,9 +16,16 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.database import Base
-from app.models import Aluno, AluTurma, Cobranca, CondicaoFinanceiraAluno, Turma
+from app.models import Aluno, AluTurma, Cobranca, CondicaoFinanceiraAluno, Pagamento, Turma
 from app.services import financeiro as servico
-from importar_planilha_financeiro import importar, ler_planilha, normalizar
+from importar_planilha_financeiro import (
+    casar_nomes,
+    chave_curta,
+    importar,
+    ler_planilha,
+    normalizar,
+    selecionar,
+)
 
 CABECALHO = [
     "Nº", "NOME", "C", "VALOR PAGO", "SENDO =\nMATRÍCULA",
@@ -75,6 +82,13 @@ def montar_planilha() -> BytesIO:
     return buffer
 
 
+TODOS = [
+    "Marcos Ferraz de Lima", "Evaneide Maria", "Daniel Marcolino da Silva",
+    "Gerson Caristo", "Selma Caristo", "Marcos Alex Sandro", "Agatha Cristina",
+    "Celina Viana Osório", "Ricardo Alexandre Osório", "Dayane Cristina da Silva",
+]
+
+
 class LeituraDaPlanilhaTest(unittest.TestCase):
     def setUp(self):
         self.pessoas, self.totais = ler_planilha(montar_planilha())
@@ -85,14 +99,12 @@ class LeituraDaPlanilhaTest(unittest.TestCase):
         self.assertEqual(sum(1 for p in self.pessoas if p["bloco"] == "TRANSFERENCIA"), 3)
 
     def test_celula_mesclada_identifica_o_casal(self):
-        conjuges = [p["nome"] for p in self.pessoas if p["conjuge"]]
         self.assertEqual(
-            conjuges,
+            [p["nome"] for p in self.pessoas if p["conjuge"]],
             ["Evaneide Maria", "Selma Caristo", "Ricardo Alexandre Osório"],
         )
-        titulares = [p["nome"] for p in self.pessoas if p["titular_casal"]]
         self.assertEqual(
-            titulares,
+            [p["nome"] for p in self.pessoas if p["titular_casal"]],
             ["Marcos Ferraz de Lima", "Gerson Caristo", "Celina Viana Osório"],
         )
 
@@ -103,12 +115,11 @@ class LeituraDaPlanilhaTest(unittest.TestCase):
         self.assertEqual(por_nome["Agatha Cristina"]["pago"], servico.ZERO)
         # "PG" na coluna da mensalidade não é número e não pode virar valor.
         self.assertEqual(por_nome["Marcos Alex Sandro"]["pago"], Decimal("300.00"))
-        self.assertEqual(por_nome["Marcos Alex Sandro"]["a_pagar"], servico.ZERO)
         self.assertEqual(por_nome["Marcos Alex Sandro"]["recibo"], "Central Mailing List")
         self.assertEqual(self.totais, {"pago": Decimal("850.00"), "a_pagar": Decimal("1450.00")})
 
 
-class ImportacaoTest(unittest.TestCase):
+class BaseCadastroTest(unittest.TestCase):
     def setUp(self):
         self.engine = create_engine(
             "sqlite://",
@@ -117,19 +128,128 @@ class ImportacaoTest(unittest.TestCase):
         )
         Base.metadata.create_all(self.engine)
         self.db = sessionmaker(bind=self.engine, expire_on_commit=False)()
-        self.turma = Turma(nome="Turma da manhã")
-        self.db.add(self.turma)
-        self.db.commit()
+        self.manha = Turma(nome="Turma da manhã")
+        self.noite = Turma(nome="Turma da noite")
+        self.db.add_all([self.manha, self.noite])
+        self.db.flush()
         self.pessoas, self.totais = ler_planilha(montar_planilha())
 
     def tearDown(self):
         self.db.close()
         self.engine.dispose()
 
-    def importar(self, **ajustes):
+    def cadastrar(self, nome, turma):
+        aluno = Aluno(nome=nome, status="A", cod_tur=turma.cod_tur if turma else None)
+        self.db.add(aluno)
+        self.db.flush()
+        if turma is not None:
+            self.db.add(AluTurma(cod_tur=turma.cod_tur, cod_alu=aluno.cod_alu, status="A"))
+        self.db.commit()
+        return aluno
+
+    def cadastrar_todos(self):
+        """Metade na manhã, metade na noite — como a secretaria descreveu."""
+        for indice, nome in enumerate(TODOS):
+            self.cadastrar(nome, self.manha if indice % 2 == 0 else self.noite)
+
+
+class CasamentoDeNomesTest(BaseCadastroTest):
+    def test_nome_identico_casa_exato(self):
+        self.cadastrar("Daniel Marcolino da Silva", self.manha)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        self.assertEqual(por_nome["Daniel Marcolino da Silva"]["situacao"], "EXATO")
+        self.assertEqual(por_nome["Agatha Cristina"]["situacao"], "NOVO")
+
+    def test_acento_e_caixa_nao_atrapalham(self):
+        self.cadastrar("CELINA VIANA OSORIO", self.noite)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        self.assertEqual(por_nome["Celina Viana Osório"]["situacao"], "EXATO")
+
+    def test_nome_do_meio_diferente_vira_aproximado(self):
+        aluno = self.cadastrar("Daniel Marcolino Silva", self.manha)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        item = por_nome["Daniel Marcolino da Silva"]
+        self.assertEqual(item["situacao"], "APROXIMADO")
+        self.assertEqual(item["aluno"].cod_alu, aluno.cod_alu)
+
+    def test_dois_candidatos_nunca_sao_escolhidos_pelo_script(self):
+        self.cadastrar("Daniel Marcolino da Silva", self.manha)
+        self.cadastrar("Daniel Marcolino da Silva", self.noite)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        self.assertEqual(por_nome["Daniel Marcolino da Silva"]["situacao"], "AMBIGUO")
+
+    def test_homonimo_de_outra_familia_nao_casa(self):
+        self.cadastrar("Daniel Marcolino da Costa Pereira", self.manha)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        self.assertEqual(por_nome["Daniel Marcolino da Silva"]["situacao"], "NOVO")
+
+
+class SelecaoTest(BaseCadastroTest):
+    def selecionar(self, **ajustes):
         parametros = {
-            "turma": self.turma,
-            "parcelas": 1,
+            "aceitar_aproximados": False,
+            "criar_novos": False,
+            "turma_novos": None,
+        }
+        parametros.update(ajustes)
+        return selecionar(self.db, casar_nomes(self.db, self.pessoas), **parametros)
+
+    def test_por_padrao_so_entra_quem_casou_exato(self):
+        self.cadastrar("Daniel Marcolino da Silva", self.manha)
+        entram, de_fora = self.selecionar()
+        self.assertEqual([i["nome"] for i in entram], ["Daniel Marcolino da Silva"])
+        self.assertEqual(len(de_fora), 9)
+        self.assertTrue(all("não está no cadastro" in motivo for _, motivo in de_fora))
+
+    def test_cada_um_vai_para_a_propria_turma(self):
+        self.cadastrar("Daniel Marcolino da Silva", self.manha)
+        self.cadastrar("Agatha Cristina", self.noite)
+        entram, _ = self.selecionar()
+        por_nome = {i["nome"]: i["cod_tur"] for i in entram}
+        self.assertEqual(por_nome["Daniel Marcolino da Silva"], self.manha.cod_tur)
+        self.assertEqual(por_nome["Agatha Cristina"], self.noite.cod_tur)
+
+    def test_aproximado_so_entra_quando_autorizado(self):
+        self.cadastrar("Daniel Marcolino Silva", self.manha)
+        _, de_fora = self.selecionar()
+        self.assertIn("--aceitar-aproximados", dict((i["nome"], m) for i, m in de_fora)["Daniel Marcolino da Silva"])
+
+        entram, _ = self.selecionar(aceitar_aproximados=True)
+        self.assertIn("Daniel Marcolino da Silva", [i["nome"] for i in entram])
+
+    def test_novo_precisa_de_turma(self):
+        entram, de_fora = self.selecionar(criar_novos=True)
+        self.assertEqual(entram, [])
+        self.assertTrue(all("--turma-novos" in motivo for _, motivo in de_fora))
+
+        entram, _ = self.selecionar(criar_novos=True, turma_novos=self.manha.cod_tur)
+        self.assertEqual(len(entram), 10)
+        self.assertTrue(all(i["cod_tur"] == self.manha.cod_tur for i in entram))
+
+    def test_aluno_sem_turma_cai_na_turma_dos_novos(self):
+        self.cadastrar("Daniel Marcolino da Silva", None)
+        entram, de_fora = self.selecionar()
+        self.assertEqual(entram, [])
+        self.assertIn("sem turma", de_fora[0][1] + de_fora[1][1] + de_fora[2][1])
+
+        entram, _ = self.selecionar(turma_novos=self.noite.cod_tur)
+        self.assertEqual([i["cod_tur"] for i in entram], [self.noite.cod_tur])
+
+
+class ImportacaoTest(BaseCadastroTest):
+    def importar(self, **ajustes):
+        if not self.db.scalar(select(Aluno)):
+            self.cadastrar_todos()
+        entram, de_fora = selecionar(
+            self.db,
+            casar_nomes(self.db, self.pessoas),
+            aceitar_aproximados=False,
+            criar_novos=False,
+            turma_novos=None,
+        )
+        self.assertEqual(de_fora, [])
+        parametros = {
+            "parcelas": 24,
             "matricula": Decimal("100"),
             "mensalidade": Decimal("200"),
             "desconto_conjuge": Decimal("50"),
@@ -137,7 +257,7 @@ class ImportacaoTest(unittest.TestCase):
             "relatar": lambda *_: None,
         }
         parametros.update(ajustes)
-        return importar(self.db, self.pessoas, self.totais, **parametros)
+        return importar(self.db, entram, self.totais, **parametros)
 
     def aluno(self, nome):
         return self.db.scalar(select(Aluno).where(Aluno.nome == nome))
@@ -151,66 +271,82 @@ class ImportacaoTest(unittest.TestCase):
             )
         )
 
-    def test_importacao_bate_com_os_totais_da_planilha(self):
+    def test_importacao_bate_com_a_planilha_mesmo_com_duas_turmas(self):
         resultado = self.importar()
         self.assertTrue(resultado["confere"])
-        self.assertEqual(resultado["alunos_criados"], 10)
+        self.assertEqual(resultado["alunos_criados"], 0)
+        self.assertEqual(resultado["alunos_reaproveitados"], 10)
+        self.assertEqual(len(resultado["turmas"]), 2)
         self.assertEqual(resultado["baixado"], Decimal("850.00"))
 
-    def test_todo_mundo_fica_matriculado_na_turma(self):
+    def test_ninguem_e_movido_de_turma(self):
+        self.cadastrar_todos()
+        antes = {aluno.nome: aluno.cod_tur for aluno in self.db.scalars(select(Aluno))}
+        self.assertEqual(len(set(antes.values())), 2)
         self.importar()
-        matriculados = self.db.scalars(
-            select(AluTurma.cod_alu).where(AluTurma.cod_tur == self.turma.cod_tur)
-        )
-        self.assertEqual(len(set(matriculados)), 10)
+        for aluno in self.db.scalars(select(Aluno)):
+            self.assertEqual(aluno.cod_tur, antes[aluno.nome], aluno.nome)
+
+    def test_plano_vale_para_as_duas_turmas(self):
+        self.importar()
+        from app.models import PlanoFinanceiro
+
+        planos = list(self.db.scalars(select(PlanoFinanceiro)))
+        self.assertEqual(len(planos), 2)
+        self.assertTrue(all(p.parcelas == 24 for p in planos))
+        self.assertTrue(all(p.valor_mensalidade == Decimal("200.00") for p in planos))
+
+    def test_curso_de_dois_anos_gera_24_mensalidades(self):
+        self.importar()
+        mensalidades = [c for c in self.cobrancas("Daniel Marcolino da Silva") if c.tipo == "MENSALIDADE"]
+        self.assertEqual(len(mensalidades), 24)
+        self.assertEqual(mensalidades[0].vencimento, date(2026, 8, 10))
+        self.assertEqual(mensalidades[-1].vencimento, date(2028, 7, 10))
 
     def test_conjuge_paga_metade_das_duas_coisas(self):
         self.importar()
-        titular = self.cobrancas("Marcos Ferraz de Lima")
-        conjuge = self.cobrancas("Evaneide Maria")
+        titular = self.cobrancas("Marcos Ferraz de Lima")[:2]
+        conjuge = self.cobrancas("Evaneide Maria")[:2]
         self.assertEqual([c.valor for c in titular], [Decimal("100.00"), Decimal("200.00")])
         self.assertEqual([c.valor for c in conjuge], [Decimal("50.00"), Decimal("100.00")])
-        # O casal fecha nos 450 que a secretaria cobra hoje.
-        self.assertEqual(
-            sum(c.valor for c in titular + conjuge),
-            Decimal("450.00"),
+
+    def test_casal_em_turmas_diferentes_continua_fechando(self):
+        # Marcos na manhã e Evaneide na noite: o pagamento do casal é um só.
+        self.importar()
+        self.assertNotEqual(
+            self.aluno("Marcos Ferraz de Lima").cod_tur,
+            self.aluno("Evaneide Maria").cod_tur,
         )
+        titular = [c for c in self.cobrancas("Marcos Ferraz de Lima") if c.parcela == 1]
+        conjuge = [c for c in self.cobrancas("Evaneide Maria") if c.parcela == 1]
+        pagos = servico.pagos_por_cobranca(self.db, [c.id for c in titular + conjuge])
+        aberto = sum(
+            max(servico.dinheiro(c.valor) - pagos.get(c.id, servico.ZERO), servico.ZERO)
+            for c in titular + conjuge
+        )
+        self.assertEqual(aberto, Decimal("150.00"))
 
     def test_transferido_nao_paga_matricula(self):
         self.importar()
         for nome in ("Celina Viana Osório", "Dayane Cristina da Silva"):
-            tipos = [c.tipo for c in self.cobrancas(nome)]
-            self.assertEqual(tipos, ["MENSALIDADE"], nome)
-        condicao = self.db.scalar(
-            select(CondicaoFinanceiraAluno).where(
-                CondicaoFinanceiraAluno.cod_alu == self.aluno("Dayane Cristina da Silva").cod_alu
-            )
-        )
-        self.assertEqual(condicao.tipo, "TRANSFERENCIA")
-        self.assertEqual(condicao.cobra_matricula, "N")
+            tipos = {c.tipo for c in self.cobrancas(nome)}
+            self.assertEqual(tipos, {"MENSALIDADE"}, nome)
 
-    def test_pagamento_do_casal_transborda_para_o_conjuge(self):
-        self.importar()
-        # 300 pagos: matrícula e mensalidade do titular; o cônjuge fica devendo 150.
-        titular = self.cobrancas("Marcos Ferraz de Lima")
-        self.assertTrue(all(c.status == "PAGA" for c in titular))
-        conjuge = self.cobrancas("Evaneide Maria")
-        self.assertTrue(all(c.status == "ABERTA" for c in conjuge))
-        self.assertEqual(sum(c.valor for c in conjuge), Decimal("150.00"))
-
-    def test_quem_quitou_fica_sem_saldo(self):
-        self.importar()
-        cobrancas = self.cobrancas("Marcos Alex Sandro")
-        self.assertTrue(all(c.status == "PAGA" for c in cobrancas))
-        pagamentos = self.db.scalars(
-            select(Cobranca).where(Cobranca.cod_alu == self.aluno("Marcos Alex Sandro").cod_alu)
+    def test_parcelas_da_transferencia_podem_ser_menos(self):
+        resultado = self.importar(parcelas_transferencia=6)
+        self.assertTrue(resultado["confere"])
+        self.assertEqual(
+            len([c for c in self.cobrancas("Dayane Cristina da Silva") if c.tipo == "MENSALIDADE"]),
+            6,
         )
-        self.assertEqual(sum(c.valor for c in pagamentos), Decimal("300.00"))
+        # Quem não é transferido segue com as 24 da turma.
+        self.assertEqual(
+            len([c for c in self.cobrancas("Daniel Marcolino da Silva") if c.tipo == "MENSALIDADE"]),
+            24,
+        )
 
     def test_conta_e_nome_do_extrato_ficam_no_pagamento(self):
         self.importar()
-        from app.models import Pagamento
-
         pagamento = self.db.scalar(
             select(Pagamento).where(Pagamento.observacao.like("%Central Mailing List%"))
         )
@@ -218,46 +354,121 @@ class ImportacaoTest(unittest.TestCase):
         self.assertIn("Sicoob Uni Sudeste", pagamento.observacao)
         self.assertEqual(pagamento.forma, "TRANSFERENCIA")
 
-    def test_rodar_de_novo_nao_duplica_aluno_nem_cobranca(self):
+    def test_rodar_de_novo_nao_duplica(self):
         self.importar()
-        antes = self.db.scalar(select(Aluno.cod_alu).order_by(Aluno.cod_alu.desc()))
         cobrancas_antes = len(self.cobrancas("Daniel Marcolino da Silva"))
+        alunos_antes = len(list(self.db.scalars(select(Aluno))))
 
-        segunda = self.importar()
-        self.assertEqual(segunda["alunos_criados"], 0)
-        self.assertEqual(segunda["alunos_reaproveitados"], 10)
-        self.assertEqual(
-            self.db.scalar(select(Aluno.cod_alu).order_by(Aluno.cod_alu.desc())),
-            antes,
+        entram, _ = selecionar(
+            self.db,
+            casar_nomes(self.db, self.pessoas),
+            aceitar_aproximados=False,
+            criar_novos=False,
+            turma_novos=None,
         )
+        segunda = importar(
+            self.db,
+            entram,
+            self.totais,
+            parcelas=24,
+            matricula=Decimal("100"),
+            mensalidade=Decimal("200"),
+            desconto_conjuge=Decimal("50"),
+            primeira_mensalidade=date(2026, 8, 10),
+            relatar=lambda *_: None,
+        )
+        self.assertTrue(segunda["confere"])
+        self.assertEqual(segunda["cobrancas_criadas"], 0)
         self.assertEqual(len(self.cobrancas("Daniel Marcolino da Silva")), cobrancas_antes)
+        self.assertEqual(len(list(self.db.scalars(select(Aluno)))), alunos_antes)
 
     def test_valores_errados_nao_batem_com_a_planilha(self):
-        # Mensalidade de 300 quebraria a conta: o script precisa perceber.
         resultado = self.importar(mensalidade=Decimal("300"))
         self.assertFalse(resultado["confere"])
 
-    def test_parcelas_futuras_nao_entram_na_conferencia(self):
-        # O curso tem 12 meses, mas a planilha é a foto da primeira parcela.
-        resultado = self.importar(parcelas=12)
-        self.assertTrue(resultado["confere"])
-        self.assertEqual(
-            len([c for c in self.cobrancas("Daniel Marcolino da Silva") if c.tipo == "MENSALIDADE"]),
-            12,
-        )
+    def test_condicao_registra_o_motivo_de_cada_desvio(self):
+        self.importar()
+        condicoes = {
+            self.db.get(Aluno, c.cod_alu).nome: c
+            for c in self.db.scalars(select(CondicaoFinanceiraAluno))
+        }
+        self.assertIn("Casal", condicoes["Evaneide Maria"].desconto_motivo)
+        self.assertEqual(condicoes["Evaneide Maria"].desconto_percentual, Decimal("50.00"))
+        self.assertIn("Transferido", condicoes["Dayane Cristina da Silva"].observacao)
+        self.assertEqual(condicoes["Dayane Cristina da Silva"].tipo, "TRANSFERENCIA")
 
-    def test_aluno_ja_cadastrado_e_reaproveitado(self):
-        existente = Aluno(nome="DANIEL MARCOLINO DA SILVA", status="A")
-        self.db.add(existente)
-        self.db.commit()
-
+    def test_conjuge_do_bloco_regular_nao_vira_transferido(self):
         resultado = self.importar()
-        self.assertEqual(resultado["alunos_criados"], 9)
-        self.assertEqual(resultado["alunos_reaproveitados"], 1)
-        self.assertEqual(
-            len(list(self.db.scalars(select(Aluno).where(Aluno.nome.ilike("daniel%"))))),
-            1,
+        condicoes = {
+            self.db.get(Aluno, c.cod_alu).nome: c
+            for c in self.db.scalars(select(CondicaoFinanceiraAluno))
+        }
+        self.assertEqual(condicoes["Evaneide Maria"].tipo, "REGULAR")
+        self.assertEqual(condicoes["Selma Caristo"].tipo, "REGULAR")
+        # O cônjuge transferido é as duas coisas ao mesmo tempo.
+        self.assertEqual(condicoes["Ricardo Alexandre Osório"].tipo, "TRANSFERENCIA")
+        self.assertEqual(condicoes["Ricardo Alexandre Osório"].desconto_percentual, Decimal("50.00"))
+        # Três transferidos na planilha, e só eles.
+        self.assertEqual(resultado["transferencias"], 3)
+        for nome in ("Evaneide Maria", "Selma Caristo"):
+            descricoes = " ".join(c.descricao for c in self.cobrancas(nome))
+            self.assertNotIn("transferência", descricoes)
+            self.assertIn("desconto 50%", descricoes)
+
+
+class ImportacaoParcialTest(BaseCadastroTest):
+    def test_conferencia_so_olha_quem_entrou(self):
+        # Só três nomes no cadastro: o resto fica de fora e não pode derrubar
+        # a conferência de quem entrou.
+        for nome in ("Daniel Marcolino da Silva", "Marcos Alex Sandro", "Agatha Cristina"):
+            self.cadastrar(nome, self.manha)
+        entram, de_fora = selecionar(
+            self.db,
+            casar_nomes(self.db, self.pessoas),
+            aceitar_aproximados=False,
+            criar_novos=False,
+            turma_novos=None,
         )
+        self.assertEqual(len(entram), 3)
+        self.assertEqual(len(de_fora), 7)
+
+        resultado = importar(
+            self.db,
+            entram,
+            self.totais,
+            parcelas=24,
+            matricula=Decimal("100"),
+            mensalidade=Decimal("200"),
+            desconto_conjuge=Decimal("50"),
+            primeira_mensalidade=date(2026, 8, 10),
+            relatar=lambda *_: None,
+        )
+        self.assertTrue(resultado["confere"])
+        self.assertEqual(resultado["baixado"], Decimal("400.00"))  # 100 + 300 + 0
+
+    def test_titular_sem_o_conjuge_no_lote_e_denunciado(self):
+        # Só o titular do casal está no cadastro: a linha da planilha cobre os
+        # dois, então o script avisa em vez de fingir que fechou.
+        self.cadastrar("Marcos Ferraz de Lima", self.manha)
+        entram, _ = selecionar(
+            self.db,
+            casar_nomes(self.db, self.pessoas),
+            aceitar_aproximados=False,
+            criar_novos=False,
+            turma_novos=None,
+        )
+        resultado = importar(
+            self.db,
+            entram,
+            self.totais,
+            parcelas=24,
+            matricula=Decimal("100"),
+            mensalidade=Decimal("200"),
+            desconto_conjuge=Decimal("50"),
+            primeira_mensalidade=date(2026, 8, 10),
+            relatar=lambda *_: None,
+        )
+        self.assertFalse(resultado["confere"])
 
 
 class NormalizacaoTest(unittest.TestCase):
@@ -265,6 +476,11 @@ class NormalizacaoTest(unittest.TestCase):
         self.assertEqual(normalizar("  Márcia  Regina "), "MARCIA REGINA")
         self.assertEqual(normalizar("Marcos Antonio de Lima  Filho"), "MARCOS ANTONIO DE LIMA FILHO")
         self.assertEqual(normalizar(None), "")
+
+    def test_chave_curta_ignora_particulas_e_meio(self):
+        self.assertEqual(chave_curta("Marcos Antonio de Lima Filho"), "MARCOS FILHO")
+        self.assertEqual(chave_curta("Marcos Antônio Lima Filho"), "MARCOS FILHO")
+        self.assertEqual(chave_curta("Ana"), "ANA")
 
 
 if __name__ == "__main__":

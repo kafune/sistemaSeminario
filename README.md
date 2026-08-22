@@ -21,8 +21,8 @@ do Centro TOV. Banco de dados novo e vazio — sem migração de dados legados.
   mensalidades), condição própria para o aluno de transferência (paga menos
   meses, a partir do mês em que entrou), desconto percentual por aluno com
   motivo registrado (casal, irmãos), importação da planilha de controle da
-  secretaria conferida contra os próprios totais dela, geração idempotente
-  das cobranças
+  secretaria casando os nomes com o cadastro e conferida contra os próprios
+  totais dela, geração idempotente das cobranças
   por aluno, baixa individual ou em lote, estorno, cobrança avulsa, lista
   paginada com filtro por mês, extrato do aluno com link pessoal de consulta
   e conciliação de PIX/boleto informados pelo banco — com perfil de acesso

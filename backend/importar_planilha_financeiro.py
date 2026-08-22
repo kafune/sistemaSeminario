@@ -2,25 +2,34 @@
 
 A planilha que a secretaria mantém à mão tem duas listas — alunos regulares e
 transferidos — e marca com ``C`` o casal, cujas células de valor ficam mescladas
-entre as duas linhas porque **o casal paga junto**. Este script traduz isso para
-o modelo do sistema:
+entre as duas linhas porque **o casal paga junto**. As pessoas estão misturadas
+entre as turmas, então o script **casa cada nome com o aluno já cadastrado** e
+respeita a turma em que ele está; ninguém é movido de turma pela importação.
 
-* cada pessoa vira um aluno matriculado na turma;
+O que ele faz, uma vez casados os nomes:
+
+* aplica o plano (matrícula + mensalidades) a **cada turma** que tenha aluno na
+  planilha;
 * o cônjuge (a segunda linha do par) recebe o desconto percentual, que abate
   matrícula e mensalidade;
 * o transferido recebe a condição de transferência, dispensado da matrícula;
 * o que já foi pago entra como baixa, quitando as cobranças em ordem de
   vencimento — no casal, primeiro as do titular e depois as do cônjuge.
 
-Ao final confere o resultado contra os dois totais que a própria planilha
-declara. Se o que ficou no banco não bater com eles, o script avisa.
+Ao final confere o resultado contra os valores da própria planilha. Se não
+bater, desfaz tudo.
 
 Uso, a partir da pasta backend/ com o .env configurado:
 
-    python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx --turma 1 --parcelas 12
-    python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx --turma 1 --parcelas 12 --aplicar
+    # relatório de correspondência de nomes; não grava nada
+    python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx
 
-Sem ``--aplicar`` nada é gravado: o script mostra o que faria e sai.
+    # grava o que casou exatamente
+    python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx --aplicar
+
+    # aceita também os nomes parecidos e cria quem não existe
+    python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx \\
+        --aceitar-aproximados --criar-novos --turma-novos 1 --aplicar
 """
 
 import argparse
@@ -29,8 +38,9 @@ import sys
 import unicodedata
 from datetime import date
 from decimal import Decimal
+from difflib import SequenceMatcher
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.database import Base, SessionLocal, engine
 from app.models import (
@@ -47,15 +57,37 @@ from app.services import financeiro as servico
 from app.services.matriculas import sincronizar_matricula
 
 ORIGEM = "PLANILHA"
+# Abaixo disso não é nome parecido, é outro aluno.
+SEMELHANCA_MINIMA = 0.88
 
 
-# ---- leitura da planilha ---------------------------------------------------
+# ---- nomes -----------------------------------------------------------------
 
 def normalizar(nome: str) -> str:
     sem_acento = unicodedata.normalize("NFKD", nome or "")
     sem_acento = "".join(c for c in sem_acento if not unicodedata.combining(c))
     return re.sub(r"\s+", " ", sem_acento).strip().upper()
 
+
+def chave_curta(nome: str) -> str:
+    """Primeiro nome + último sobrenome, sem as partículas do meio.
+
+    "Marcos Antonio de Lima Filho" e "Marcos Antônio Lima Filho" caem na mesma
+    chave; é o erro de digitação mais comum entre a planilha e o cadastro.
+    """
+    partes = [p for p in normalizar(nome).split(" ") if len(p) > 2]
+    if not partes:
+        return normalizar(nome)
+    if len(partes) == 1:
+        return partes[0]
+    return f"{partes[0]} {partes[-1]}"
+
+
+def semelhanca(um: str, outro: str) -> float:
+    return SequenceMatcher(None, normalizar(um), normalizar(outro)).ratio()
+
+
+# ---- leitura da planilha ---------------------------------------------------
 
 def _decimal(valor) -> Decimal:
     """Converte a célula em dinheiro; ``PG`` e vazio viram zero."""
@@ -67,7 +99,7 @@ def _decimal(valor) -> Decimal:
     return servico.dinheiro(Decimal(texto))
 
 
-def ler_planilha(caminho: str) -> tuple[list[dict], dict]:
+def ler_planilha(caminho) -> tuple[list[dict], dict]:
     """Devolve as pessoas na ordem da planilha e os totais que ela declara."""
     try:
         import openpyxl
@@ -120,32 +152,146 @@ def ler_planilha(caminho: str) -> tuple[list[dict], dict]:
     return pessoas, totais
 
 
+# ---- correspondência com o cadastro ---------------------------------------
+
+def casar_nomes(db, pessoas: list[dict]) -> list[dict]:
+    """Liga cada linha da planilha ao aluno já cadastrado com aquele nome.
+
+    Devolve, para cada pessoa, a situação da correspondência:
+
+    ``EXATO``       nome idêntico (ignorando acento, caixa e espaço dobrado);
+    ``APROXIMADO``  um único parecido — precisa de confirmação de gente;
+    ``AMBIGUO``     mais de um candidato, então o script não escolhe;
+    ``NOVO``        ninguém parecido no cadastro.
+    """
+    cadastro = list(db.scalars(select(Aluno).where(Aluno.nome.is_not(None))))
+    por_nome: dict[str, list[Aluno]] = {}
+    por_chave: dict[str, list[Aluno]] = {}
+    for aluno in cadastro:
+        por_nome.setdefault(normalizar(aluno.nome), []).append(aluno)
+        por_chave.setdefault(chave_curta(aluno.nome), []).append(aluno)
+
+    correspondencias = []
+    for pessoa in pessoas:
+        exatos = por_nome.get(normalizar(pessoa["nome"]), [])
+        if len(exatos) == 1:
+            correspondencias.append({**pessoa, "situacao": "EXATO", "aluno": exatos[0]})
+            continue
+        if len(exatos) > 1:
+            correspondencias.append({**pessoa, "situacao": "AMBIGUO", "candidatos": exatos})
+            continue
+
+        candidatos = list(por_chave.get(chave_curta(pessoa["nome"]), []))
+        if not candidatos:
+            candidatos = [
+                aluno
+                for aluno in cadastro
+                if semelhanca(pessoa["nome"], aluno.nome) >= SEMELHANCA_MINIMA
+            ]
+        if len(candidatos) == 1:
+            correspondencias.append(
+                {
+                    **pessoa,
+                    "situacao": "APROXIMADO",
+                    "aluno": candidatos[0],
+                    "semelhanca": semelhanca(pessoa["nome"], candidatos[0].nome),
+                }
+            )
+        elif candidatos:
+            correspondencias.append({**pessoa, "situacao": "AMBIGUO", "candidatos": candidatos})
+        else:
+            correspondencias.append({**pessoa, "situacao": "NOVO"})
+    return correspondencias
+
+
+def turma_do_aluno(db, aluno: Aluno) -> int | None:
+    if aluno.cod_tur is not None:
+        return aluno.cod_tur
+    return db.scalar(select(AluTurma.cod_tur).where(AluTurma.cod_alu == aluno.cod_alu))
+
+
+def selecionar(
+    db,
+    correspondencias: list[dict],
+    *,
+    aceitar_aproximados: bool,
+    criar_novos: bool,
+    turma_novos: int | None,
+) -> tuple[list[dict], list[tuple[dict, str]]]:
+    """Separa quem entra na importação de quem fica de fora, e por quê."""
+    entram: list[dict] = []
+    ficam_de_fora: list[tuple[dict, str]] = []
+    for item in correspondencias:
+        situacao = item["situacao"]
+        if situacao == "AMBIGUO":
+            nomes = ", ".join(a.nome for a in item["candidatos"][:3])
+            ficam_de_fora.append((item, f"mais de um aluno com esse nome ({nomes})"))
+            continue
+        if situacao == "APROXIMADO" and not aceitar_aproximados:
+            ficam_de_fora.append(
+                (item, f"parecido com {item['aluno'].nome!r}; use --aceitar-aproximados")
+            )
+            continue
+        if situacao == "NOVO":
+            if not criar_novos:
+                ficam_de_fora.append((item, "não está no cadastro; use --criar-novos"))
+                continue
+            if turma_novos is None:
+                ficam_de_fora.append((item, "aluno novo sem --turma-novos"))
+                continue
+            entram.append({**item, "cod_tur": turma_novos})
+            continue
+
+        cod_tur = turma_do_aluno(db, item["aluno"])
+        if cod_tur is None:
+            if turma_novos is None:
+                ficam_de_fora.append((item, "aluno sem turma; informe --turma-novos"))
+                continue
+            cod_tur = turma_novos
+        entram.append({**item, "cod_tur": cod_tur})
+    return entram, ficam_de_fora
+
+
 # ---- gravação --------------------------------------------------------------
 
-def obter_aluno(db, nome: str, cadastrados: dict[str, Aluno]) -> tuple[Aluno, bool]:
-    """Reaproveita o aluno já cadastrado com o mesmo nome; senão, cria."""
-    chave = normalizar(nome)
-    existente = cadastrados.get(chave)
-    if existente is not None:
-        return existente, False
-    aluno = Aluno(nome=nome, status="A", dat_cad=date.today(), origem_cadastro=ORIGEM)
-    db.add(aluno)
+def garantir_plano(
+    db,
+    cod_tur: int,
+    *,
+    matricula: Decimal,
+    mensalidade: Decimal,
+    parcelas: int,
+    primeira_mensalidade: date,
+    dia_vencimento: int,
+) -> PlanoFinanceiro:
+    plano = db.scalar(select(PlanoFinanceiro).where(PlanoFinanceiro.cod_tur == cod_tur))
+    if plano is None:
+        plano = PlanoFinanceiro(cod_tur=cod_tur)
+        db.add(plano)
+    plano.valor_matricula = servico.dinheiro(matricula)
+    plano.valor_mensalidade = servico.dinheiro(mensalidade)
+    plano.parcelas = parcelas
+    plano.dia_vencimento = dia_vencimento
+    plano.primeira_mensalidade = primeira_mensalidade
+    plano.vencimento_matricula = primeira_mensalidade
+    plano.observacao = "Importado da planilha de controle de matrículas."
+    plano.atualizado_por = ORIGEM
     db.flush()
-    cadastrados[chave] = aluno
-    return aluno, True
+    return plano
 
 
 def definir_condicao(
     db,
-    pessoa: dict,
+    item: dict,
     aluno: Aluno,
     cod_tur: int,
     *,
     desconto_conjuge: Decimal,
+    parcelas_transferencia: int | None,
 ) -> CondicaoFinanceiraAluno | None:
     """Traduz as marcas da planilha (C e o bloco) na condição do aluno."""
-    transferencia = pessoa["bloco"] == "TRANSFERENCIA"
-    conjuge = pessoa["conjuge"]
+    transferencia = item["bloco"] == "TRANSFERENCIA"
+    conjuge = item["conjuge"]
     if not transferencia and not conjuge:
         return None
 
@@ -158,16 +304,18 @@ def definir_condicao(
     if condicao is None:
         condicao = CondicaoFinanceiraAluno(cod_alu=aluno.cod_alu, cod_tur=cod_tur)
         db.add(condicao)
+    # O tipo é sempre explícito: o cônjuge do bloco regular não é transferido.
+    condicao.tipo = "TRANSFERENCIA" if transferencia else "REGULAR"
     if transferencia:
-        condicao.tipo = "TRANSFERENCIA"
         condicao.cobra_matricula = "N"
+        if parcelas_transferencia is not None:
+            condicao.parcelas = parcelas_transferencia
         condicao.observacao = (
-            "Transferido de outro seminário; dispensado da matrícula (planilha)."
+            "Transferido de outro seminário; dispensado da matrícula (planilha). "
+            "Confirme quantos módulos ele ainda vai cursar."
         )
-    else:
-        condicao.tipo = "REGULAR"
     if conjuge:
-        condicao.desconto_percentual = desconto_conjuge
+        condicao.desconto_percentual = servico.dinheiro(desconto_conjuge)
         condicao.desconto_motivo = "Casal — cônjuge com desconto"
         condicao.desconto_na_matricula = "S"
     condicao.atualizado_por = ORIGEM
@@ -177,7 +325,7 @@ def definir_condicao(
 
 def quitar(
     db,
-    pessoa: dict,
+    item: dict,
     alunos_do_pagamento: list[Aluno],
     *,
     data_pagamento: date,
@@ -188,11 +336,23 @@ def quitar(
     No casal o dinheiro entrou junto: começa pelo titular e transborda para o
     cônjuge, que é como a planilha registra — um depósito, duas pessoas.
     """
-    restante = pessoa["pago"]
+    # O que a planilha diz que entrou, menos o que uma rodada anterior já
+    # lançou: sem isso, importar duas vezes pagaria a mesma conta duas vezes.
+    ja_importado = servico.dinheiro(
+        db.scalar(
+            select(func.sum(Pagamento.valor))
+            .join(Cobranca, Cobranca.id == Pagamento.cobranca_id)
+            .where(
+                Pagamento.registrado_por == ORIGEM,
+                Cobranca.cod_alu.in_([a.cod_alu for a in alunos_do_pagamento]),
+            )
+        )
+    )
+    restante = item["pago"] - ja_importado
     if restante <= servico.ZERO:
         return servico.ZERO
     observacao = " · ".join(
-        parte for parte in ("Importado da planilha", pessoa["conta"], pessoa["recibo"]) if parte
+        parte for parte in ("Importado da planilha", item["conta"], item["recibo"]) if parte
     )
     aplicado = servico.ZERO
     for aluno in alunos_do_pagamento:
@@ -220,96 +380,82 @@ def quitar(
             restante -= valor
             aplicado += valor
     if restante > servico.ZERO:
-        relatar(f"  ! {pessoa['nome']}: sobraram R$ {restante} sem cobrança para quitar")
+        relatar(f"  ! {item['nome']}: sobraram R$ {restante} sem cobrança para quitar")
     return aplicado
 
 
 # ---- conferência -----------------------------------------------------------
 
-def conferir(
-    db,
-    pessoas: list[dict],
-    mapa: dict[int, Aluno],
-    totais: dict,
-    *,
-    relatar=print,
-) -> bool:
-    """Compara o que ficou no banco com os totais declarados pela planilha."""
-    hoje = date.today()
-    pago_banco = servico.ZERO
-    aberto_banco = servico.ZERO
+def _foto(db, aluno: Aluno) -> tuple[Decimal, Decimal]:
+    """Matrícula + primeira mensalidade: o recorte que a planilha retrata."""
+    cobrancas = list(
+        db.scalars(
+            select(Cobranca).where(
+                Cobranca.cod_alu == aluno.cod_alu,
+                Cobranca.tipo.in_(("MATRICULA", "MENSALIDADE")),
+                Cobranca.parcela == 1,
+            )
+        )
+    )
+    pagos = servico.pagos_por_cobranca(db, [c.id for c in cobrancas])
+    pago = sum((pagos.get(c.id, servico.ZERO) for c in cobrancas), servico.ZERO)
+    aberto = sum(
+        (
+            max(servico.dinheiro(c.valor) - pagos.get(c.id, servico.ZERO), servico.ZERO)
+            for c in cobrancas
+        ),
+        servico.ZERO,
+    )
+    return pago, aberto
+
+
+def conferir(db, importados: list[dict], totais: dict, *, relatar=print) -> bool:
+    """Compara o que ficou no banco com o que a planilha diz de cada aluno.
+
+    A comparação é sobre quem entrou: se alguém ficou de fora, o total geral da
+    planilha naturalmente não fecha, e é o relatório de exclusões que explica.
+    """
+    por_linha = {item["linha"]: item for item in importados}
+    pago_banco = aberto_banco = servico.ZERO
+    pago_planilha = aberto_planilha = servico.ZERO
     divergencias = []
 
-    for pessoa in pessoas:
-        aluno = mapa[pessoa["linha"]]
-        # A planilha é uma foto de matrícula + a primeira mensalidade.
-        cobrancas = list(
-            db.scalars(
-                select(Cobranca).where(
-                    Cobranca.cod_alu == aluno.cod_alu,
-                    Cobranca.tipo.in_(("MATRICULA", "MENSALIDADE")),
-                    Cobranca.parcela == 1,
-                )
-            )
-        )
-        pagos = servico.pagos_por_cobranca(db, [c.id for c in cobrancas])
-        pago = sum((pagos.get(c.id, servico.ZERO) for c in cobrancas), servico.ZERO)
-        aberto = sum(
-            (
-                max(servico.dinheiro(c.valor) - pagos.get(c.id, servico.ZERO), servico.ZERO)
-                for c in cobrancas
-            ),
-            servico.ZERO,
-        )
+    for item in importados:
+        pago, aberto = _foto(db, item["aluno"])
         pago_banco += pago
         aberto_banco += aberto
+        if item["conjuge"]:
+            continue  # a planilha lança o casal na linha do titular
 
-        # No casal a planilha lança pagamento e saldo numa linha só.
-        if pessoa["conjuge"]:
-            continue
-        esperado_aberto = pessoa["a_pagar"]
-        esperado_pago = pessoa["pago"]
-        if pessoa["titular_casal"]:
-            conjuge = next(p for p in pessoas if p["linha"] == pessoa["linha"] + 1)
-            aluno_conjuge = mapa[conjuge["linha"]]
-            outras = list(
-                db.scalars(
-                    select(Cobranca).where(
-                        Cobranca.cod_alu == aluno_conjuge.cod_alu,
-                        Cobranca.tipo.in_(("MATRICULA", "MENSALIDADE")),
-                        Cobranca.parcela == 1,
-                    )
+        pago_planilha += item["pago"]
+        aberto_planilha += item["a_pagar"]
+        esperado_pago, esperado_aberto = item["pago"], item["a_pagar"]
+        if item["titular_casal"]:
+            conjuge = por_linha.get(item["linha"] + 1)
+            if conjuge is None:
+                # Sem o cônjuge no lote a linha não tem como fechar.
+                divergencias.append(
+                    f"  ! {item['nome']}: cônjuge fora da importação; confira à mão"
                 )
-            )
-            pagos_outras = servico.pagos_por_cobranca(db, [c.id for c in outras])
-            pago += sum((pagos_outras.get(c.id, servico.ZERO) for c in outras), servico.ZERO)
-            aberto += sum(
-                (
-                    max(
-                        servico.dinheiro(c.valor) - pagos_outras.get(c.id, servico.ZERO),
-                        servico.ZERO,
-                    )
-                    for c in outras
-                ),
-                servico.ZERO,
-            )
+                continue
+            pago_conjuge, aberto_conjuge = _foto(db, conjuge["aluno"])
+            pago += pago_conjuge
+            aberto += aberto_conjuge
         if pago != esperado_pago or aberto != esperado_aberto:
             divergencias.append(
-                f"  ! {pessoa['nome']}: pago {pago} (planilha {esperado_pago}), "
+                f"  ! {item['nome']}: pago {pago} (planilha {esperado_pago}), "
                 f"em aberto {aberto} (planilha {esperado_aberto})"
             )
 
     relatar("")
-    relatar("Conferência contra a planilha")
-    relatar(f"  pago      no banco {pago_banco:>9}   planilha {totais['pago']!s:>9}")
-    relatar(f"  a pagar   no banco {aberto_banco:>9}   planilha {totais['a_pagar']!s:>9}")
+    relatar("Conferência contra a planilha (sobre quem entrou)")
+    relatar(f"  pago     no banco {pago_banco:>9}   planilha {pago_planilha:>9}")
+    relatar(f"  a pagar  no banco {aberto_banco:>9}   planilha {aberto_planilha:>9}")
+    if totais.get("pago") is not None:
+        relatar(f"  (a planilha inteira declara pago {totais['pago']} e a pagar {totais['a_pagar']})")
     for linha in divergencias:
         relatar(linha)
-    bate = (
-        not divergencias
-        and (totais["pago"] is None or pago_banco == totais["pago"])
-        and (totais["a_pagar"] is None or aberto_banco == totais["a_pagar"])
-    )
+    bate = not divergencias and pago_banco == pago_planilha and aberto_banco == aberto_planilha
     relatar("  => " + ("confere" if bate else "NÃO confere"))
     return bate
 
@@ -318,109 +464,157 @@ def conferir(
 
 def importar(
     db,
-    pessoas: list[dict],
+    importados: list[dict],
     totais: dict,
     *,
-    turma: Turma,
     parcelas: int,
     matricula: Decimal,
     mensalidade: Decimal,
     desconto_conjuge: Decimal,
     primeira_mensalidade: date,
     dia_vencimento: int = 10,
+    parcelas_transferencia: int | None = None,
     relatar=print,
 ) -> dict:
-    """Grava a planilha no banco e devolve o que foi feito.
-
-    Não faz commit: quem chama decide, depois de olhar a conferência.
-    """
-    plano = db.scalar(select(PlanoFinanceiro).where(PlanoFinanceiro.cod_tur == turma.cod_tur))
-    if plano is None:
-        plano = PlanoFinanceiro(cod_tur=turma.cod_tur)
-        db.add(plano)
-    plano.valor_matricula = servico.dinheiro(matricula)
-    plano.valor_mensalidade = servico.dinheiro(mensalidade)
-    plano.parcelas = parcelas
-    plano.dia_vencimento = dia_vencimento
-    plano.primeira_mensalidade = primeira_mensalidade
-    plano.vencimento_matricula = primeira_mensalidade
-    plano.observacao = "Importado da planilha de controle de matrículas."
-    plano.atualizado_por = ORIGEM
-    db.flush()
-
-    cadastrados = {
-        normalizar(nome): aluno
-        for aluno, nome in db.execute(select(Aluno, Aluno.nome))
-        if nome
+    """Grava no banco e devolve o que foi feito. Não faz commit."""
+    # 1. Plano em cada turma que tem gente na planilha.
+    turmas = sorted({item["cod_tur"] for item in importados})
+    planos = {
+        cod_tur: garantir_plano(
+            db,
+            cod_tur,
+            matricula=matricula,
+            mensalidade=mensalidade,
+            parcelas=parcelas,
+            primeira_mensalidade=primeira_mensalidade,
+            dia_vencimento=dia_vencimento,
+        )
+        for cod_tur in turmas
     }
-    mapa: dict[int, Aluno] = {}
-    criados = reaproveitados = 0
-    for pessoa in pessoas:
-        aluno, novo = obter_aluno(db, pessoa["nome"], cadastrados)
-        criados += novo
-        reaproveitados += not novo
-        mapa[pessoa["linha"]] = aluno
-        if aluno.cod_tur != turma.cod_tur:
-            sincronizar_matricula(db, aluno, turma.cod_tur)
+    relatar(f"Plano aplicado a {len(turmas)} turma(s): {', '.join(str(t) for t in turmas)}")
+
+    # 2. Aluno, matrícula na turma e condição.
+    criados = 0
+    for item in importados:
+        aluno = item.get("aluno")
+        if aluno is None:
+            aluno = Aluno(
+                nome=item["nome"],
+                status="A",
+                dat_cad=date.today(),
+                origem_cadastro=ORIGEM,
+            )
+            db.add(aluno)
+            db.flush()
+            item["aluno"] = aluno
+            criados += 1
+        if turma_do_aluno(db, aluno) != item["cod_tur"]:
+            sincronizar_matricula(db, aluno, item["cod_tur"])
         definir_condicao(
             db,
-            pessoa,
+            item,
             aluno,
-            turma.cod_tur,
-            desconto_conjuge=servico.dinheiro(desconto_conjuge),
+            item["cod_tur"],
+            desconto_conjuge=desconto_conjuge,
+            parcelas_transferencia=parcelas_transferencia,
         )
     db.flush()
-    relatar(f"\nAlunos: {criados} criado(s), {reaproveitados} já cadastrado(s).")
+    relatar(f"Alunos: {criados} criado(s), {len(importados) - criados} já cadastrado(s).")
 
-    geracao = servico.gerar_cobrancas_do_plano(db, plano, criado_por=ORIGEM)
+    # 3. Cobranças conforme o plano e a condição de cada um.
+    cobrancas_criadas = transferencias = 0
+    for cod_tur in turmas:
+        geracao = servico.gerar_cobrancas_do_plano(db, planos[cod_tur], criado_por=ORIGEM)
+        cobrancas_criadas += geracao["criadas"]
+        transferencias += geracao["transferencias"]
     relatar(
-        f"Cobranças: {geracao['criadas']} criada(s) para {geracao['alunos']} aluno(s), "
-        f"{geracao['transferencias']} com condição de transferência."
+        f"Cobranças: {cobrancas_criadas} criada(s), "
+        f"{transferencias} aluno(s) com condição de transferência."
     )
 
+    # 4. Baixas do que já foi pago.
+    por_linha = {item["linha"]: item for item in importados}
     baixado = servico.ZERO
-    for pessoa in pessoas:
-        if pessoa["conjuge"] or pessoa["pago"] <= servico.ZERO:
+    for item in importados:
+        if item["conjuge"] or item["pago"] <= servico.ZERO:
             continue
-        alunos_do_pagamento = [mapa[pessoa["linha"]]]
-        if pessoa["titular_casal"]:
-            alunos_do_pagamento.append(mapa[pessoa["linha"] + 1])
+        alunos_do_pagamento = [item["aluno"]]
+        if item["titular_casal"] and (item["linha"] + 1) in por_linha:
+            alunos_do_pagamento.append(por_linha[item["linha"] + 1]["aluno"])
         baixado += quitar(
-            db,
-            pessoa,
-            alunos_do_pagamento,
-            data_pagamento=primeira_mensalidade,
-            relatar=relatar,
+            db, item, alunos_do_pagamento, data_pagamento=primeira_mensalidade, relatar=relatar
         )
     relatar(f"Baixas: R$ {baixado} lançado(s).")
     db.flush()
 
-    bate = conferir(db, pessoas, mapa, totais, relatar=relatar)
     return {
+        "turmas": turmas,
         "alunos_criados": criados,
-        "alunos_reaproveitados": reaproveitados,
-        "cobrancas_criadas": geracao["criadas"],
-        "transferencias": geracao["transferencias"],
+        "alunos_reaproveitados": len(importados) - criados,
+        "cobrancas_criadas": cobrancas_criadas,
+        "transferencias": transferencias,
         "baixado": baixado,
-        "confere": bate,
-        "mapa": mapa,
+        "confere": conferir(db, importados, totais, relatar=relatar),
     }
+
+
+def relatar_correspondencia(correspondencias: list[dict], db) -> None:
+    """Mostra, nome por nome, o que o script encontrou no cadastro."""
+    rotulos = {
+        "EXATO": "exato",
+        "APROXIMADO": "PARECIDO",
+        "AMBIGUO": "AMBÍGUO",
+        "NOVO": "não cadastrado",
+    }
+    nomes_turma = {
+        cod: nome for cod, nome in db.execute(select(Turma.cod_tur, Turma.nome))
+    }
+    print()
+    print(f"{'PLANILHA':<38} {'SITUAÇÃO':<15} CADASTRO / TURMA")
+    print("-" * 100)
+    for item in correspondencias:
+        detalhe = ""
+        if item["situacao"] in ("EXATO", "APROXIMADO"):
+            aluno = item["aluno"]
+            cod_tur = turma_do_aluno(db, aluno)
+            turma = nomes_turma.get(cod_tur, "sem turma")
+            detalhe = f"{aluno.nome} — {turma}"
+            if item["situacao"] == "APROXIMADO":
+                detalhe += f"  ({item['semelhanca']:.0%})"
+        elif item["situacao"] == "AMBIGUO":
+            detalhe = " | ".join(a.nome for a in item["candidatos"][:3])
+        print(f"{item['nome'][:37]:<38} {rotulos[item['situacao']]:<15} {detalhe}")
 
 
 def main() -> None:
     analisador = argparse.ArgumentParser(description=__doc__)
     analisador.add_argument("--arquivo", required=True, help="Caminho do .xlsx")
-    analisador.add_argument("--turma", type=int, help="Código da turma de destino")
     analisador.add_argument(
-        "--parcelas",
+        "--parcelas", type=int, default=24, help="Mensalidades do curso (2 anos = 24)"
+    )
+    analisador.add_argument(
+        "--parcelas-transferencia",
         type=int,
-        help="Quantas mensalidades o curso terá ao todo (a planilha só mostra a primeira)",
+        help="Mensalidades de quem veio por transferência (padrão: igual à turma)",
+    )
+    analisador.add_argument(
+        "--turma-novos",
+        type=int,
+        help="Turma para quem não está no cadastro ou está sem turma",
     )
     analisador.add_argument("--matricula", type=Decimal, default=Decimal("100"))
     analisador.add_argument("--mensalidade", type=Decimal, default=Decimal("200"))
     analisador.add_argument("--desconto-conjuge", type=Decimal, default=Decimal("50"))
     analisador.add_argument("--primeira-mensalidade", default="2026-08-10")
     analisador.add_argument("--dia-vencimento", type=int, default=10)
+    analisador.add_argument(
+        "--aceitar-aproximados",
+        action="store_true",
+        help="Aceita o nome parecido quando há um único candidato",
+    )
+    analisador.add_argument(
+        "--criar-novos", action="store_true", help="Cadastra quem não foi encontrado"
+    )
     analisador.add_argument(
         "--aplicar",
         action="store_true",
@@ -432,69 +626,77 @@ def main() -> None:
     atualizar_schema(engine)
     db = SessionLocal()
     try:
-        if not args.turma or not args.parcelas:
-            print("Informe --turma e --parcelas. Turmas cadastradas:")
-            for turma in db.scalars(select(Turma).order_by(Turma.nome)):
-                print(f"  {turma.cod_tur:>3}  {turma.nome}")
-            print("\n--parcelas é o total de mensalidades do curso; a planilha")
-            print("mostra só a primeira, então o sistema não tem como deduzir.")
-            return
-
-        turma = db.get(Turma, args.turma)
-        if turma is None:
-            sys.exit(f"Turma {args.turma} não encontrada.")
-
         pessoas, totais = ler_planilha(args.arquivo)
+        correspondencias = casar_nomes(db, pessoas)
         vencimento = date.fromisoformat(args.primeira_mensalidade)
-        regulares = sum(1 for p in pessoas if p["bloco"] == "REGULAR")
-        transferidos = sum(1 for p in pessoas if p["bloco"] == "TRANSFERENCIA")
-        conjuges = sum(1 for p in pessoas if p["conjuge"])
 
         print(f"Planilha: {args.arquivo}")
-        print(f"  {len(pessoas)} pessoa(s): {regulares} regular(es), {transferidos} transferido(s)")
-        print(f"  {conjuges} cônjuge(s) com {args.desconto_conjuge}% de desconto")
-        print(f"  totais declarados: pago {totais['pago']}, a pagar {totais['a_pagar']}")
-        print(f"Turma de destino: {turma.cod_tur} — {turma.nome}")
         print(
+            f"  {len(pessoas)} pessoa(s): "
+            f"{sum(1 for p in pessoas if p['bloco'] == 'REGULAR')} regular(es), "
+            f"{sum(1 for p in pessoas if p['bloco'] == 'TRANSFERENCIA')} transferido(s), "
+            f"{sum(1 for p in pessoas if p['conjuge'])} cônjuge(s)"
+        )
+        contagem = {}
+        for item in correspondencias:
+            contagem[item["situacao"]] = contagem.get(item["situacao"], 0) + 1
+        print("  correspondência: " + ", ".join(f"{v} {k.lower()}" for k, v in sorted(contagem.items())))
+        relatar_correspondencia(correspondencias, db)
+
+        entram, de_fora = selecionar(
+            db,
+            correspondencias,
+            aceitar_aproximados=args.aceitar_aproximados,
+            criar_novos=args.criar_novos,
+            turma_novos=args.turma_novos,
+        )
+        if de_fora:
+            print()
+            print("Ficam de fora:")
+            for item, motivo in de_fora:
+                print(f"  - {item['nome']}: {motivo}")
+        if not entram:
+            print("\nNinguém a importar. Turmas cadastradas:")
+            for turma in db.scalars(select(Turma).order_by(Turma.nome)):
+                print(f"  {turma.cod_tur:>3}  {turma.nome}")
+            return
+
+        turmas = sorted({item["cod_tur"] for item in entram})
+        print()
+        print(
+            f"Entram {len(entram)} pessoa(s) em {len(turmas)} turma(s). "
             f"Plano: matrícula R$ {args.matricula}, mensalidade R$ {args.mensalidade}, "
-            f"{args.parcelas} parcela(s), 1ª em {vencimento:%d/%m/%Y}, dia {args.dia_vencimento}"
+            f"{args.parcelas} parcelas, 1ª em {vencimento:%d/%m/%Y}."
         )
         if not args.aplicar:
-            print("\nSimulação (use --aplicar para gravar). Seria feito:")
-            for pessoa in pessoas:
-                marcas = []
-                if pessoa["conjuge"]:
-                    marcas.append(f"cônjuge {args.desconto_conjuge}%")
-                elif pessoa["titular_casal"]:
-                    marcas.append("titular do casal")
-                if pessoa["bloco"] == "TRANSFERENCIA":
-                    marcas.append("transferência, sem matrícula")
-                if pessoa["pago"] > servico.ZERO:
-                    marcas.append(f"baixa de R$ {pessoa['pago']}")
-                sufixo = f"  [{', '.join(marcas)}]" if marcas else ""
-                print(f"  {pessoa['linha']:>3}  {pessoa['nome']}{sufixo}")
+            print("\nSimulação: nada foi gravado. Repita com --aplicar para valer.")
             return
 
         resultado = importar(
             db,
-            pessoas,
+            entram,
             totais,
-            turma=turma,
             parcelas=args.parcelas,
             matricula=args.matricula,
             mensalidade=args.mensalidade,
             desconto_conjuge=args.desconto_conjuge,
             primeira_mensalidade=vencimento,
             dia_vencimento=args.dia_vencimento,
+            parcelas_transferencia=args.parcelas_transferencia,
         )
         if not resultado["confere"]:
             db.rollback()
             sys.exit(
                 "\nNada foi gravado: o resultado não bate com a planilha. "
-                "Confira os valores de --matricula, --mensalidade e --desconto-conjuge."
+                "Confira --matricula, --mensalidade e --desconto-conjuge."
             )
         db.commit()
         print("\nImportação concluída.")
+        if resultado["transferencias"]:
+            print(
+                "Revise quantos módulos cada transferido ainda vai cursar em "
+                "Financeiro › turma › Condição."
+            )
     finally:
         db.close()
 

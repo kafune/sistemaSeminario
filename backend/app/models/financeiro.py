@@ -64,7 +64,9 @@ class CondicaoFinanceiraAluno(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     cod_alu: Mapped[int] = mapped_column(Integer)
     cod_tur: Mapped[int] = mapped_column(Integer)
-    tipo: Mapped[str] = mapped_column(String(15), default="TRANSFERENCIA")
+    # Nasce REGULAR: uma linha criada só para guardar desconto não pode
+    # sair rotulando o aluno de transferido.
+    tipo: Mapped[str] = mapped_column(String(15), default="REGULAR")
     # Nulo em qualquer campo abaixo significa "segue o plano da turma".
     parcelas: Mapped[int | None] = mapped_column(Integer)
     primeira_mensalidade: Mapped[date | None] = mapped_column(Date)

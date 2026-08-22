@@ -18,6 +18,7 @@ import unicodedata
 from calendar import monthrange
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
+from typing import NamedTuple
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -26,6 +27,7 @@ from ..models import (
     Aluno,
     AluTurma,
     Cobranca,
+    CondicaoFinanceiraAluno,
     ConfiguracaoFinanceira,
     Pagamento,
     PlanoFinanceiro,
@@ -204,6 +206,225 @@ def criar_cobranca(
     return cobranca
 
 
+class PlanoEfetivo(NamedTuple):
+    """Plano da turma já com a condição do aluno aplicada."""
+
+    valor_matricula: Decimal
+    vencimento_matricula: date
+    valor_mensalidade: Decimal
+    parcelas: int
+    primeira_mensalidade: date
+    dia_vencimento: int
+    transferencia: bool
+
+
+def plano_efetivo(
+    plano: PlanoFinanceiro,
+    condicao: CondicaoFinanceiraAluno | None,
+    *,
+    hoje: date | None = None,
+) -> PlanoEfetivo:
+    """Resolve o que este aluno paga de fato.
+
+    Cada campo nulo na condição significa "segue a turma", então o aluno de
+    transferência mexe só no que é diferente — quase sempre a quantidade de
+    meses e o mês de entrada.
+    """
+    hoje = hoje or date.today()
+    base = plano.primeira_mensalidade or date(hoje.year, hoje.month, 1)
+    dia = max(1, min(int(plano.dia_vencimento or base.day), 28))
+    efetivo = PlanoEfetivo(
+        valor_matricula=dinheiro(plano.valor_matricula),
+        vencimento_matricula=plano.vencimento_matricula or hoje,
+        valor_mensalidade=dinheiro(plano.valor_mensalidade),
+        parcelas=max(int(plano.parcelas or 0), 0),
+        primeira_mensalidade=base,
+        dia_vencimento=dia,
+        transferencia=False,
+    )
+    if condicao is None or condicao.tipo == "REGULAR":
+        return efetivo
+
+    return efetivo._replace(
+        valor_matricula=(
+            ZERO
+            if condicao.cobra_matricula != "S"
+            else dinheiro(condicao.valor_matricula)
+            if condicao.valor_matricula is not None
+            else efetivo.valor_matricula
+        ),
+        valor_mensalidade=(
+            dinheiro(condicao.valor_mensalidade)
+            if condicao.valor_mensalidade is not None
+            else efetivo.valor_mensalidade
+        ),
+        parcelas=(
+            max(int(condicao.parcelas), 0)
+            if condicao.parcelas is not None
+            else efetivo.parcelas
+        ),
+        primeira_mensalidade=condicao.primeira_mensalidade or efetivo.primeira_mensalidade,
+        transferencia=True,
+    )
+
+
+def condicoes_da_turma(
+    db: Session,
+    cod_tur: int,
+    alunos: list[int] | None = None,
+) -> dict[int, CondicaoFinanceiraAluno]:
+    consulta = select(CondicaoFinanceiraAluno).where(
+        CondicaoFinanceiraAluno.cod_tur == cod_tur
+    )
+    if alunos is not None:
+        consulta = consulta.where(CondicaoFinanceiraAluno.cod_alu.in_(alunos))
+    return {condicao.cod_alu: condicao for condicao in db.scalars(consulta)}
+
+
+def _vencimento_da_parcela(efetivo: PlanoEfetivo, numero: int) -> date:
+    # A parcela 1 vence na data escolhida, tal como digitada; o dia do plano
+    # governa apenas as seguintes.
+    if numero == 1:
+        return efetivo.primeira_mensalidade
+    return somar_meses(efetivo.primeira_mensalidade, numero - 1, efetivo.dia_vencimento)
+
+
+def _descricao_mensalidade(numero: int, efetivo: PlanoEfetivo, nome_turma: str) -> str:
+    sufixo = " · transferência" if efetivo.transferencia else ""
+    return f"Mensalidade {numero}/{efetivo.parcelas} · {nome_turma}{sufixo}"
+
+
+def aplicar_plano_ao_aluno(
+    db: Session,
+    plano: PlanoFinanceiro,
+    cod_alu: int,
+    *,
+    efetivo: PlanoEfetivo,
+    nome_turma: str,
+    criado_por: str | None = None,
+    ajustar_existentes: bool = False,
+) -> dict:
+    """Faz as cobranças do aluno corresponderem ao plano dele.
+
+    Sem ``ajustar_existentes`` apenas cria o que falta — é a geração do dia a
+    dia, idempotente. Com ele, também corrige valor e vencimento das parcelas
+    ainda em aberto e remove as que sobraram quando o aluno passou a pagar
+    menos meses. Parcela com pagamento lançado nunca é apagada nem reescrita:
+    o dinheiro que entrou manda mais que o plano.
+    """
+    existentes = {
+        cobranca.parcela: cobranca
+        for cobranca in db.scalars(
+            select(Cobranca).where(
+                Cobranca.cod_tur == plano.cod_tur,
+                Cobranca.cod_alu == cod_alu,
+                Cobranca.tipo == "MENSALIDADE",
+            )
+        )
+    }
+    matricula = db.scalar(
+        select(Cobranca).where(
+            Cobranca.cod_tur == plano.cod_tur,
+            Cobranca.cod_alu == cod_alu,
+            Cobranca.tipo == "MATRICULA",
+        )
+    )
+    ids = [c.id for c in existentes.values()]
+    if matricula is not None:
+        ids.append(matricula.id)
+    pagos = pagos_por_cobranca(db, ids)
+
+    def intocavel(cobranca: Cobranca) -> bool:
+        return pagos.get(cobranca.id, ZERO) > ZERO or cobranca.status in ("PAGA", "ISENTA")
+
+    resultado = {"criadas": 0, "atualizadas": 0, "removidas": 0, "preservadas": 0}
+
+    # Matrícula: existe quando o plano efetivo cobra por ela.
+    if efetivo.valor_matricula > ZERO and matricula is None:
+        criar_cobranca(
+            db,
+            cod_alu=cod_alu,
+            cod_tur=plano.cod_tur,
+            plano_id=plano.id,
+            tipo="MATRICULA",
+            descricao=f"Matrícula · {nome_turma}",
+            valor=efetivo.valor_matricula,
+            vencimento=efetivo.vencimento_matricula,
+            parcela=1,
+            total_parcelas=1,
+            criado_por=criado_por,
+        )
+        resultado["criadas"] += 1
+    elif matricula is not None and ajustar_existentes:
+        if efetivo.valor_matricula <= ZERO:
+            if intocavel(matricula):
+                resultado["preservadas"] += 1
+            else:
+                db.delete(matricula)
+                resultado["removidas"] += 1
+        elif not intocavel(matricula) and (
+            dinheiro(matricula.valor) != efetivo.valor_matricula
+            or matricula.vencimento != efetivo.vencimento_matricula
+        ):
+            matricula.valor = efetivo.valor_matricula
+            matricula.vencimento = efetivo.vencimento_matricula
+            matricula.competencia = competencia_de(efetivo.vencimento_matricula)
+            resultado["atualizadas"] += 1
+
+    if efetivo.valor_mensalidade <= ZERO:
+        return resultado
+
+    for numero in range(1, efetivo.parcelas + 1):
+        cobranca = existentes.pop(numero, None)
+        vencimento = _vencimento_da_parcela(efetivo, numero)
+        descricao = _descricao_mensalidade(numero, efetivo, nome_turma)
+        if cobranca is None:
+            criar_cobranca(
+                db,
+                cod_alu=cod_alu,
+                cod_tur=plano.cod_tur,
+                plano_id=plano.id,
+                tipo="MENSALIDADE",
+                descricao=descricao,
+                valor=efetivo.valor_mensalidade,
+                vencimento=vencimento,
+                parcela=numero,
+                total_parcelas=efetivo.parcelas,
+                criado_por=criado_por,
+            )
+            resultado["criadas"] += 1
+            continue
+        if not ajustar_existentes:
+            continue
+        if intocavel(cobranca):
+            resultado["preservadas"] += 1
+            continue
+        mudou = (
+            dinheiro(cobranca.valor) != efetivo.valor_mensalidade
+            or cobranca.vencimento != vencimento
+            or cobranca.total_parcelas != efetivo.parcelas
+        )
+        cobranca.valor = efetivo.valor_mensalidade
+        cobranca.vencimento = vencimento
+        cobranca.competencia = competencia_de(vencimento)
+        cobranca.total_parcelas = efetivo.parcelas
+        cobranca.descricao = descricao
+        if mudou:
+            resultado["atualizadas"] += 1
+
+    # O que sobrou passou do fim do plano: é o excedente de quem vai cursar
+    # menos meses que a turma.
+    if ajustar_existentes:
+        for cobranca in existentes.values():
+            if intocavel(cobranca):
+                resultado["preservadas"] += 1
+            else:
+                db.delete(cobranca)
+                resultado["removidas"] += 1
+
+    return resultado
+
+
 def gerar_cobrancas_do_plano(
     db: Session,
     plano: PlanoFinanceiro,
@@ -216,7 +437,8 @@ def gerar_cobrancas_do_plano(
 
     É idempotente: rodar de novo depois de matricular mais gente cria só o que
     falta, porque a chave lógica (aluno, turma, tipo, parcela) já existe para
-    quem foi contemplado antes.
+    quem foi contemplado antes. Quem tem condição própria — o aluno de
+    transferência — recebe as parcelas dele, não as da turma.
     """
     hoje = hoje or date.today()
     consulta = select(AluTurma.cod_alu).where(AluTurma.cod_tur == plano.cod_tur)
@@ -224,73 +446,33 @@ def gerar_cobrancas_do_plano(
         consulta = consulta.where(AluTurma.cod_alu == apenas_aluno)
     alunos = sorted(set(db.scalars(consulta)))
     if not alunos:
-        return {"alunos": 0, "criadas": 0, "existentes": 0}
-
-    existentes = {
-        (cod_alu, tipo, parcela)
-        for cod_alu, tipo, parcela in db.execute(
-            select(Cobranca.cod_alu, Cobranca.tipo, Cobranca.parcela).where(
-                Cobranca.cod_tur == plano.cod_tur,
-                Cobranca.cod_alu.in_(alunos),
-                Cobranca.tipo.in_(("MATRICULA", "MENSALIDADE")),
-            )
-        )
-    }
+        return {"alunos": 0, "criadas": 0, "transferencias": 0}
 
     turma = db.get(Turma, plano.cod_tur)
     nome_turma = (turma.nome if turma else None) or f"Turma {plano.cod_tur}"
-    base = plano.primeira_mensalidade or date(hoje.year, hoje.month, 1)
-    dia = max(1, min(int(plano.dia_vencimento or base.day), 28))
-    venc_matricula = plano.vencimento_matricula or hoje
-    valor_matricula = dinheiro(plano.valor_matricula)
-    valor_mensalidade = dinheiro(plano.valor_mensalidade)
-    parcelas = max(int(plano.parcelas or 0), 0)
+    condicoes = condicoes_da_turma(db, plano.cod_tur, alunos)
 
     criadas = 0
-    reaproveitadas = 0
+    transferencias = 0
     for cod_alu in alunos:
-        if valor_matricula > ZERO:
-            if (cod_alu, "MATRICULA", 1) in existentes:
-                reaproveitadas += 1
-            else:
-                criar_cobranca(
-                    db,
-                    cod_alu=cod_alu,
-                    cod_tur=plano.cod_tur,
-                    plano_id=plano.id,
-                    tipo="MATRICULA",
-                    descricao=f"Matrícula · {nome_turma}",
-                    valor=valor_matricula,
-                    vencimento=venc_matricula,
-                    parcela=1,
-                    total_parcelas=1,
-                    criado_por=criado_por,
-                )
-                criadas += 1
-        if valor_mensalidade <= ZERO:
-            continue
-        for numero in range(1, parcelas + 1):
-            if (cod_alu, "MENSALIDADE", numero) in existentes:
-                reaproveitadas += 1
-                continue
-            criar_cobranca(
-                db,
-                cod_alu=cod_alu,
-                cod_tur=plano.cod_tur,
-                plano_id=plano.id,
-                tipo="MENSALIDADE",
-                descricao=f"Mensalidade {numero}/{parcelas} · {nome_turma}",
-                valor=valor_mensalidade,
-                # A parcela 1 vence na data escolhida, tal como digitada; o dia
-                # do plano governa apenas as seguintes.
-                vencimento=base if numero == 1 else somar_meses(base, numero - 1, dia),
-                parcela=numero,
-                total_parcelas=parcelas,
-                criado_por=criado_por,
-            )
-            criadas += 1
+        efetivo = plano_efetivo(plano, condicoes.get(cod_alu), hoje=hoje)
+        if efetivo.transferencia:
+            transferencias += 1
+        resultado = aplicar_plano_ao_aluno(
+            db,
+            plano,
+            cod_alu,
+            efetivo=efetivo,
+            nome_turma=nome_turma,
+            criado_por=criado_por,
+        )
+        criadas += resultado["criadas"]
 
-    return {"alunos": len(alunos), "criadas": criadas, "existentes": reaproveitadas}
+    return {
+        "alunos": len(alunos),
+        "criadas": criadas,
+        "transferencias": transferencias,
+    }
 
 
 # ---- baixa -----------------------------------------------------------------

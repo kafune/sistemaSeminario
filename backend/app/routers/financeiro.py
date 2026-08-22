@@ -18,7 +18,7 @@ from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import func, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from ..config import settings
@@ -28,6 +28,7 @@ from ..models import (
     Aluno,
     AluTurma,
     Cobranca,
+    CondicaoFinanceiraAluno,
     Pagamento,
     PlanoFinanceiro,
     TransacaoBancaria,
@@ -53,6 +54,21 @@ class PlanoInput(BaseModel):
     primeira_mensalidade: date | None = None
     vencimento_matricula: date | None = None
     observacao: str | None = Field(default=None, max_length=2000)
+
+
+class CondicaoInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    tipo: str = "TRANSFERENCIA"
+    # Nulo em qualquer campo abaixo significa "segue o plano da turma".
+    parcelas: int | None = Field(default=None, ge=0, le=60)
+    primeira_mensalidade: date | None = None
+    valor_mensalidade: Decimal | None = Field(default=None, ge=0, le=Decimal("99999.99"))
+    cobra_matricula: bool = True
+    valor_matricula: Decimal | None = Field(default=None, ge=0, le=Decimal("99999.99"))
+    observacao: str | None = Field(default=None, max_length=2000)
+    # Ajusta as cobranças já geradas, e não só as próximas.
+    aplicar: bool = True
 
 
 class CobrancaInput(BaseModel):
@@ -184,49 +200,104 @@ def _cobrancas_com_pagamento(db: Session, filtros=()) -> list[tuple[Cobranca, De
     ]
 
 
-def _nomes(db: Session) -> tuple[dict[int, str], dict[int, str]]:
-    alunos = {cod: nome for cod, nome in db.execute(select(Aluno.cod_alu, Aluno.nome))}
-    turmas = {cod: nome for cod, nome in db.execute(select(Turma.cod_tur, Turma.nome))}
-    return alunos, turmas
+def _subconsulta_pagos():
+    """Total pago por cobrança, para entrar como coluna nas agregações."""
+    return (
+        select(
+            Pagamento.cobranca_id.label("cobranca_id"),
+            func.sum(Pagamento.valor).label("pago"),
+        )
+        .group_by(Pagamento.cobranca_id)
+        .subquery()
+    )
+
+
+def _intervalo_do_mes(mes: str) -> tuple[date, date]:
+    """Converte "AAAA-MM" no primeiro e no último dia daquele mês."""
+    try:
+        ano, numero = mes.split("-")
+        inicio = date(int(ano), int(numero), 1)
+    except (ValueError, TypeError):
+        raise HTTPException(400, "Mês inválido; use o formato AAAA-MM.")
+    return inicio, servico.somar_meses(inicio, 1) - timedelta(days=1)
 
 
 # ---- painel ----------------------------------------------------------------
 
 @router.get("/resumo")
 def resumo(db: Session = Depends(get_db)):
-    """Números do painel: o que está parado esperando alguém agir."""
+    """Números do painel: o que está parado esperando alguém agir.
+
+    Tudo sai de uma agregação por turma no banco — a tela nunca carrega a
+    carteira inteira para somar em Python.
+    """
     hoje = date.today()
     limite_proximo = hoje + timedelta(days=7)
     inicio_mes = date(hoje.year, hoje.month, 1)
 
+    pagos = _subconsulta_pagos()
+    pago = func.coalesce(pagos.c.pago, 0)
+    saldo = Cobranca.valor - pago
+    vencida = and_(Cobranca.status == "ABERTA", Cobranca.vencimento < hoje)
+    proxima = and_(
+        Cobranca.status == "ABERTA",
+        Cobranca.vencimento >= hoje,
+        Cobranca.vencimento <= limite_proximo,
+    )
+
+    linhas = db.execute(
+        select(
+            Cobranca.cod_tur,
+            Turma.nome,
+            func.count(Cobranca.id),
+            func.count(func.distinct(Cobranca.cod_alu)),
+            func.sum(Cobranca.valor),
+            func.sum(pago),
+            func.sum(case((vencida, saldo), else_=0)),
+            func.sum(case((vencida, 1), else_=0)),
+            func.sum(case((proxima, saldo), else_=0)),
+        )
+        .join(pagos, pagos.c.cobranca_id == Cobranca.id, isouter=True)
+        .join(Turma, Turma.cod_tur == Cobranca.cod_tur, isouter=True)
+        .where(Cobranca.status.not_in(("CANCELADA", "ISENTA")))
+        .group_by(Cobranca.cod_tur, Turma.nome)
+    ).all()
+
+    turmas = []
     a_receber = vencido = a_vencer_semana = servico.ZERO
     vencidas = 0
-    por_turma: dict[int | None, dict] = {}
-    for cobranca, pago in _cobrancas_com_pagamento(db):
-        if cobranca.status in ("CANCELADA", "ISENTA"):
-            continue
-        valor = servico.dinheiro(cobranca.valor)
-        saldo = max(valor - pago, servico.ZERO)
-        situacao = servico.situacao_de(cobranca, pago, hoje)
-        turma = por_turma.setdefault(
-            cobranca.cod_tur,
-            {"cod_tur": cobranca.cod_tur, "previsto": servico.ZERO, "recebido": servico.ZERO,
-             "vencido": servico.ZERO, "cobrancas": 0, "vencidas": 0, "alunos": set()},
+    for (
+        cod_tur,
+        nome,
+        cobrancas,
+        alunos,
+        previsto,
+        recebido,
+        turma_vencido,
+        turma_vencidas,
+        turma_proximo,
+    ) in linhas:
+        previsto = servico.dinheiro(previsto)
+        recebido = servico.dinheiro(recebido)
+        em_aberto = max(previsto - recebido, servico.ZERO)
+        a_receber += em_aberto
+        vencido += servico.dinheiro(turma_vencido)
+        vencidas += int(turma_vencidas or 0)
+        a_vencer_semana += servico.dinheiro(turma_proximo)
+        turmas.append(
+            {
+                "cod_tur": cod_tur,
+                "turma_nome": nome or "Sem turma",
+                "alunos": int(alunos or 0),
+                "cobrancas": int(cobrancas or 0),
+                "vencidas": int(turma_vencidas or 0),
+                "previsto": float(previsto),
+                "recebido": float(recebido),
+                "em_aberto": float(em_aberto),
+                "vencido": float(servico.dinheiro(turma_vencido)),
+            }
         )
-        turma["previsto"] += valor
-        turma["recebido"] += min(pago, valor)
-        turma["cobrancas"] += 1
-        turma["alunos"].add(cobranca.cod_alu)
-        if saldo <= servico.ZERO:
-            continue
-        a_receber += saldo
-        if situacao == "VENCIDA":
-            vencido += saldo
-            vencidas += 1
-            turma["vencido"] += saldo
-            turma["vencidas"] += 1
-        elif cobranca.vencimento and cobranca.vencimento <= limite_proximo:
-            a_vencer_semana += saldo
+    turmas.sort(key=lambda item: (item["turma_nome"] or "").lower())
 
     recebido_mes = servico.dinheiro(
         db.scalar(
@@ -241,26 +312,9 @@ def resumo(db: Session = Depends(get_db)):
         .select_from(TransacaoBancaria)
         .where(TransacaoBancaria.status == "PENDENTE")
     ) or 0
-    _, nomes_turma = _nomes(db)
-    turmas = [
-        {
-            "cod_tur": dados["cod_tur"],
-            "turma_nome": nomes_turma.get(dados["cod_tur"]) or "Sem turma",
-            "alunos": len(dados["alunos"]),
-            "cobrancas": dados["cobrancas"],
-            "vencidas": dados["vencidas"],
-            "previsto": float(dados["previsto"]),
-            "recebido": float(dados["recebido"]),
-            "em_aberto": float(max(dados["previsto"] - dados["recebido"], servico.ZERO)),
-            "vencido": float(dados["vencido"]),
-        }
-        for dados in sorted(
-            por_turma.values(),
-            key=lambda item: (nomes_turma.get(item["cod_tur"]) or "zzz").lower(),
-        )
-    ]
     return {
         "hoje": hoje.isoformat(),
+        "mes_corrente": f"{hoje.year:04d}-{hoje.month:02d}",
         "a_receber": float(a_receber),
         "vencido": float(vencido),
         "vencidas": vencidas,
@@ -273,18 +327,45 @@ def resumo(db: Session = Depends(get_db)):
 
 @router.get("/opcoes")
 def opcoes(db: Session = Depends(get_db)):
-    """Turmas e alunos para os seletores — o perfil FINANCEIRO só vê daqui."""
+    """Turmas, meses com cobrança e formas de pagamento para os filtros.
+
+    Leve de propósito: a lista de alunos só desce quando alguém abre o
+    formulário que precisa dela.
+    """
     turmas = [
         {"cod_tur": turma.cod_tur, "nome": turma.nome, "curso": turma.curso}
         for turma in db.scalars(select(Turma).order_by(Turma.nome))
     ]
-    alunos = [
-        {"cod_alu": cod_alu, "nome": nome, "cod_tur": cod_tur, "status": status_aluno}
-        for cod_alu, nome, cod_tur, status_aluno in db.execute(
-            select(Aluno.cod_alu, Aluno.nome, Aluno.cod_tur, Aluno.status).order_by(Aluno.nome)
+    meses = [
+        {"mes": competencia, "cobrancas": int(quantidade or 0)}
+        for competencia, quantidade in db.execute(
+            select(Cobranca.competencia, func.count(Cobranca.id))
+            .where(Cobranca.competencia.is_not(None))
+            .group_by(Cobranca.competencia)
+            .order_by(Cobranca.competencia)
         )
     ]
-    return {"turmas": turmas, "alunos": alunos, "formas": list(servico.FORMAS)}
+    return {"turmas": turmas, "meses": meses, "formas": list(servico.FORMAS)}
+
+
+@router.get("/opcoes/alunos")
+def opcoes_alunos(
+    busca: str | None = None,
+    cod_tur: int | None = None,
+    db: Session = Depends(get_db),
+):
+    """Alunos para os seletores, filtrados no banco e limitados."""
+    consulta = select(Aluno.cod_alu, Aluno.nome, Aluno.cod_tur, Aluno.status)
+    if busca and busca.strip():
+        consulta = consulta.where(Aluno.nome.ilike(f"%{busca.strip()}%"))
+    if cod_tur is not None:
+        consulta = consulta.where(Aluno.cod_tur == cod_tur)
+    return [
+        {"cod_alu": cod_alu, "nome": nome, "cod_tur": turma, "status": situacao}
+        for cod_alu, nome, turma, situacao in db.execute(
+            consulta.order_by(Aluno.nome).limit(200)
+        )
+    ]
 
 
 # ---- cobranças -------------------------------------------------------------
@@ -295,12 +376,27 @@ def listar_cobrancas(
     cod_alu: int | None = None,
     tipo: str | None = None,
     situacao: str | None = None,
+    mes: str | None = None,
     vencimento_de: date | None = None,
     vencimento_ate: date | None = None,
     busca: str | None = None,
+    pagina: int = 1,
+    por_pagina: int = 50,
     db: Session = Depends(get_db),
 ):
+    """Lista paginada de cobranças.
+
+    Busca, recorte e situação são resolvidos em SQL: a tela traz uma página de
+    cada vez, e não a carteira inteira para filtrar no navegador.
+    """
     hoje = date.today()
+    # Página fora da faixa é apertada, não recusada: um filtro que devolve
+    # menos resultados não deve virar erro na cara de quem está buscando.
+    pagina = max(int(pagina or 1), 1)
+    por_pagina = min(max(int(por_pagina or 50), 10), 200)
+    pagos = _subconsulta_pagos()
+    pago = func.coalesce(pagos.c.pago, 0)
+
     filtros = []
     if cod_tur is not None:
         filtros.append(Cobranca.cod_tur == cod_tur)
@@ -308,37 +404,73 @@ def listar_cobrancas(
         filtros.append(Cobranca.cod_alu == cod_alu)
     if tipo:
         filtros.append(Cobranca.tipo == tipo.upper())
+    if mes:
+        inicio, fim = _intervalo_do_mes(mes)
+        filtros.extend([Cobranca.vencimento >= inicio, Cobranca.vencimento <= fim])
     if vencimento_de:
         filtros.append(Cobranca.vencimento >= vencimento_de)
     if vencimento_ate:
         filtros.append(Cobranca.vencimento <= vencimento_ate)
+    if busca and busca.strip():
+        termo = f"%{busca.strip()}%"
+        filtros.append(or_(Aluno.nome.ilike(termo), Cobranca.referencia.ilike(termo)))
 
-    nomes_aluno, nomes_turma = _nomes(db)
-    termo = (busca or "").strip().lower()
-    situacao = (situacao or "").upper()
-    itens = []
-    total_saldo = servico.ZERO
-    for cobranca, pago in _cobrancas_com_pagamento(db, filtros):
-        atual = servico.situacao_de(cobranca, pago, hoje)
-        if situacao and situacao != atual:
-            continue
-        nome = nomes_aluno.get(cobranca.cod_alu) or ""
-        if termo and termo not in nome.lower() and termo not in (cobranca.referencia or "").lower():
-            continue
-        item = servico.cobranca_dict(
-            cobranca,
-            pago,
-            hoje,
-            aluno_nome=nome or f"Aluno {cobranca.cod_alu}",
-            turma_nome=nomes_turma.get(cobranca.cod_tur),
+    # Vencida e parcial não existem como coluna: são a data e o valor pago.
+    escolhida = (situacao or "").upper()
+    if escolhida in ("PAGA", "CANCELADA", "ISENTA"):
+        filtros.append(Cobranca.status == escolhida)
+    elif escolhida == "VENCIDA":
+        filtros.extend([Cobranca.status == "ABERTA", Cobranca.vencimento < hoje])
+    elif escolhida == "ABERTA":
+        filtros.extend(
+            [Cobranca.status == "ABERTA", Cobranca.vencimento >= hoje, pago <= 0]
         )
-        total_saldo += Decimal(str(item["saldo"]))
-        itens.append(item)
+    elif escolhida == "PARCIAL":
+        filtros.extend([Cobranca.status == "ABERTA", pago > 0])
+    elif escolhida:
+        raise HTTPException(400, "Situação inválida para filtro")
+
+    def com_juncoes(consulta):
+        consulta = (
+            consulta.join(Aluno, Aluno.cod_alu == Cobranca.cod_alu, isouter=True)
+            .join(Turma, Turma.cod_tur == Cobranca.cod_tur, isouter=True)
+            .join(pagos, pagos.c.cobranca_id == Cobranca.id, isouter=True)
+        )
+        for filtro in filtros:
+            consulta = consulta.where(filtro)
+        return consulta
+
+    saldo_visivel = case(
+        (Cobranca.status.in_(("CANCELADA", "ISENTA")), 0),
+        else_=Cobranca.valor - pago,
+    )
+    total, saldo = db.execute(
+        com_juncoes(select(func.count(Cobranca.id), func.sum(saldo_visivel)))
+    ).one()
+    total = int(total or 0)
+
+    itens = [
+        servico.cobranca_dict(
+            cobranca,
+            servico.dinheiro(valor_pago),
+            hoje,
+            aluno_nome=aluno_nome or f"Aluno {cobranca.cod_alu}",
+            turma_nome=turma_nome,
+        )
+        for cobranca, aluno_nome, turma_nome, valor_pago in db.execute(
+            com_juncoes(select(Cobranca, Aluno.nome, Turma.nome, pago))
+            .order_by(Cobranca.vencimento, Cobranca.id)
+            .offset((pagina - 1) * por_pagina)
+            .limit(por_pagina)
+        )
+    ]
     return {
-        "total": len(itens),
-        "saldo": float(total_saldo),
-        "truncado": len(itens) > LIMITE_LISTA,
-        "cobrancas": itens[:LIMITE_LISTA],
+        "total": total,
+        "saldo": float(servico.dinheiro(saldo)),
+        "pagina": pagina,
+        "por_pagina": por_pagina,
+        "paginas": max((total + por_pagina - 1) // por_pagina, 1),
+        "cobrancas": itens,
     }
 
 
@@ -599,6 +731,7 @@ def situacao_da_turma(cod_tur: int, db: Session = Depends(get_db)):
         }
         for cod_alu, nome in matriculados.items()
     }
+    condicoes = servico.condicoes_da_turma(db, cod_tur, list(matriculados))
 
     for cobranca, pago in _cobrancas_com_pagamento(db, [Cobranca.cod_tur == cod_tur]):
         aluno = por_aluno.get(cobranca.cod_alu)
@@ -630,9 +763,14 @@ def situacao_da_turma(cod_tur: int, db: Session = Depends(get_db)):
     alunos = []
     for dados in por_aluno.values():
         em_aberto = max(dados["total"] - dados["pago"], servico.ZERO)
+        condicao = condicoes.get(dados["cod_alu"])
+        efetivo = servico.plano_efetivo(plano, condicao, hoje=hoje) if plano else None
         alunos.append(
             {
                 **dados,
+                "condicao": _condicao_dict(condicao),
+                "transferencia": bool(efetivo and efetivo.transferencia),
+                "mensalidades_previstas": efetivo.parcelas if efetivo else None,
                 "total": float(dados["total"]),
                 "pago": float(dados["pago"]),
                 "vencido": float(dados["vencido"]),
@@ -652,6 +790,7 @@ def situacao_da_turma(cod_tur: int, db: Session = Depends(get_db)):
         "plano": _plano_dict(plano),
         "alunos": alunos,
         "matriculados": len(matriculados),
+        "transferencias": sum(1 for aluno in alunos if aluno["transferencia"]),
     }
 
 
@@ -709,6 +848,162 @@ def gerar_cobrancas(
     )
     db.commit()
     return resultado
+
+
+# ---- condição do aluno na turma -------------------------------------------
+
+def _condicao_dict(condicao: CondicaoFinanceiraAluno | None) -> dict | None:
+    if condicao is None:
+        return None
+    return {
+        "tipo": condicao.tipo,
+        "parcelas": condicao.parcelas,
+        "primeira_mensalidade": condicao.primeira_mensalidade.isoformat()
+        if condicao.primeira_mensalidade
+        else None,
+        "valor_mensalidade": float(servico.dinheiro(condicao.valor_mensalidade))
+        if condicao.valor_mensalidade is not None
+        else None,
+        "cobra_matricula": condicao.cobra_matricula == "S",
+        "valor_matricula": float(servico.dinheiro(condicao.valor_matricula))
+        if condicao.valor_matricula is not None
+        else None,
+        "observacao": condicao.observacao,
+        "atualizado_em": condicao.atualizado_em.isoformat()
+        if condicao.atualizado_em
+        else None,
+        "atualizado_por": condicao.atualizado_por,
+    }
+
+
+def _reaplicar_plano(
+    db: Session,
+    cod_tur: int,
+    cod_alu: int,
+    *,
+    usuario: str,
+) -> dict:
+    """Refaz as cobranças do aluno a partir do plano dele, já com a condição."""
+    plano = db.scalar(select(PlanoFinanceiro).where(PlanoFinanceiro.cod_tur == cod_tur))
+    if plano is None:
+        return {"criadas": 0, "atualizadas": 0, "removidas": 0, "preservadas": 0}
+    turma = db.get(Turma, cod_tur)
+    condicao = db.scalar(
+        select(CondicaoFinanceiraAluno).where(
+            CondicaoFinanceiraAluno.cod_tur == cod_tur,
+            CondicaoFinanceiraAluno.cod_alu == cod_alu,
+        )
+    )
+    return servico.aplicar_plano_ao_aluno(
+        db,
+        plano,
+        cod_alu,
+        efetivo=servico.plano_efetivo(plano, condicao),
+        nome_turma=(turma.nome if turma else None) or f"Turma {cod_tur}",
+        criado_por=usuario,
+        ajustar_existentes=True,
+    )
+
+
+@router.put("/turmas/{cod_tur}/alunos/{cod_alu}/condicao")
+def salvar_condicao(
+    cod_tur: int,
+    cod_alu: int,
+    dados: CondicaoInput,
+    usuario: str = Depends(usuario_atual),
+    db: Session = Depends(get_db),
+):
+    """Define quanto e por quantos meses este aluno paga nesta turma.
+
+    Existe para o aluno de transferência, que entra com o curso andando e vai
+    cursar só alguns módulos: ele paga menos meses que a turma, às vezes a
+    partir de outro mês e sem a matrícula inicial.
+    """
+    if not db.get(Turma, cod_tur):
+        raise HTTPException(404, "Turma não encontrada")
+    if not db.get(Aluno, cod_alu):
+        raise HTTPException(404, "Aluno não encontrado")
+    matriculado = db.scalar(
+        select(AluTurma).where(AluTurma.cod_tur == cod_tur, AluTurma.cod_alu == cod_alu)
+    )
+    if matriculado is None:
+        raise HTTPException(400, "Este aluno não está matriculado na turma.")
+    tipo = (dados.tipo or "").upper()
+    if tipo not in ("REGULAR", "TRANSFERENCIA"):
+        raise HTTPException(400, "Condição inválida")
+    if tipo == "TRANSFERENCIA" and dados.parcelas is None and dados.primeira_mensalidade is None:
+        raise HTTPException(
+            400,
+            "Informe quantas mensalidades o aluno vai pagar ou a partir de qual mês.",
+        )
+
+    condicao = db.scalar(
+        select(CondicaoFinanceiraAluno).where(
+            CondicaoFinanceiraAluno.cod_tur == cod_tur,
+            CondicaoFinanceiraAluno.cod_alu == cod_alu,
+        )
+    )
+    if condicao is None:
+        condicao = CondicaoFinanceiraAluno(
+            cod_alu=cod_alu,
+            cod_tur=cod_tur,
+            criado_em=datetime.now(),
+        )
+        db.add(condicao)
+    condicao.tipo = tipo
+    condicao.parcelas = dados.parcelas
+    condicao.primeira_mensalidade = dados.primeira_mensalidade
+    condicao.valor_mensalidade = (
+        servico.dinheiro(dados.valor_mensalidade)
+        if dados.valor_mensalidade is not None
+        else None
+    )
+    condicao.cobra_matricula = "S" if dados.cobra_matricula else "N"
+    condicao.valor_matricula = (
+        servico.dinheiro(dados.valor_matricula)
+        if dados.valor_matricula is not None
+        else None
+    )
+    condicao.observacao = dados.observacao
+    condicao.atualizado_em = datetime.now()
+    condicao.atualizado_por = usuario
+    db.flush()
+
+    ajuste = (
+        _reaplicar_plano(db, cod_tur, cod_alu, usuario=usuario)
+        if dados.aplicar
+        else {"criadas": 0, "atualizadas": 0, "removidas": 0, "preservadas": 0}
+    )
+    db.commit()
+    return {"condicao": _condicao_dict(condicao), "ajuste": ajuste}
+
+
+@router.delete("/turmas/{cod_tur}/alunos/{cod_alu}/condicao")
+def remover_condicao(
+    cod_tur: int,
+    cod_alu: int,
+    aplicar: bool = True,
+    usuario: str = Depends(usuario_atual),
+    db: Session = Depends(get_db),
+):
+    """Devolve o aluno ao plano cheio da turma."""
+    condicao = db.scalar(
+        select(CondicaoFinanceiraAluno).where(
+            CondicaoFinanceiraAluno.cod_tur == cod_tur,
+            CondicaoFinanceiraAluno.cod_alu == cod_alu,
+        )
+    )
+    if condicao is None:
+        raise HTTPException(404, "Este aluno não possui condição própria")
+    db.delete(condicao)
+    db.flush()
+    ajuste = (
+        _reaplicar_plano(db, cod_tur, cod_alu, usuario=usuario)
+        if aplicar
+        else {"criadas": 0, "atualizadas": 0, "removidas": 0, "preservadas": 0}
+    )
+    db.commit()
+    return {"ok": True, "ajuste": ajuste}
 
 
 # ---- aluno -----------------------------------------------------------------
@@ -776,21 +1071,45 @@ def listar_conciliacao(
     filtro = (status_filtro or "").upper()
     if filtro and filtro != "TODOS":
         consulta = consulta.where(TransacaoBancaria.status == filtro)
-    nomes_aluno, nomes_turma = _nomes(db)
+
+    transacoes = list(db.scalars(consulta.limit(200)))
+    candidatas = {
+        transacao.id: servico.candidatas_para(db, transacao)[:8]
+        for transacao in transacoes
+        if transacao.status == "PENDENTE"
+    }
+    # Só os nomes de quem aparece nas sugestões descem para a tela.
+    codigos_aluno = {c.cod_alu for lista in candidatas.values() for c in lista}
+    codigos_turma = {c.cod_tur for lista in candidatas.values() for c in lista if c.cod_tur}
+    nomes_aluno = {
+        codigo: nome
+        for codigo, nome in db.execute(
+            select(Aluno.cod_alu, Aluno.nome).where(Aluno.cod_alu.in_(codigos_aluno))
+        )
+    } if codigos_aluno else {}
+    nomes_turma = {
+        codigo: nome
+        for codigo, nome in db.execute(
+            select(Turma.cod_tur, Turma.nome).where(Turma.cod_tur.in_(codigos_turma))
+        )
+    } if codigos_turma else {}
+    pagos = servico.pagos_por_cobranca(
+        db,
+        [c.id for lista in candidatas.values() for c in lista],
+    )
+
     itens = []
-    for transacao in db.scalars(consulta.limit(200)):
-        sugestoes = []
-        if transacao.status == "PENDENTE":
-            for cobranca in servico.candidatas_para(db, transacao)[:8]:
-                sugestoes.append(
-                    servico.cobranca_dict(
-                        cobranca,
-                        servico.total_pago(db, cobranca.id),
-                        hoje,
-                        aluno_nome=nomes_aluno.get(cobranca.cod_alu),
-                        turma_nome=nomes_turma.get(cobranca.cod_tur),
-                    )
-                )
+    for transacao in transacoes:
+        sugestoes = [
+            servico.cobranca_dict(
+                cobranca,
+                pagos.get(cobranca.id, servico.ZERO),
+                hoje,
+                aluno_nome=nomes_aluno.get(cobranca.cod_alu),
+                turma_nome=nomes_turma.get(cobranca.cod_tur),
+            )
+            for cobranca in candidatas.get(transacao.id, [])
+        ]
         itens.append(
             {
                 "id": transacao.id,

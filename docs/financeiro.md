@@ -13,6 +13,7 @@ qual cobrança pertence.**
 | Tabela | Papel |
 | --- | --- |
 | `planos_financeiros` | Regra da turma: matrícula, mensalidade, nº de parcelas, dia de vencimento |
+| `condicoes_financeiras_aluno` | Exceção ao plano para um aluno (transferência) |
 | `cobrancas` | Título de um aluno (`MATRICULA`, `MENSALIDADE` ou `AVULSA`) |
 | `pagamentos` | Baixa total ou parcial de uma cobrança |
 | `transacoes_bancarias` | Aviso de crédito PIX/boleto, antes de virar baixa |
@@ -31,7 +32,8 @@ sozinha e não existe rotina noturna para "virar" cobrança em atraso.
 1. **Financeiro › turma › plano.** Informe matrícula, mensalidade, quantidade
    de parcelas e o dia do vencimento. Salvar não cobra ninguém.
 2. **Gerar cobranças.** Cada aluno matriculado na turma recebe a matrícula e
-   as mensalidades que ainda não tem. A operação é idempotente: matriculou
+   as mensalidades que ainda não tem — quem tem condição própria recebe as
+   dele, e não as da turma. A operação é idempotente: matriculou
    mais gente depois, gere de novo — quem já foi cobrado não duplica, porque a
    chave lógica é `(aluno, turma, tipo, parcela)`.
 3. **Lançar pagamento.** Pela lista de cobranças ou pelo extrato do aluno. O
@@ -44,6 +46,36 @@ sozinha e não existe rotina noturna para "virar" cobrança em atraso.
 
 Matrícula e mensalidade só nascem do plano. A cobrança **avulsa** existe para
 o que é pontual (segunda via, material) e é a única que se cria à mão.
+
+## Aluno de transferência
+
+O plano é da turma; a **condição** é o desvio nomeado de um aluno dentro dela.
+Existe para quem entra com o curso andando e vai cursar só alguns módulos: paga
+menos meses que a turma, a partir do mês em que entrou, às vezes sem a matrícula
+inicial e às vezes com mensalidade própria.
+
+Em **Financeiro › turma › lista de alunos › Condição**:
+
+| Campo | Em branco significa |
+| --- | --- |
+| Mensalidades a pagar | segue a quantidade da turma |
+| Primeira mensalidade | segue o mês da turma |
+| Mensalidade própria | segue o valor da turma |
+| Cobrar matrícula inicial | ligado por padrão; desligue para quem já pagou na escola de origem |
+
+Ao salvar, as cobranças já geradas são **ajustadas na hora**, não só as
+próximas: as parcelas que sobraram do novo plano são removidas, as demais
+ganham valor e vencimento certos, e a numeração vira `1/3`, `2/3`… O retorno da
+tela diz exatamente o que mudou (`3 removida(s), 1 preservada(s)`).
+
+**Parcela com pagamento lançado nunca é apagada nem reescrita** — o dinheiro que
+entrou manda mais que o plano. Ela aparece como preservada, e a secretaria
+decide se estorna ou deixa.
+
+Voltar o aluno para *Plano da turma* recria as parcelas que tinham sido
+cortadas. A geração da turma inteira respeita a condição de cada um: rodar
+"Gerar cobranças" não devolve ao aluno de transferência os meses que ele não vai
+cursar.
 
 ## O aluno
 
@@ -60,6 +92,27 @@ quem pede.
 
 Para desligar o acesso de alguém, use *Desativar* — o token é invalidado e um
 novo pode ser gerado depois.
+
+## Desempenho da lista
+
+Busca, recorte, situação e mês são resolvidos em SQL, e a tela pede **uma
+página por vez** (50 cobranças). Cada consulta da lista custa duas idas ao banco
+— uma para os totais do recorte, outra para a página — independentemente do
+tamanho da carteira.
+
+Três coisas sustentam isso e vale não desfazer sem medir:
+
+* **Vencida e parcial viram condição SQL**, não filtro em Python: `VENCIDA` é
+  `status = 'ABERTA' AND vencimento < hoje`, `PARCIAL` é `status = 'ABERTA' AND
+  pago > 0`. É o que permite paginar de verdade.
+* **O painel não recarrega quando alguém digita.** Ele tem carga própria e só
+  volta ao banco depois de uma baixa, de uma geração ou de um F5.
+* **A requisição anterior é cancelada** a cada tecla (`AbortController`), então
+  a resposta que chega é sempre a da busca atual.
+
+A lista de alunos do formulário de cobrança avulsa também só desce quando o
+formulário abre — a tela de trabalho não carrega o cadastro inteiro para
+mostrar uma tabela.
 
 ## Perfil FINANCEIRO
 
@@ -146,7 +199,9 @@ visto no extrato pela mesma porta e com a mesma identificação automática.
 ## Testes
 
 `backend/tests/test_financeiro.py` cobre geração idempotente, vencimentos em
-mês curto, pagamento parcial e em lote, estorno, extrato, link do aluno e os
+mês curto, pagamento parcial e em lote, estorno, extrato, link do aluno, a
+condição de transferência (encolher, preservar parcela paga, voltar ao plano
+cheio), os filtros da lista (mês, busca, paginação, saldo do recorte) e os
 caminhos da conciliação (código, CPF, nome, ambiguidade, reenvio e baixa
 automática desligada).
 

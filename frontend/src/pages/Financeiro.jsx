@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, InputAdornment, MenuItem, Snackbar, Table,
-  TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
-  Typography,
+  DialogContent, DialogTitle, InputAdornment, LinearProgress, MenuItem,
+  Snackbar, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  TextField, Typography,
 } from '@mui/material'
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined'
 import AddIcon from '@mui/icons-material/Add'
@@ -19,7 +19,7 @@ import {
   EstadoVazio, LinhasSkeleton, SkeletonCards, StatusBadge, Superficie,
   cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
-import { formatarDataBr, formatarMoeda } from '../formatters'
+import { formatarCompetencia, formatarDataBr, formatarMoeda } from '../formatters'
 import { DialogoPagamento, SeloSituacao, numeroDoCampo, hojeIso } from './FinanceiroComum'
 
 const SITUACOES_FILTRO = [
@@ -39,6 +39,8 @@ const TIPOS_FILTRO = [
   { valor: 'AVULSA', rotulo: 'Só avulsas' },
 ]
 
+const POR_PAGINA = 50
+
 export default function Financeiro() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -46,15 +48,21 @@ export default function Financeiro() {
   const telaCheia = useDialogoTelaCheia()
 
   const [painel, setPainel] = useState(null)
-  const [opcoes, setOpcoes] = useState({ turmas: [], alunos: [] })
-  const [lista, setLista] = useState({ cobrancas: [], total: 0, saldo: 0 })
-  const [carregando, setCarregando] = useState(true)
+  const [opcoes, setOpcoes] = useState({ turmas: [], meses: [] })
+  const [alunos, setAlunos] = useState([])
+  const [lista, setLista] = useState({ cobrancas: [], total: 0, saldo: 0, pagina: 1, paginas: 1 })
+  const [carregandoPainel, setCarregandoPainel] = useState(true)
+  const [carregandoLista, setCarregandoLista] = useState(true)
   const [erro, setErro] = useState('')
 
   const [busca, setBusca] = useState('')
+  const [buscaAplicada, setBuscaAplicada] = useState('')
   const [turma, setTurma] = useState(searchParams.get('turma') || '')
   const [situacao, setSituacao] = useState(searchParams.get('situacao') || '')
+  const [mes, setMes] = useState(searchParams.get('mes') || '')
   const [tipo, setTipo] = useState('')
+  const [pagina, setPagina] = useState(1)
+  const [versao, setVersao] = useState(0)
 
   const [selecionadas, setSelecionadas] = useState([])
   const [cobrancaPagando, setCobrancaPagando] = useState(null)
@@ -64,52 +72,67 @@ export default function Financeiro() {
   const [msg, setMsg] = useState('')
   const [ehErro, setEhErro] = useState(true)
   const avisar = (texto, falhou = true) => { setEhErro(falhou); setMsg(texto) }
+  const recarregar = useCallback(() => setVersao((atual) => atual + 1), [])
 
-  const carregarLista = useCallback(async () => {
-    const parametros = new URLSearchParams()
+  const carregarPainel = useCallback(() => {
+    setCarregandoPainel(true)
+    api.get('/financeiro/resumo')
+      .then(setPainel)
+      .catch((e) => setErro(e.message))
+      .finally(() => setCarregandoPainel(false))
+  }, [])
+
+  useEffect(() => { carregarPainel() }, [carregarPainel, versao])
+
+  useEffect(() => {
+    api.get('/financeiro/opcoes').then(setOpcoes).catch(() => setOpcoes({ turmas: [], meses: [] }))
+  }, [versao])
+
+  // A busca espera a digitação parar: cada tecla não vale uma consulta.
+  useEffect(() => {
+    const atraso = window.setTimeout(() => setBuscaAplicada(busca.trim()), 350)
+    return () => window.clearTimeout(atraso)
+  }, [busca])
+
+  // Trocar o recorte recomeça da primeira página; ficar na página 7 de um
+  // filtro que agora tem duas é uma tela vazia sem motivo.
+  useEffect(() => { setPagina(1) }, [buscaAplicada, turma, situacao, tipo, mes])
+
+  useEffect(() => {
+    const controlador = new AbortController()
+    const parametros = new URLSearchParams({ pagina: String(pagina), por_pagina: String(POR_PAGINA) })
     if (turma) parametros.set('cod_tur', turma)
     if (situacao) parametros.set('situacao', situacao)
     if (tipo) parametros.set('tipo', tipo)
-    if (busca.trim()) parametros.set('busca', busca.trim())
-    const sufixo = parametros.toString()
-    return api.get(`/financeiro/cobrancas${sufixo ? `?${sufixo}` : ''}`)
-  }, [turma, situacao, tipo, busca])
+    if (mes) parametros.set('mes', mes)
+    if (buscaAplicada) parametros.set('busca', buscaAplicada)
 
-  const carregarTudo = useCallback(async () => {
-    setCarregando(true)
+    setCarregandoLista(true)
     setErro('')
-    try {
-      const [resumo, cobrancas] = await Promise.all([
-        api.get('/financeiro/resumo'),
-        carregarLista(),
-      ])
-      setPainel(resumo)
-      setLista(cobrancas)
-      setSelecionadas([])
-    } catch (e) {
-      setErro(e.message)
-    } finally {
-      setCarregando(false)
-    }
-  }, [carregarLista])
+    api.get(`/financeiro/cobrancas?${parametros}`, { signal: controlador.signal })
+      .then((resposta) => {
+        setLista(resposta)
+        setSelecionadas([])
+      })
+      .catch((e) => {
+        // O cancelamento é o caminho normal enquanto alguém digita.
+        if (e.name !== 'AbortError') setErro(e.message)
+      })
+      .finally(() => {
+        if (!controlador.signal.aborted) setCarregandoLista(false)
+      })
+    return () => controlador.abort()
+  }, [buscaAplicada, turma, situacao, tipo, mes, pagina, versao])
 
-  useEffect(() => {
-    api.get('/financeiro/opcoes').then(setOpcoes).catch(() => setOpcoes({ turmas: [], alunos: [] }))
-  }, [])
-
-  useEffect(() => {
-    const atraso = window.setTimeout(() => { carregarTudo() }, busca ? 300 : 0)
-    return () => window.clearTimeout(atraso)
-  }, [carregarTudo]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // O filtro vive na URL: recarregar a página e voltar do extrato preservam
-  // o recorte que a pessoa escolheu.
+  // O recorte vive na URL: recarregar a página e voltar do extrato preservam
+  // o que a pessoa escolheu.
   useEffect(() => {
     const proximo = new URLSearchParams()
     if (turma) proximo.set('turma', turma)
     if (situacao) proximo.set('situacao', situacao)
+    if (mes) proximo.set('mes', mes)
     setSearchParams(proximo, { replace: true })
-  }, [turma, situacao, setSearchParams])
+  }, [turma, situacao, mes, setSearchParams])
 
   const cobrancas = lista.cobrancas || []
   const selecionaveis = useMemo(
@@ -120,7 +143,6 @@ export default function Financeiro() {
     () => cobrancas.filter((item) => selecionadas.includes(item.id)).reduce((soma, item) => soma + item.saldo, 0),
     [cobrancas, selecionadas],
   )
-  const nomeTurma = (cod) => opcoes.turmas.find((t) => String(t.cod_tur) === String(cod))?.nome
 
   function alternar(id) {
     setSelecionadas((atual) => (atual.includes(id) ? atual.filter((item) => item !== id) : [...atual, id]))
@@ -136,7 +158,7 @@ export default function Financeiro() {
       await api.post(`/financeiro/cobrancas/${cobrancaPagando.id}/pagamentos`, dados)
       setCobrancaPagando(null)
       avisar('Pagamento lançado.', false)
-      await carregarTudo()
+      recarregar()
     } catch (e) {
       avisar(e.message)
     } finally {
@@ -156,7 +178,7 @@ export default function Financeiro() {
         `${resposta.quitadas} cobrança(s) marcada(s) como paga(s).${resposta.ignoradas ? ` ${resposta.ignoradas} já estava(m) quitada(s).` : ''}`,
         false,
       )
-      await carregarTudo()
+      recarregar()
     } catch (e) {
       avisar(e.message)
     } finally {
@@ -165,7 +187,6 @@ export default function Financeiro() {
   }
 
   async function criarAvulsa() {
-    const valor = numeroDoCampo(nova.valor)
     setProcessando(true)
     try {
       await api.post('/financeiro/cobrancas', {
@@ -173,12 +194,12 @@ export default function Financeiro() {
         cod_tur: nova.cod_tur ? Number(nova.cod_tur) : null,
         tipo: 'AVULSA',
         descricao: nova.descricao.trim(),
-        valor,
+        valor: numeroDoCampo(nova.valor),
         vencimento: nova.vencimento,
       })
       setNovaAberta(false)
       avisar('Cobrança avulsa criada.', false)
-      await carregarTudo()
+      recarregar()
     } catch (e) {
       avisar(e.message)
     } finally {
@@ -189,9 +210,14 @@ export default function Financeiro() {
   function abrirNova() {
     setNova({ cod_alu: '', cod_tur: turma || '', descricao: '', valor: '', vencimento: hojeIso() })
     setNovaAberta(true)
+    // A lista de alunos só desce quando o formulário que precisa dela abre.
+    if (alunos.length === 0) {
+      api.getCached('/financeiro/opcoes/alunos').then(setAlunos).catch(() => setAlunos([]))
+    }
   }
 
   const podeCriar = nova.cod_alu && nova.descricao.trim() && numeroDoCampo(nova.valor) > 0 && nova.vencimento
+  const alternarRecorte = (proxima) => setSituacao((atual) => (atual === proxima ? '' : proxima))
 
   const acoes = (
     <>
@@ -207,23 +233,21 @@ export default function Financeiro() {
     </>
   )
 
-  function aplicarRecorte(proximaSituacao) {
-    setSituacao((atual) => (atual === proximaSituacao ? '' : proximaSituacao))
-  }
-
   return (
     <Box>
       <CabecalhoPagina
         variante="operacional"
         titulo="Financeiro"
         descricao="Matrícula e mensalidades de cada turma, baixa dos pagamentos e o que o banco já identificou."
-        metadados={carregando && !painel ? ' ' : `${lista.total} cobrança(s) no recorte · ${formatarMoeda(lista.saldo)} em aberto`}
+        metadados={`${lista.total} cobrança(s) no recorte · ${formatarMoeda(lista.saldo)} em aberto`}
         acoes={acoes}
       />
 
-      {erro && <Alert severity="error" sx={{ mb: 2 }} action={<Button onClick={carregarTudo}>Tentar novamente</Button>}>{erro}</Alert>}
+      {erro && (
+        <Alert severity="error" sx={{ mb: 2 }} action={<Button onClick={recarregar}>Tentar novamente</Button>}>{erro}</Alert>
+      )}
 
-      {carregando && !painel ? (
+      {carregandoPainel && !painel ? (
         <SkeletonCards quantidade={4} altura={140} sx={{ mb: 2.5 }} />
       ) : painel && (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,minmax(0,1fr))', lg: 'repeat(4,minmax(0,1fr))' }, gap: 2, mb: 2.5 }}>
@@ -233,28 +257,28 @@ export default function Financeiro() {
             valor={formatarMoeda(painel.vencido)}
             nota={{ texto: `${painel.vencidas} cobrança(s) atrasada(s)` }}
             icone={<EventBusyOutlinedIcon />}
-            onClick={() => aplicarRecorte('VENCIDA')}
+            onClick={() => alternarRecorte('VENCIDA')}
           />
           <CardMetrica
             rotulo="A receber"
             valor={formatarMoeda(painel.a_receber)}
             nota={{ texto: 'Tudo que ainda tem saldo' }}
             icone={<ReceiptLongOutlinedIcon />}
-            onClick={() => setSituacao('')}
+            onClick={() => { setSituacao(''); setMes('') }}
           />
           <CardMetrica
             rotulo="Vence em 7 dias"
             valor={formatarMoeda(painel.a_vencer_semana)}
             nota={{ texto: 'Cobrar antes de virar atraso' }}
             icone={<PaidOutlinedIcon />}
-            onClick={() => aplicarRecorte('ABERTA')}
+            onClick={() => alternarRecorte('ABERTA')}
           />
           <CardMetrica
             rotulo="Recebido no mês"
             valor={formatarMoeda(painel.recebido_mes)}
             nota={{ texto: 'Baixas lançadas neste mês' }}
             icone={<TrendingUpOutlinedIcon />}
-            onClick={() => aplicarRecorte('PAGA')}
+            onClick={() => { setSituacao('PAGA'); setMes(painel.mes_corrente || '') }}
           />
         </Box>
       )}
@@ -313,12 +337,29 @@ export default function Financeiro() {
         <TextField
           size="small" label="Buscar aluno ou código" value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          sx={{ flex: '1 1 260px', maxWidth: 420 }}
+          sx={{ flex: '1 1 240px', maxWidth: 380 }}
         />
+        <TextField
+          select size="small" label="Mês do vencimento" value={mes}
+          onChange={(e) => setMes(e.target.value)}
+          sx={{ flex: '0 1 200px' }}
+        >
+          <MenuItem value="">Todos os meses</MenuItem>
+          {painel?.mes_corrente && (
+            <MenuItem value={painel.mes_corrente}>Este mês · {formatarCompetencia(painel.mes_corrente)}</MenuItem>
+          )}
+          {(opcoes.meses || [])
+            .filter((item) => item.mes !== painel?.mes_corrente)
+            .map((item) => (
+              <MenuItem key={item.mes} value={item.mes}>
+                {formatarCompetencia(item.mes)} · {item.cobrancas}
+              </MenuItem>
+            ))}
+        </TextField>
         <TextField
           select size="small" label="Turma" value={turma}
           onChange={(e) => setTurma(e.target.value)}
-          sx={{ flex: '0 1 220px' }}
+          sx={{ flex: '0 1 200px' }}
         >
           <MenuItem value="">Todas as turmas</MenuItem>
           {opcoes.turmas.map((item) => (
@@ -328,34 +369,34 @@ export default function Financeiro() {
         <TextField
           select size="small" label="Situação" value={situacao}
           onChange={(e) => setSituacao(e.target.value)}
-          sx={{ flex: '0 1 200px' }}
+          sx={{ flex: '0 1 190px' }}
         >
           {SITUACOES_FILTRO.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.rotulo}</MenuItem>)}
         </TextField>
         <TextField
           select size="small" label="Tipo" value={tipo}
           onChange={(e) => setTipo(e.target.value)}
-          sx={{ flex: '0 1 220px' }}
+          sx={{ flex: '0 1 210px' }}
         >
           {TIPOS_FILTRO.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.rotulo}</MenuItem>)}
         </TextField>
       </BarraFiltros>
 
-      {lista.truncado && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Exibindo as primeiras {cobrancas.length} cobranças do recorte. Refine o filtro para ver o restante.
-        </Alert>
-      )}
+      {/* Refinar o filtro não pode apagar a lista: a barra fina avisa que a
+          próxima página está vindo e o conteúdo antigo continua legível. */}
+      <Box sx={{ height: 4, mb: 1 }}>
+        {carregandoLista && cobrancas.length > 0 && <LinearProgress sx={{ borderRadius: TOV.radiusFull }} />}
+      </Box>
 
       {!telaDesktop && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-          {carregando && cobrancas.length === 0 && <SkeletonCards quantidade={4} altura={148} colunas="1fr" />}
-          {!carregando && cobrancas.length === 0 && (
+          {carregandoLista && cobrancas.length === 0 && <SkeletonCards quantidade={4} altura={148} colunas="1fr" />}
+          {!carregandoLista && cobrancas.length === 0 && (
             <CartaoLista>
               <EstadoVazio
                 compacto
                 titulo="Nenhuma cobrança neste recorte"
-                descricao="Defina o plano de uma turma e gere as cobranças para começar."
+                descricao="Ajuste os filtros ou gere as cobranças pelo plano da turma."
               />
             </CartaoLista>
           )}
@@ -408,7 +449,7 @@ export default function Financeiro() {
                     indeterminate={selecionadas.length > 0 && selecionadas.length < selecionaveis.length}
                     disabled={selecionaveis.length === 0}
                     onChange={alternarTodas}
-                    inputProps={{ 'aria-label': 'Selecionar todas as cobranças em aberto' }}
+                    inputProps={{ 'aria-label': 'Selecionar todas as cobranças em aberto desta página' }}
                   />
                 </TableCell>
                 <TableCell>Aluno</TableCell>
@@ -421,13 +462,13 @@ export default function Financeiro() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {carregando && cobrancas.length === 0 && <LinhasSkeleton colunas={8} />}
-              {!carregando && cobrancas.length === 0 && (
+              {carregandoLista && cobrancas.length === 0 && <LinhasSkeleton colunas={8} />}
+              {!carregandoLista && cobrancas.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} sx={{ p: 0 }}>
                     <EstadoVazio
                       titulo="Nenhuma cobrança neste recorte"
-                      descricao="Defina o plano de uma turma e gere as cobranças para começar."
+                      descricao="Ajuste os filtros ou gere as cobranças pelo plano da turma."
                       acao={opcoes.turmas[0] && (
                         <Button variant="outlined" onClick={() => navigate(`/financeiro/turmas/${opcoes.turmas[0].cod_tur}`)}>
                           Abrir plano da turma
@@ -458,7 +499,7 @@ export default function Financeiro() {
                       >
                         {item.aluno_nome}
                       </Box>
-                      <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{item.turma_nome || nomeTurma(item.cod_tur) || 'Sem turma'}</Box>
+                      <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{item.turma_nome || 'Sem turma'}</Box>
                     </TableCell>
                     <TableCell>
                       <Box sx={{ fontWeight: 600 }}>{item.descricao}</Box>
@@ -488,6 +529,30 @@ export default function Financeiro() {
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+
+      {lista.paginas > 1 && (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mt: 2 }}>
+          <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>
+            Página {lista.pagina} de {lista.paginas} · {lista.total} cobrança(s) no recorte
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="outlined" size="small"
+              disabled={carregandoLista || lista.pagina <= 1}
+              onClick={() => setPagina((atual) => Math.max(atual - 1, 1))}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outlined" size="small"
+              disabled={carregandoLista || lista.pagina >= lista.paginas}
+              onClick={() => setPagina((atual) => atual + 1)}
+            >
+              Próxima
+            </Button>
+          </Box>
+        </Box>
       )}
 
       <BarraAcaoFixa
@@ -526,11 +591,12 @@ export default function Financeiro() {
           <TextField
             select label="Aluno" value={nova.cod_alu}
             onChange={(e) => {
-              const aluno = opcoes.alunos.find((item) => String(item.cod_alu) === e.target.value)
+              const aluno = alunos.find((item) => String(item.cod_alu) === e.target.value)
               setNova({ ...nova, cod_alu: e.target.value, cod_tur: aluno?.cod_tur ? String(aluno.cod_tur) : '' })
             }}
+            helperText={alunos.length === 0 ? 'Carregando alunos…' : ' '}
           >
-            {opcoes.alunos.map((item) => (
+            {alunos.map((item) => (
               <MenuItem key={item.cod_alu} value={String(item.cod_alu)}>{item.nome}</MenuItem>
             ))}
           </TextField>

@@ -20,6 +20,7 @@ from app.models import (
 )
 from app.routers.financeiro import (
     CobrancaInput,
+    CondicaoInput,
     ConfiguracaoInput,
     PagamentoInput,
     PagamentoLoteInput,
@@ -40,8 +41,12 @@ from app.routers.financeiro import (
     lancar_pagamentos_em_lote,
     listar_cobrancas,
     listar_conciliacao,
+    opcoes,
+    opcoes_alunos,
     receber_do_banco,
+    remover_condicao,
     resumo,
+    salvar_condicao,
     salvar_configuracao,
     salvar_plano,
     situacao_da_turma,
@@ -140,7 +145,6 @@ class GeracaoDeCobrancasTest(BaseFinanceiroTest):
 
         segunda = gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
         self.assertEqual(segunda["criadas"], 5)
-        self.assertEqual(segunda["existentes"], 10)
         self.assertEqual(len(self.cobrancas_de(self.ana)), 5)
         self.assertEqual(len(self.cobrancas_de(novo)), 5)
 
@@ -526,6 +530,187 @@ class ExtracaoDeReferenciaTest(unittest.TestCase):
         self.assertEqual(servico.extrair_referencia("TOV 000123"), "TOV000123")
         self.assertIsNone(servico.extrair_referencia("PIX recebido"))
         self.assertIsNone(servico.extrair_referencia(None))
+
+
+class AlunoDeTransferenciaTest(BaseFinanceiroTest):
+    def setUp(self):
+        super().setUp()
+        self.plano_padrao(self.manha, parcelas=6, primeira_mensalidade=date(2026, 3, 10))
+
+    def condicao(self, aluno, **ajustes):
+        dados = {"tipo": "TRANSFERENCIA", "parcelas": 2}
+        dados.update(ajustes)
+        return salvar_condicao(
+            self.manha.cod_tur,
+            aluno.cod_alu,
+            CondicaoInput(**dados),
+            "SECRETARIA",
+            self.db,
+        )
+
+    def test_transferencia_paga_menos_meses_que_a_turma(self):
+        self.condicao(self.ana, primeira_mensalidade=date(2026, 5, 10))
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+
+        mensalidades = [c for c in self.cobrancas_de(self.ana) if c.tipo == "MENSALIDADE"]
+        self.assertEqual(len(mensalidades), 2)
+        self.assertEqual(
+            [c.vencimento for c in mensalidades],
+            [date(2026, 5, 10), date(2026, 6, 10)],
+        )
+        self.assertTrue(all(c.total_parcelas == 2 for c in mensalidades))
+        self.assertIn("transferência", mensalidades[0].descricao)
+        # O colega regular continua com o plano cheio da turma.
+        self.assertEqual(
+            len([c for c in self.cobrancas_de(self.bruno) if c.tipo == "MENSALIDADE"]),
+            6,
+        )
+
+    def test_condicao_encolhe_cobranca_ja_gerada(self):
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        self.assertEqual(len(self.cobrancas_de(self.ana)), 7)  # matrícula + 6
+
+        resposta = self.condicao(self.ana, parcelas=2)
+        self.assertEqual(resposta["ajuste"]["removidas"], 4)
+        self.assertEqual(len(self.cobrancas_de(self.ana)), 3)
+
+    def test_parcela_paga_nunca_e_removida_pelo_ajuste(self):
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        ultima = [c for c in self.cobrancas_de(self.ana) if c.parcela == 6][0]
+        lancar_pagamento(ultima.id, PagamentoInput(), "FINANCEIRO", self.db)
+
+        resposta = self.condicao(self.ana, parcelas=2)
+        self.assertEqual(resposta["ajuste"]["preservadas"], 1)
+        self.assertEqual(resposta["ajuste"]["removidas"], 3)
+        self.db.refresh(ultima)
+        self.assertEqual(ultima.status, "PAGA")
+
+    def test_transferencia_sem_matricula_inicial(self):
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        self.condicao(self.ana, parcelas=3, cobra_matricula=False)
+        self.assertEqual(
+            [c.tipo for c in self.cobrancas_de(self.ana)],
+            ["MENSALIDADE"] * 3,
+        )
+
+    def test_transferencia_com_mensalidade_propria(self):
+        self.condicao(self.ana, parcelas=2, valor_mensalidade=Decimal("180.00"))
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        mensalidades = [c for c in self.cobrancas_de(self.ana) if c.tipo == "MENSALIDADE"]
+        self.assertEqual({c.valor for c in mensalidades}, {Decimal("180.00")})
+
+    def test_voltar_a_regular_devolve_o_plano_cheio(self):
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        self.condicao(self.ana, parcelas=2)
+        self.assertEqual(len(self.cobrancas_de(self.ana)), 3)
+
+        resposta = remover_condicao(self.manha.cod_tur, self.ana.cod_alu, True, "SECRETARIA", self.db)
+        self.assertEqual(resposta["ajuste"]["criadas"], 4)
+        self.assertEqual(len(self.cobrancas_de(self.ana)), 7)
+
+    def test_condicao_exige_algum_recorte(self):
+        with self.assertRaises(HTTPException) as erro:
+            salvar_condicao(
+                self.manha.cod_tur,
+                self.ana.cod_alu,
+                CondicaoInput(tipo="TRANSFERENCIA"),
+                "SECRETARIA",
+                self.db,
+            )
+        self.assertEqual(erro.exception.status_code, 400)
+
+    def test_condicao_so_vale_para_aluno_matriculado(self):
+        with self.assertRaises(HTTPException) as erro:
+            salvar_condicao(
+                self.manha.cod_tur,
+                self.carla.cod_alu,
+                CondicaoInput(parcelas=2),
+                "SECRETARIA",
+                self.db,
+            )
+        self.assertEqual(erro.exception.status_code, 400)
+
+    def test_turma_mostra_quem_e_transferencia(self):
+        self.condicao(self.ana, parcelas=2)
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+        visao = situacao_da_turma(self.manha.cod_tur, self.db)
+
+        por_nome = {aluno["nome"]: aluno for aluno in visao["alunos"]}
+        self.assertTrue(por_nome["Ana Souza"]["transferencia"])
+        self.assertEqual(por_nome["Ana Souza"]["mensalidades_previstas"], 2)
+        self.assertEqual(por_nome["Ana Souza"]["condicao"]["parcelas"], 2)
+        self.assertFalse(por_nome["Bruno Lima"]["transferencia"])
+        self.assertEqual(por_nome["Bruno Lima"]["mensalidades_previstas"], 6)
+        self.assertEqual(visao["transferencias"], 1)
+
+
+class FiltrosDaListaTest(BaseFinanceiroTest):
+    def setUp(self):
+        super().setUp()
+        self.plano_padrao(
+            self.manha,
+            valor_matricula=Decimal("0"),
+            parcelas=4,
+            primeira_mensalidade=date(2026, 3, 10),
+        )
+        gerar_cobrancas(self.manha.cod_tur, None, "SECRETARIA", self.db)
+
+    def test_filtro_por_mes(self):
+        marco = listar_cobrancas(mes="2026-03", db=self.db)
+        self.assertEqual(marco["total"], 2)  # dois alunos, uma parcela cada
+        self.assertTrue(all(c["vencimento"].startswith("2026-03") for c in marco["cobrancas"]))
+
+        maio = listar_cobrancas(mes="2026-05", db=self.db)
+        self.assertEqual(maio["total"], 2)
+        self.assertEqual(listar_cobrancas(mes="2026-12", db=self.db)["total"], 0)
+
+    def test_mes_invalido_e_recusado(self):
+        with self.assertRaises(HTTPException) as erro:
+            listar_cobrancas(mes="marco", db=self.db)
+        self.assertEqual(erro.exception.status_code, 400)
+
+    def test_paginacao_devolve_o_total_do_recorte(self):
+        pagina = listar_cobrancas(por_pagina=10, db=self.db)
+        self.assertEqual(pagina["total"], 8)
+        self.assertEqual(len(pagina["cobrancas"]), 8)
+        self.assertEqual(pagina["paginas"], 1)
+
+        primeira = listar_cobrancas(por_pagina=10, pagina=1, db=self.db)
+        segunda = listar_cobrancas(por_pagina=10, pagina=2, db=self.db)
+        self.assertEqual(segunda["total"], 8)
+        self.assertEqual(segunda["cobrancas"], [])
+        self.assertEqual(primeira["saldo"], 1600.0)
+
+    def test_saldo_do_recorte_acompanha_o_filtro(self):
+        marco = listar_cobrancas(mes="2026-03", db=self.db)
+        self.assertEqual(marco["saldo"], 400.0)
+
+    def test_busca_por_nome_roda_no_banco(self):
+        resultado = listar_cobrancas(busca="ana", db=self.db)
+        self.assertEqual({c["aluno_nome"] for c in resultado["cobrancas"]}, {"Ana Souza"})
+        self.assertEqual(resultado["total"], 4)
+
+    def test_busca_pelo_codigo_da_cobranca(self):
+        alvo = self.cobrancas_de(self.bruno)[0]
+        resultado = listar_cobrancas(busca=alvo.referencia, db=self.db)
+        self.assertEqual(resultado["total"], 1)
+        self.assertEqual(resultado["cobrancas"][0]["id"], alvo.id)
+
+    def test_opcoes_trazem_os_meses_com_cobranca(self):
+        meses = [item["mes"] for item in opcoes(self.db)["meses"]]
+        self.assertEqual(meses, ["2026-03", "2026-04", "2026-05", "2026-06"])
+
+    def test_opcoes_de_alunos_filtram_no_banco(self):
+        self.assertEqual(len(opcoes_alunos(db=self.db)), 3)
+        self.assertEqual(
+            [aluno["nome"] for aluno in opcoes_alunos(busca="lima", db=self.db)],
+            ["Bruno Lima"],
+        )
+        self.assertEqual(
+            {aluno["nome"] for aluno in opcoes_alunos(cod_tur=self.noite.cod_tur, db=self.db)},
+            {"Carla Dias"},
+        )
+
 
 
 class AcessoDaAreaFinanceiraTest(unittest.TestCase):

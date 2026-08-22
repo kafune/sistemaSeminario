@@ -19,6 +19,7 @@ from .calendario import Aula, CalendarioPublico
 from .financeiro import (
     AcessoFinanceiroAluno,
     Cobranca,
+    CondicaoFinanceiraAluno,
     ConfiguracaoFinanceira,
     Pagamento,
     PlanoFinanceiro,
@@ -52,6 +53,7 @@ __all__ = [
     "Aula", "CalendarioPublico", "Chamada", "Presenca",
     "PlanoFinanceiro", "Cobranca", "Pagamento", "TransacaoBancaria",
     "AcessoFinanceiroAluno", "ConfiguracaoFinanceira",
+    "CondicaoFinanceiraAluno",
     "WhatsappConfiguracao", "WhatsappDisparo", "WhatsappDestinatario",
     "WhatsappArquivo", "WhatsappTemplate",
     "Notificacao", "NotificacaoPreferencia", "PushInscricao",

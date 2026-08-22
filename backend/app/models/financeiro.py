@@ -41,6 +41,42 @@ class PlanoFinanceiro(Base):
     atualizado_por: Mapped[str | None] = mapped_column(String(50))
 
 
+class CondicaoFinanceiraAluno(Base):
+    """Exceção ao plano da turma para um aluno.
+
+    O caso que a motivou: o aluno de transferência, que entra com o curso
+    andando e só vai cursar alguns módulos daqui pra frente. Paga menos meses
+    que a turma, às vezes começando de outro mês, às vezes sem a matrícula
+    inicial e às vezes com mensalidade própria. O plano continua sendo o da
+    turma; esta linha é o desvio nomeado dele.
+    """
+
+    __tablename__ = "condicoes_financeiras_aluno"
+    __table_args__ = (
+        UniqueConstraint(
+            "cod_alu",
+            "cod_tur",
+            name="uq_condicoes_financeiras_aluno_turma",
+        ),
+        Index("ix_condicoes_financeiras_turma", "cod_tur"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cod_alu: Mapped[int] = mapped_column(Integer)
+    cod_tur: Mapped[int] = mapped_column(Integer)
+    tipo: Mapped[str] = mapped_column(String(15), default="TRANSFERENCIA")
+    # Nulo em qualquer campo abaixo significa "segue o plano da turma".
+    parcelas: Mapped[int | None] = mapped_column(Integer)
+    primeira_mensalidade: Mapped[date | None] = mapped_column(Date)
+    valor_mensalidade: Mapped[Decimal | None] = mapped_column(DECIMAL(10, 2))
+    cobra_matricula: Mapped[str] = mapped_column(String(1), default="S")
+    valor_matricula: Mapped[Decimal | None] = mapped_column(DECIMAL(10, 2))
+    observacao: Mapped[str | None] = mapped_column(Text)
+    criado_em: Mapped[datetime | None] = mapped_column(DateTime)
+    atualizado_em: Mapped[datetime | None] = mapped_column(DateTime)
+    atualizado_por: Mapped[str | None] = mapped_column(String(50))
+
+
 class Cobranca(Base):
     """Título a receber de um aluno (matrícula, mensalidade ou avulso)."""
 

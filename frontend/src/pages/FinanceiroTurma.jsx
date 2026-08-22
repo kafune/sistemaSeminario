@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Alert, Box, Button, CircularProgress, InputAdornment, Snackbar, Table,
+  Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
+  DialogTitle, FormControlLabel, InputAdornment, Snackbar, Switch, Table,
   TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
   Typography,
 } from '@mui/material'
@@ -9,12 +10,13 @@ import AutorenewIcon from '@mui/icons-material/Autorenew'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked'
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
+import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
-  LinhasSkeleton, Metadado, SkeletonCards, Superficie, cardSx, resetBotao,
-  useTelaDesktop,
+  GrupoSegmentado, LinhasSkeleton, Metadado, SkeletonCards, StatusBadge,
+  Superficie, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import { formatarDataBr, formatarMoeda } from '../formatters'
 import { SeloSituacao, numeroDoCampo, textoDoValor } from './FinanceiroComum'
@@ -29,6 +31,20 @@ const PLANO_VAZIO = {
   observacao: '',
 }
 
+const CONDICAO_VAZIA = {
+  tipo: 'REGULAR',
+  parcelas: '',
+  primeira_mensalidade: '',
+  valor_mensalidade: '',
+  cobra_matricula: true,
+  observacao: '',
+}
+
+const TIPOS_CONDICAO = [
+  { valor: 'REGULAR', rotulo: 'Plano da turma' },
+  { valor: 'TRANSFERENCIA', rotulo: 'Transferência' },
+]
+
 function planoParaFormulario(plano) {
   if (!plano) return { ...PLANO_VAZIO }
   return {
@@ -42,10 +58,33 @@ function planoParaFormulario(plano) {
   }
 }
 
+function condicaoParaFormulario(condicao) {
+  if (!condicao) return { ...CONDICAO_VAZIA }
+  return {
+    tipo: condicao.tipo || 'TRANSFERENCIA',
+    parcelas: condicao.parcelas != null ? String(condicao.parcelas) : '',
+    primeira_mensalidade: condicao.primeira_mensalidade || '',
+    valor_mensalidade: condicao.valor_mensalidade != null ? textoDoValor(condicao.valor_mensalidade) : '',
+    cobra_matricula: condicao.cobra_matricula !== false,
+    observacao: condicao.observacao || '',
+  }
+}
+
+/** Frase do ajuste: o que a condição mexeu nas cobranças já existentes. */
+function resumoDoAjuste(ajuste) {
+  const partes = []
+  if (ajuste.criadas) partes.push(`${ajuste.criadas} criada(s)`)
+  if (ajuste.atualizadas) partes.push(`${ajuste.atualizadas} atualizada(s)`)
+  if (ajuste.removidas) partes.push(`${ajuste.removidas} removida(s)`)
+  if (ajuste.preservadas) partes.push(`${ajuste.preservadas} preservada(s) por já ter pagamento`)
+  return partes.length ? `Cobranças: ${partes.join(', ')}.` : 'Nenhuma cobrança precisou mudar.'
+}
+
 export default function FinanceiroTurma() {
   const { codTur } = useParams()
   const navigate = useNavigate()
   const telaDesktop = useTelaDesktop()
+  const telaCheia = useDialogoTelaCheia()
 
   const [dados, setDados] = useState(null)
   const [form, setForm] = useState({ ...PLANO_VAZIO })
@@ -54,6 +93,9 @@ export default function FinanceiroTurma() {
   const [salvando, setSalvando] = useState(false)
   const [gerando, setGerando] = useState(false)
   const [confirmarGeracao, setConfirmarGeracao] = useState(false)
+  const [alunoCondicao, setAlunoCondicao] = useState(null)
+  const [formCondicao, setFormCondicao] = useState({ ...CONDICAO_VAZIA })
+  const [salvandoCondicao, setSalvandoCondicao] = useState(false)
   const [msg, setMsg] = useState('')
   const [ehErro, setEhErro] = useState(true)
   const avisar = (texto, falhou = true) => { setEhErro(falhou); setMsg(texto) }
@@ -98,11 +140,10 @@ export default function FinanceiroTurma() {
     }
   }
 
-  async function gerar(codAlu) {
+  async function gerar() {
     setGerando(true)
     try {
-      const sufixo = codAlu ? `?cod_alu=${codAlu}` : ''
-      const resultado = await api.post(`/financeiro/turmas/${codTur}/gerar${sufixo}`)
+      const resultado = await api.post(`/financeiro/turmas/${codTur}/gerar`)
       setConfirmarGeracao(false)
       avisar(
         resultado.criadas
@@ -118,6 +159,42 @@ export default function FinanceiroTurma() {
     }
   }
 
+  function abrirCondicao(aluno) {
+    setFormCondicao(condicaoParaFormulario(aluno.condicao))
+    setAlunoCondicao(aluno)
+  }
+
+  async function salvarCondicao() {
+    setSalvandoCondicao(true)
+    try {
+      if (formCondicao.tipo === 'REGULAR') {
+        if (!alunoCondicao.condicao) {
+          setAlunoCondicao(null)
+          return
+        }
+        const resposta = await api.del(`/financeiro/turmas/${codTur}/alunos/${alunoCondicao.cod_alu}/condicao`)
+        avisar(`${alunoCondicao.nome} voltou ao plano da turma. ${resumoDoAjuste(resposta.ajuste)}`, false)
+      } else {
+        const resposta = await api.put(`/financeiro/turmas/${codTur}/alunos/${alunoCondicao.cod_alu}/condicao`, {
+          tipo: 'TRANSFERENCIA',
+          parcelas: formCondicao.parcelas === '' ? null : Number(formCondicao.parcelas),
+          primeira_mensalidade: formCondicao.primeira_mensalidade || null,
+          valor_mensalidade: formCondicao.valor_mensalidade === '' ? null : numeroDoCampo(formCondicao.valor_mensalidade),
+          cobra_matricula: formCondicao.cobra_matricula,
+          observacao: formCondicao.observacao.trim() || null,
+          aplicar: true,
+        })
+        avisar(`Condição de ${alunoCondicao.nome} salva. ${resumoDoAjuste(resposta.ajuste)}`, false)
+      }
+      setAlunoCondicao(null)
+      carregar()
+    } catch (e) {
+      avisar(e.message)
+    } finally {
+      setSalvandoCondicao(false)
+    }
+  }
+
   if (carregando && !dados) return <SkeletonCards quantidade={3} altura={160} />
   if (erroCarga && !dados) {
     return (
@@ -130,6 +207,9 @@ export default function FinanceiroTurma() {
 
   const alunos = dados.alunos || []
   const semPlano = !dados.plano
+  const condicaoValida = formCondicao.tipo === 'REGULAR'
+    || formCondicao.parcelas !== ''
+    || formCondicao.primeira_mensalidade !== ''
 
   return (
     <Box>
@@ -143,8 +223,8 @@ export default function FinanceiroTurma() {
       <CabecalhoPagina
         eyebrow="Plano financeiro da turma"
         titulo={dados.turma.nome}
-        descricao="A matrícula inicial e as mensalidades desta turma. Ao gerar, cada aluno matriculado recebe as parcelas que ainda não tem."
-        metadados={`${dados.matriculados} aluno(s) matriculado(s)`}
+        descricao="A matrícula inicial e as mensalidades desta turma. Ao gerar, cada aluno matriculado recebe as parcelas que ainda não tem — quem veio de transferência recebe as dele."
+        metadados={`${dados.matriculados} aluno(s) matriculado(s)${dados.transferencias ? ` · ${dados.transferencias} de transferência` : ''}`}
         acoes={(
           <Button
             variant="contained"
@@ -196,13 +276,13 @@ export default function FinanceiroTurma() {
             label="Primeira mensalidade" type="date" value={form.primeira_mensalidade}
             onChange={(e) => setForm({ ...form, primeira_mensalidade: e.target.value })}
             InputLabelProps={{ shrink: true }}
-            helperText="Define o mês da parcela 1."
+            helperText="Vence exatamente nesta data."
           />
           <TextField
             select label="Dia do vencimento" value={form.dia_vencimento}
             onChange={(e) => setForm({ ...form, dia_vencimento: e.target.value })}
             SelectProps={{ native: true }}
-            helperText="Vale para as parcelas seguintes."
+            helperText="Vale da segunda parcela em diante."
           >
             {Array.from({ length: 28 }, (_, i) => i + 1).map((dia) => (
               <option key={dia} value={String(dia)}>Dia {dia}</option>
@@ -240,9 +320,13 @@ export default function FinanceiroTurma() {
         </Box>
       </Superficie>
 
-      <Typography component="h2" variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 1.5 }}>
+      <Typography component="h2" variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 0.5 }}>
         Situação de cada aluno
         <Box component="span" sx={{ color: TOV.caption, fontSize: TOV.type.body, fontWeight: 600 }}> · {alunos.length} matriculado(s)</Box>
+      </Typography>
+      <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mb: 1.5, maxWidth: '72ch' }}>
+        Quem entrou com o curso andando e vai cursar só alguns módulos recebe uma condição própria: paga menos meses
+        que a turma, a partir do mês em que entrou.
       </Typography>
 
       {!telaDesktop && (
@@ -251,9 +335,22 @@ export default function FinanceiroTurma() {
             <CartaoLista><EstadoVazio compacto titulo="Nenhum aluno matriculado" descricao="Matricule alunos na turma para gerar as cobranças." /></CartaoLista>
           )}
           {alunos.map((aluno) => (
-            <CartaoLista key={aluno.cod_alu} onClick={() => navigate(`/financeiro/alunos/${aluno.cod_alu}`)}>
+            <CartaoLista key={aluno.cod_alu}>
               <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
-                <Box sx={{ minWidth: 0, fontWeight: 700, fontSize: TOV.type.body, overflowWrap: 'anywhere' }}>{aluno.nome}</Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Box
+                    component="button" type="button"
+                    onClick={() => navigate(`/financeiro/alunos/${aluno.cod_alu}`)}
+                    sx={{ ...resetBotao, fontWeight: 700, fontSize: TOV.type.body, textAlign: 'left', overflowWrap: 'anywhere', '&:hover': { color: TOV.coral } }}
+                  >
+                    {aluno.nome}
+                  </Box>
+                  {aluno.transferencia && (
+                    <StatusBadge tom="info" sx={{ mt: 0.5 }}>
+                      Transferência · {aluno.mensalidades_previstas} mês(es)
+                    </StatusBadge>
+                  )}
+                </Box>
                 <SeloSituacao situacao={aluno.situacao} sx={{ flexShrink: 0 }} />
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, fontSize: TOV.type.body }}>
@@ -268,6 +365,9 @@ export default function FinanceiroTurma() {
                   {formatarMoeda(aluno.pago)} · {formatarMoeda(aluno.em_aberto)}
                 </Box>
               </Box>
+              <Button size="small" variant="outlined" startIcon={<SwapHorizOutlinedIcon />} onClick={() => abrirCondicao(aluno)}>
+                Condição de pagamento
+              </Button>
             </CartaoLista>
           ))}
         </Box>
@@ -275,23 +375,24 @@ export default function FinanceiroTurma() {
 
       {telaDesktop && (
         <TableContainer component={Box} sx={{ ...cardSx, overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 860 }}>
+          <Table sx={{ minWidth: 980 }}>
             <TableHead>
               <TableRow>
                 <TableCell>Aluno</TableCell>
+                <TableCell>Condição</TableCell>
                 <TableCell align="center">Matrícula</TableCell>
-                <TableCell align="right">Cobranças</TableCell>
                 <TableCell align="right">Pago</TableCell>
                 <TableCell align="right">Em aberto</TableCell>
                 <TableCell>Próximo vencimento</TableCell>
                 <TableCell>Situação</TableCell>
+                <TableCell align="right">Ação</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {carregando && alunos.length === 0 && <LinhasSkeleton colunas={7} />}
+              {carregando && alunos.length === 0 && <LinhasSkeleton colunas={8} />}
               {!carregando && alunos.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} sx={{ p: 0 }}>
+                  <TableCell colSpan={8} sx={{ p: 0 }}>
                     <EstadoVazio titulo="Nenhum aluno matriculado" descricao="Matricule alunos na turma para gerar as cobranças." />
                   </TableCell>
                 </TableRow>
@@ -306,6 +407,16 @@ export default function FinanceiroTurma() {
                     >
                       {aluno.nome}
                     </Box>
+                    <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{aluno.cobrancas} cobrança(s)</Box>
+                  </TableCell>
+                  <TableCell>
+                    {aluno.transferencia ? (
+                      <StatusBadge tom="info">Transferência · {aluno.mensalidades_previstas} mês(es)</StatusBadge>
+                    ) : (
+                      <Box component="span" sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>
+                        Plano da turma{aluno.mensalidades_previstas ? ` · ${aluno.mensalidades_previstas} mês(es)` : ''}
+                      </Box>
+                    )}
                   </TableCell>
                   <TableCell align="center">
                     {aluno.matricula_paga == null ? (
@@ -316,13 +427,21 @@ export default function FinanceiroTurma() {
                       <RadioButtonUncheckedIcon aria-label="Matrícula em aberto" sx={{ color: TOV.caption, fontSize: TOV.type.titleSm, verticalAlign: 'middle' }} />
                     )}
                   </TableCell>
-                  <TableCell align="right" sx={{ color: TOV.graphite }}>{aluno.cobrancas}</TableCell>
                   <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>{formatarMoeda(aluno.pago)}</TableCell>
                   <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{formatarMoeda(aluno.em_aberto)}</TableCell>
                   <TableCell sx={{ color: TOV.graphite, whiteSpace: 'nowrap' }}>
                     {aluno.proximo_vencimento ? formatarDataBr(aluno.proximo_vencimento) : '—'}
                   </TableCell>
                   <TableCell><SeloSituacao situacao={aluno.situacao} /></TableCell>
+                  <TableCell align="right">
+                    <Box
+                      component="button" type="button"
+                      onClick={() => abrirCondicao(aluno)}
+                      sx={{ ...resetBotao, fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption, '&:hover': { color: TOV.coral } }}
+                    >
+                      Condição
+                    </Box>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -330,23 +449,109 @@ export default function FinanceiroTurma() {
         </TableContainer>
       )}
 
+      <Dialog
+        open={!!alunoCondicao}
+        onClose={salvandoCondicao ? undefined : () => setAlunoCondicao(null)}
+        maxWidth="sm" fullWidth fullScreen={telaCheia}
+      >
+        <DialogTitle>Condição de pagamento — {alunoCondicao?.nome}</DialogTitle>
+        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
+          <GrupoSegmentado
+            rotulo="Condição do aluno"
+            opcoes={TIPOS_CONDICAO}
+            valor={formCondicao.tipo}
+            onChange={(valor) => setFormCondicao({ ...formCondicao, tipo: valor })}
+            sx={{ alignSelf: 'flex-start' }}
+          />
+
+          {formCondicao.tipo === 'REGULAR' ? (
+            <Alert severity="info">
+              O aluno paga a matrícula e as {dados.plano?.parcelas || 0} mensalidade(s) da turma, como todo mundo.
+              {alunoCondicao?.condicao && ' Salvar devolve as parcelas que tinham sido cortadas.'}
+            </Alert>
+          ) : (
+            <>
+              <Alert severity="info">
+                Aluno que entra com o curso andando: informe quantos meses ele ainda vai cursar e a partir de quando.
+                O que ficar em branco segue o plano da turma.
+              </Alert>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                <TextField
+                  label="Mensalidades a pagar" value={formCondicao.parcelas}
+                  onChange={(e) => setFormCondicao({ ...formCondicao, parcelas: e.target.value.replace(/\D/g, '').slice(0, 2) })}
+                  inputProps={{ inputMode: 'numeric' }}
+                  helperText={`A turma tem ${dados.plano?.parcelas || 0}.`}
+                />
+                <TextField
+                  label="Primeira mensalidade" type="date" value={formCondicao.primeira_mensalidade}
+                  onChange={(e) => setFormCondicao({ ...formCondicao, primeira_mensalidade: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  helperText="O mês em que ele entrou."
+                />
+              </Box>
+              <TextField
+                label="Mensalidade própria (opcional)" value={formCondicao.valor_mensalidade}
+                onChange={(e) => setFormCondicao({ ...formCondicao, valor_mensalidade: e.target.value })}
+                InputProps={{ startAdornment: <InputAdornment position="start">R$</InputAdornment> }}
+                inputProps={{ inputMode: 'decimal' }}
+                helperText={`Em branco usa a da turma (${formatarMoeda(dados.plano?.valor_mensalidade || 0)}).`}
+              />
+              <FormControlLabel
+                control={(
+                  <Switch
+                    checked={formCondicao.cobra_matricula}
+                    onChange={(e) => setFormCondicao({ ...formCondicao, cobra_matricula: e.target.checked })}
+                  />
+                )}
+                label="Cobrar a matrícula inicial deste aluno"
+              />
+              <TextField
+                label="Observação (opcional)" value={formCondicao.observacao} multiline minRows={2}
+                onChange={(e) => setFormCondicao({ ...formCondicao, observacao: e.target.value })}
+                inputProps={{ maxLength: 2000 }}
+              />
+              {!condicaoValida && (
+                <Alert severity="warning">Informe quantas mensalidades ele vai pagar ou a partir de qual mês.</Alert>
+              )}
+            </>
+          )}
+
+          <Alert severity="warning" icon={false}>
+            As cobranças já geradas são ajustadas na hora: as que sobrarem do novo plano são removidas e as demais
+            ganham o valor e o vencimento certos. Parcela que já tem pagamento nunca é apagada.
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5 }}>
+          <Button onClick={() => setAlunoCondicao(null)} disabled={salvandoCondicao}>Cancelar</Button>
+          <Button
+            variant="contained"
+            startIcon={salvandoCondicao ? <CircularProgress size={16} color="inherit" /> : <SaveOutlinedIcon />}
+            disabled={!condicaoValida || salvandoCondicao}
+            onClick={salvarCondicao}
+          >
+            {salvandoCondicao ? 'Aplicando…' : 'Salvar condição'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <DialogoConfirmacao
         aberto={confirmarGeracao}
         titulo="Gerar cobranças da turma?"
-        descricao="Cada aluno matriculado recebe a matrícula e as mensalidades que ainda não tem. Quem já foi cobrado não é duplicado."
+        descricao="Cada aluno matriculado recebe a matrícula e as mensalidades que ainda não tem. Quem já foi cobrado não é duplicado e quem tem condição própria recebe as parcelas dele."
         itens={[
           { rotulo: 'Alunos matriculados', detalhe: String(dados.matriculados) },
+          { rotulo: 'Alunos de transferência', detalhe: String(dados.transferencias || 0) },
           { rotulo: 'Matrícula', detalhe: formatarMoeda(matricula) },
           { rotulo: 'Mensalidades', detalhe: parcelas ? `${parcelas}× ${formatarMoeda(mensalidade)}` : 'nenhuma' },
-          { rotulo: 'Total por aluno', detalhe: formatarMoeda(totalPorAluno) },
+          { rotulo: 'Total por aluno regular', detalhe: formatarMoeda(totalPorAluno) },
         ]}
         rotuloConfirmar="Gerar cobranças"
         processando={gerando}
-        onConfirmar={() => gerar(null)}
+        onConfirmar={gerar}
         onFechar={() => !gerando && setConfirmarGeracao(false)}
       />
 
-      <Snackbar open={!!msg} autoHideDuration={6000} onClose={() => setMsg('')}>
+      <Snackbar open={!!msg} autoHideDuration={8000} onClose={() => setMsg('')}>
         <Alert severity={ehErro ? 'error' : 'success'} onClose={() => setMsg('')}>{msg}</Alert>
       </Snackbar>
     </Box>

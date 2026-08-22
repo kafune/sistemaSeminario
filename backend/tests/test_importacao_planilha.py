@@ -19,10 +19,12 @@ from app.database import Base
 from app.models import Aluno, AluTurma, Cobranca, CondicaoFinanceiraAluno, Pagamento, Turma
 from app.services import financeiro as servico
 from importar_planilha_financeiro import (
+    assinatura,
     casar_nomes,
     chave_curta,
     importar,
     ler_planilha,
+    nome_contido,
     normalizar,
     selecionar,
 )
@@ -165,11 +167,52 @@ class CasamentoDeNomesTest(BaseCadastroTest):
         por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
         self.assertEqual(por_nome["Celina Viana Osório"]["situacao"], "EXATO")
 
-    def test_nome_do_meio_diferente_vira_aproximado(self):
+    def test_particula_e_ordem_nao_separam_a_mesma_pessoa(self):
+        # "da" entra e sai conforme quem digitou; é ruído como o acento.
         aluno = self.cadastrar("Daniel Marcolino Silva", self.manha)
         por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
         item = por_nome["Daniel Marcolino da Silva"]
+        self.assertEqual(item["situacao"], "EXATO")
+        self.assertEqual(item["aluno"].cod_alu, aluno.cod_alu)
+
+    def test_nome_incompleto_na_planilha_encontra_o_completo(self):
+        # A planilha traz "Evaneide Maria"; o cadastro tem o nome inteiro.
+        aluno = self.cadastrar("Evaneide Maria da Silva Santos", self.noite)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        item = por_nome["Evaneide Maria"]
+        self.assertEqual(item["situacao"], "PARCIAL")
+        self.assertEqual(item["aluno"].cod_alu, aluno.cod_alu)
+
+    def test_incompleto_exige_o_mesmo_primeiro_nome(self):
+        self.cadastrar("Joana Evaneide Maria Costa", self.noite)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        self.assertEqual(por_nome["Evaneide Maria"]["situacao"], "NOVO")
+
+    def test_incompleto_exige_dois_nomes(self):
+        # Um token só casaria com meia escola.
+        self.cadastrar("Agatha", self.manha)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        self.assertEqual(por_nome["Agatha Cristina"]["situacao"], "NOVO")
+
+    def test_dois_completos_para_o_mesmo_incompleto_viram_ambiguo(self):
+        self.cadastrar("Evaneide Maria da Silva", self.manha)
+        self.cadastrar("Evaneide Maria de Souza", self.noite)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        self.assertEqual(por_nome["Evaneide Maria"]["situacao"], "AMBIGUO")
+
+    def test_erro_de_digitacao_vira_aproximado(self):
+        aluno = self.cadastrar("Gerson Caristto", self.manha)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        item = por_nome["Gerson Caristo"]
         self.assertEqual(item["situacao"], "APROXIMADO")
+        self.assertEqual(item["aluno"].cod_alu, aluno.cod_alu)
+
+    def test_nome_completo_na_planilha_e_curto_no_cadastro(self):
+        # A direção contrária também vale: quem cadastrou é que abreviou.
+        aluno = self.cadastrar("Marcos Ferraz", self.manha)
+        por_nome = {c["nome"]: c for c in casar_nomes(self.db, self.pessoas)}
+        item = por_nome["Marcos Ferraz de Lima"]
+        self.assertEqual(item["situacao"], "PARCIAL")
         self.assertEqual(item["aluno"].cod_alu, aluno.cod_alu)
 
     def test_dois_candidatos_nunca_sao_escolhidos_pelo_script(self):
@@ -210,12 +253,25 @@ class SelecaoTest(BaseCadastroTest):
         self.assertEqual(por_nome["Agatha Cristina"], self.noite.cod_tur)
 
     def test_aproximado_so_entra_quando_autorizado(self):
-        self.cadastrar("Daniel Marcolino Silva", self.manha)
+        self.cadastrar("Gerson Caristto", self.manha)
         _, de_fora = self.selecionar()
-        self.assertIn("--aceitar-aproximados", dict((i["nome"], m) for i, m in de_fora)["Daniel Marcolino da Silva"])
+        motivos = {i["nome"]: m for i, m in de_fora}
+        self.assertIn("parecido com", motivos["Gerson Caristo"])
+        self.assertIn("--aceitar-aproximados", motivos["Gerson Caristo"])
 
         entram, _ = self.selecionar(aceitar_aproximados=True)
-        self.assertIn("Daniel Marcolino da Silva", [i["nome"] for i in entram])
+        self.assertIn("Gerson Caristo", [i["nome"] for i in entram])
+
+    def test_incompleto_so_entra_quando_autorizado(self):
+        self.cadastrar("Evaneide Maria da Silva Santos", self.noite)
+        _, de_fora = self.selecionar()
+        motivos = {i["nome"]: m for i, m in de_fora}
+        self.assertIn("nome incompleto de", motivos["Evaneide Maria"])
+
+        entram, _ = self.selecionar(aceitar_aproximados=True)
+        casada = next(i for i in entram if i["nome"] == "Evaneide Maria")
+        self.assertEqual(casada["aluno"].nome, "Evaneide Maria da Silva Santos")
+        self.assertEqual(casada["cod_tur"], self.noite.cod_tur)
 
     def test_novo_precisa_de_turma(self):
         entram, de_fora = self.selecionar(criar_novos=True)
@@ -469,6 +525,26 @@ class ImportacaoParcialTest(BaseCadastroTest):
             relatar=lambda *_: None,
         )
         self.assertFalse(resultado["confere"])
+
+
+class CamadasDeNomeTest(unittest.TestCase):
+    def test_assinatura_ignora_particula_e_ordem(self):
+        self.assertEqual(assinatura("Maria de Souza"), assinatura("Maria Souza"))
+        self.assertEqual(assinatura("Souza Maria"), assinatura("Maria Souza"))
+        self.assertNotEqual(assinatura("Maria Souza"), assinatura("Maria Sousa"))
+
+    def test_nome_contido_nos_dois_sentidos(self):
+        self.assertTrue(nome_contido("Evaneide Maria", "Evaneide Maria da Silva Santos"))
+        self.assertTrue(nome_contido("Evaneide Maria da Silva Santos", "Evaneide Maria"))
+
+    def test_nome_contido_recusa_primeiro_nome_diferente(self):
+        self.assertFalse(nome_contido("Evaneide Maria", "Joana Evaneide Maria"))
+
+    def test_nome_contido_recusa_um_token_so(self):
+        self.assertFalse(nome_contido("Maria", "Maria da Silva Santos"))
+
+    def test_nome_contido_recusa_sobrenome_estranho(self):
+        self.assertFalse(nome_contido("Marcos Ferraz de Lima", "Marcos Antonio de Lima"))
 
 
 class NormalizacaoTest(unittest.TestCase):

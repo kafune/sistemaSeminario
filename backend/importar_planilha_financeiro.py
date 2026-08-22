@@ -59,6 +59,8 @@ from app.services.matriculas import sincronizar_matricula
 ORIGEM = "PLANILHA"
 # Abaixo disso não é nome parecido, é outro aluno.
 SEMELHANCA_MINIMA = 0.88
+# Partículas não distinguem ninguém: entram e saem conforme quem digitou.
+PARTICULAS = frozenset({"DA", "DAS", "DE", "DEL", "DI", "DO", "DOS", "E", "VAN", "VON"})
 
 
 # ---- nomes -----------------------------------------------------------------
@@ -75,12 +77,43 @@ def chave_curta(nome: str) -> str:
     "Marcos Antonio de Lima Filho" e "Marcos Antônio Lima Filho" caem na mesma
     chave; é o erro de digitação mais comum entre a planilha e o cadastro.
     """
-    partes = [p for p in normalizar(nome).split(" ") if len(p) > 2]
+    partes = tokens_significativos(nome)
     if not partes:
         return normalizar(nome)
     if len(partes) == 1:
         return partes[0]
     return f"{partes[0]} {partes[-1]}"
+
+
+def tokens_significativos(nome: str) -> list[str]:
+    """Nome sem as partículas: "de", "da", "dos" não distinguem ninguém."""
+    return [parte for parte in normalizar(nome).split(" ") if parte and parte not in PARTICULAS]
+
+
+def assinatura(nome: str) -> str:
+    """Tokens significativos em ordem alfabética.
+
+    Faz "Maria de Souza" e "Maria Souza" caírem na mesma chave — a partícula
+    é ruído do mesmo tipo que o acento, não outro nome.
+    """
+    return " ".join(sorted(tokens_significativos(nome)))
+
+
+def nome_contido(um: str, outro: str) -> bool:
+    """Verdadeiro quando um nome é o outro pela metade.
+
+    É o caso que a planilha cria o tempo todo: "Evaneide Maria" escrito à mão
+    para quem está cadastrado como "Evaneide Maria da Silva Santos". Exige o
+    mesmo primeiro nome e pelo menos dois tokens, senão "Maria" casaria com
+    meia escola.
+    """
+    aqui, la = tokens_significativos(um), tokens_significativos(outro)
+    if len(aqui) < 2 or len(la) < 2:
+        return False
+    curto, longo = (aqui, la) if len(aqui) <= len(la) else (la, aqui)
+    if curto[0] != longo[0]:
+        return False
+    return all(parte in longo for parte in curto)
 
 
 def semelhanca(um: str, outro: str) -> float:
@@ -157,48 +190,58 @@ def ler_planilha(caminho) -> tuple[list[dict], dict]:
 def casar_nomes(db, pessoas: list[dict]) -> list[dict]:
     """Liga cada linha da planilha ao aluno já cadastrado com aquele nome.
 
+    São quatro camadas, da mais para a menos certa: nome idêntico; mesmos
+    tokens em outra ordem ou sem as partículas; nome incompleto contido no
+    completo; e finalmente parecido por semelhança. A primeira que encontrar um
+    único candidato decide.
+
     Devolve, para cada pessoa, a situação da correspondência:
 
-    ``EXATO``       nome idêntico (ignorando acento, caixa e espaço dobrado);
-    ``APROXIMADO``  um único parecido — precisa de confirmação de gente;
+    ``EXATO``       mesmo nome, ignorando acento, caixa, partícula e ordem;
+    ``PARCIAL``     a planilha tem o nome pela metade — precisa de confirmação;
+    ``APROXIMADO``  um único parecido — precisa de confirmação;
     ``AMBIGUO``     mais de um candidato, então o script não escolhe;
     ``NOVO``        ninguém parecido no cadastro.
     """
     cadastro = list(db.scalars(select(Aluno).where(Aluno.nome.is_not(None))))
     por_nome: dict[str, list[Aluno]] = {}
+    por_assinatura: dict[str, list[Aluno]] = {}
     por_chave: dict[str, list[Aluno]] = {}
     for aluno in cadastro:
         por_nome.setdefault(normalizar(aluno.nome), []).append(aluno)
+        por_assinatura.setdefault(assinatura(aluno.nome), []).append(aluno)
         por_chave.setdefault(chave_curta(aluno.nome), []).append(aluno)
 
     correspondencias = []
     for pessoa in pessoas:
-        exatos = por_nome.get(normalizar(pessoa["nome"]), [])
-        if len(exatos) == 1:
-            correspondencias.append({**pessoa, "situacao": "EXATO", "aluno": exatos[0]})
-            continue
-        if len(exatos) > 1:
-            correspondencias.append({**pessoa, "situacao": "AMBIGUO", "candidatos": exatos})
-            continue
-
-        candidatos = list(por_chave.get(chave_curta(pessoa["nome"]), []))
-        if not candidatos:
-            candidatos = [
-                aluno
-                for aluno in cadastro
-                if semelhanca(pessoa["nome"], aluno.nome) >= SEMELHANCA_MINIMA
-            ]
-        if len(candidatos) == 1:
+        nome = pessoa["nome"]
+        camadas = [
+            ("EXATO", por_nome.get(normalizar(nome), [])),
+            ("EXATO", por_assinatura.get(assinatura(nome), [])),
+            ("PARCIAL", [a for a in cadastro if nome_contido(nome, a.nome)]),
+            ("APROXIMADO", por_chave.get(chave_curta(nome), [])),
+            (
+                "APROXIMADO",
+                [a for a in cadastro if semelhanca(nome, a.nome) >= SEMELHANCA_MINIMA],
+            ),
+        ]
+        for situacao, candidatos in camadas:
+            if not candidatos:
+                continue
+            if len(candidatos) > 1:
+                correspondencias.append(
+                    {**pessoa, "situacao": "AMBIGUO", "candidatos": candidatos}
+                )
+                break
             correspondencias.append(
                 {
                     **pessoa,
-                    "situacao": "APROXIMADO",
+                    "situacao": situacao,
                     "aluno": candidatos[0],
-                    "semelhanca": semelhanca(pessoa["nome"], candidatos[0].nome),
+                    "semelhanca": semelhanca(nome, candidatos[0].nome),
                 }
             )
-        elif candidatos:
-            correspondencias.append({**pessoa, "situacao": "AMBIGUO", "candidatos": candidatos})
+            break
         else:
             correspondencias.append({**pessoa, "situacao": "NOVO"})
     return correspondencias
@@ -224,12 +267,13 @@ def selecionar(
     for item in correspondencias:
         situacao = item["situacao"]
         if situacao == "AMBIGUO":
-            nomes = ", ".join(a.nome for a in item["candidatos"][:3])
+            nomes = ", ".join(f"{a.nome} (#{a.cod_alu})" for a in item["candidatos"][:3])
             ficam_de_fora.append((item, f"mais de um aluno com esse nome ({nomes})"))
             continue
-        if situacao == "APROXIMADO" and not aceitar_aproximados:
+        if situacao in ("APROXIMADO", "PARCIAL") and not aceitar_aproximados:
+            como = "parecido com" if situacao == "APROXIMADO" else "nome incompleto de"
             ficam_de_fora.append(
-                (item, f"parecido com {item['aluno'].nome!r}; use --aceitar-aproximados")
+                (item, f"{como} {item['aluno'].nome!r}; use --aceitar-aproximados")
             )
             continue
         if situacao == "NOVO":
@@ -562,6 +606,7 @@ def relatar_correspondencia(correspondencias: list[dict], db) -> None:
     """Mostra, nome por nome, o que o script encontrou no cadastro."""
     rotulos = {
         "EXATO": "exato",
+        "PARCIAL": "INCOMPLETO",
         "APROXIMADO": "PARECIDO",
         "AMBIGUO": "AMBÍGUO",
         "NOVO": "não cadastrado",
@@ -574,15 +619,15 @@ def relatar_correspondencia(correspondencias: list[dict], db) -> None:
     print("-" * 100)
     for item in correspondencias:
         detalhe = ""
-        if item["situacao"] in ("EXATO", "APROXIMADO"):
+        if item["situacao"] in ("EXATO", "PARCIAL", "APROXIMADO"):
             aluno = item["aluno"]
             cod_tur = turma_do_aluno(db, aluno)
             turma = nomes_turma.get(cod_tur, "sem turma")
             detalhe = f"{aluno.nome} — {turma}"
             if item["situacao"] == "APROXIMADO":
-                detalhe += f"  ({item['semelhanca']:.0%})"
+                detalhe += f"  ({item['semelhanca']:.0%} de semelhança)"
         elif item["situacao"] == "AMBIGUO":
-            detalhe = " | ".join(a.nome for a in item["candidatos"][:3])
+            detalhe = " | ".join(f"{a.nome} (#{a.cod_alu})" for a in item["candidatos"][:3])
         print(f"{item['nome'][:37]:<38} {rotulos[item['situacao']]:<15} {detalhe}")
 
 
@@ -610,7 +655,7 @@ def main() -> None:
     analisador.add_argument(
         "--aceitar-aproximados",
         action="store_true",
-        help="Aceita o nome parecido quando há um único candidato",
+        help="Aceita nome incompleto ou parecido quando há um único candidato",
     )
     analisador.add_argument(
         "--criar-novos", action="store_true", help="Cadastra quem não foi encontrado"

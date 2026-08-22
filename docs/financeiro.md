@@ -149,12 +149,22 @@ onde a conciliação bancária consegue reencontrá-lo.
 
 ### Como os nomes são casados
 
-| Situação | O que é | O que o script faz |
+São quatro camadas, da mais para a menos certa. A primeira que encontrar um
+**único** candidato decide; achando mais de um, o script para e mostra os
+candidatos com o código de cada um.
+
+| Situação | Quando | O que o script faz |
 | --- | --- | --- |
-| `exato` | Nome idêntico, ignorando acento, caixa e espaço dobrado | Importa |
-| `PARECIDO` | Um único candidato pelo primeiro nome + último sobrenome, ou 88% de semelhança | Só com `--aceitar-aproximados` |
-| `AMBÍGUO` | Mais de um candidato | **Nunca** escolhe; fica de fora |
+| `exato` | Nome idêntico ignorando acento, caixa e espaço dobrado — **ou** os mesmos nomes sem as partículas e em qualquer ordem ("Maria de Souza" = "Maria Souza") | Importa |
+| `INCOMPLETO` | Um nome é o outro pela metade: "Evaneide Maria" na planilha para "Evaneide Maria da Silva Santos" no cadastro. Exige o mesmo primeiro nome e pelo menos dois nomes | Só com `--aceitar-aproximados` |
+| `PARECIDO` | Mesmo primeiro nome e último sobrenome, ou 88% de semelhança — o caso do erro de digitação | Só com `--aceitar-aproximados` |
+| `AMBÍGUO` | Mais de um candidato na camada que resolveu | **Nunca** escolhe |
 | `não cadastrado` | Ninguém parecido | Só com `--criar-novos --turma-novos N` |
+
+A camada do nome incompleto vale nos dois sentidos — tanto faz quem abreviou,
+a planilha ou o cadastro. As duas exigências existem para não casar meia
+escola: sem o mesmo primeiro nome, "Evaneide Maria" alcançaria "Joana Evaneide
+Maria"; com um nome só, "Maria" alcançaria todas as Marias.
 
 Sem opção nenhuma, entra só quem casou exato — e o relatório lista, nome por
 nome, quem ficou de fora e por quê. É de propósito: apontar o dinheiro para o
@@ -176,6 +186,9 @@ python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx \
 **Sem `--aplicar` nada é gravado.** Os padrões são os do curso atual:
 `--parcelas 24` (dois anos), `--matricula 100`, `--mensalidade 200`,
 `--desconto-conjuge 50`, `--primeira-mensalidade 2026-08-10`.
+
+`--aceitar-aproximados` libera as duas camadas que pedem confirmação: o nome
+incompleto e o parecido. Confira a lista antes — é ela que justifica o aceite.
 
 `--parcelas-transferencia` define de uma vez quantos meses o pessoal do bloco de
 transferência vai pagar. Quem tiver um número próprio se ajusta depois em
@@ -334,7 +347,8 @@ automática desligada).
 
 `backend/tests/test_importacao_planilha.py` monta uma planilha com a mesma
 forma da real — casais mesclados, dois blocos, linhas de total — e cobre o
-casamento de nomes (exato, parecido, ambíguo, ausente), a importação em duas
+casamento de nomes (exato, partícula, incompleto nos dois sentidos, parecido,
+ambíguo, ausente), a importação em duas
 turmas, o casal separado entre elas, a idempotência e a recusa quando os
 valores não fecham.
 

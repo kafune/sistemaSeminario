@@ -13,6 +13,7 @@ from .routers import (
     auth,
     dashboard,
     calendario,
+    financeiro,
     integracoes,
     importacoes,
     leads,
@@ -120,6 +121,8 @@ app.include_router(presencas.public_router)
 app.include_router(professores.public_router)
 app.include_router(professores.access_public_router)
 app.include_router(whatsapp.public_router)
+app.include_router(financeiro.public_router)
+app.include_router(financeiro.webhook_router)
 protegido = [Depends(usuario_atual)]
 academico = [
     Depends(usuario_atual),
@@ -130,10 +133,22 @@ notas_acesso = [
     Depends(exigir_perfis("ADMIN", "SECRETARIA", "PROFESSOR")),
 ]
 administracao = [Depends(usuario_atual), Depends(exigir_perfis("ADMIN"))]
+# O perfil FINANCEIRO existe para quem cuida do dinheiro e de mais nada:
+# esta é a única área acadêmica que ele enxerga.
+tesouraria = [
+    Depends(usuario_atual),
+    Depends(exigir_perfis("ADMIN", "SECRETARIA", "FINANCEIRO")),
+]
+# Áreas de trabalho abertas a todo perfil operacional. O financeiro fica de
+# fora: o acesso dele começa e termina na tesouraria.
+operacional = [
+    Depends(usuario_atual),
+    Depends(exigir_perfis("ADMIN", "SECRETARIA", "MARKETING", "PROFESSOR")),
+]
 app.include_router(alunos.router, dependencies=academico)
 app.include_router(calendario.router, dependencies=academico)
 app.include_router(importacoes.router, dependencies=academico)
-app.include_router(leads.router, dependencies=protegido)
+app.include_router(leads.router, dependencies=operacional)
 app.include_router(professores.router, dependencies=academico)
 app.include_router(materias.router, dependencies=academico)
 app.include_router(turmas.router, dependencies=academico)
@@ -143,8 +158,9 @@ app.include_router(materiais.router, dependencies=notas_acesso)
 app.include_router(portal_professor.router, dependencies=notas_acesso)
 app.include_router(relatorios.router, dependencies=academico)
 app.include_router(dashboard.router, dependencies=academico)
+app.include_router(financeiro.router, dependencies=tesouraria)
 app.include_router(usuarios.router, dependencies=administracao)
-app.include_router(whatsapp.router, dependencies=protegido)
+app.include_router(whatsapp.router, dependencies=operacional)
 app.include_router(notificacoes.router, dependencies=protegido)
 
 

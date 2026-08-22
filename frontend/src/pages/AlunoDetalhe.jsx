@@ -7,6 +7,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete'
 import DescriptionIcon from '@mui/icons-material/Description'
 import EditIcon from '@mui/icons-material/Edit'
+import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
@@ -160,6 +161,13 @@ export default function AlunoDetalhe() {
             sx={{ color: TOV.success, borderColor: TOV.success }}
           >
             WhatsApp
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<PaidOutlinedIcon />}
+            onClick={() => navigate(`/financeiro/alunos/${aluno.cod_alu}`)}
+          >
+            Financeiro
           </Button>
           <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setEditando(true)}>Editar</Button>
           <Button

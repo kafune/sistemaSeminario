@@ -17,6 +17,7 @@ import DescriptionIcon from '@mui/icons-material/Description'
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import CampaignIcon from '@mui/icons-material/Campaign'
+import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined'
 import LogoutIcon from '@mui/icons-material/Logout'
 import CheckIcon from '@mui/icons-material/Check'
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu'
@@ -41,6 +42,7 @@ const MENU = [
   { rotulo: 'Notas e Faltas', curto: 'Notas', rota: '/notas', icone: EditNoteIcon, perfis: ['ADMIN', 'SECRETARIA', 'PROFESSOR'] },
   { rotulo: 'Materiais', curto: 'Material', rota: '/materiais', icone: FolderCopyOutlinedIcon, perfis: ['ADMIN', 'SECRETARIA', 'PROFESSOR'] },
   { rotulo: 'Relatórios', curto: 'Relatos', rota: '/relatorios', icone: DescriptionIcon, perfis: ['ADMIN', 'SECRETARIA'] },
+  { rotulo: 'Financeiro', curto: 'Financ.', rota: '/financeiro', icone: PaidOutlinedIcon, perfis: ['ADMIN', 'SECRETARIA', 'FINANCEIRO'] },
   { rotulo: 'Leads', curto: 'Leads', rota: '/leads', icone: CampaignIcon, perfis: ['ADMIN', 'MARKETING'] },
   { rotulo: 'WhatsApp', curto: 'Whats', rota: '/whatsapp', icone: WhatsAppIcon, perfis: ['ADMIN', 'SECRETARIA', 'MARKETING'] },
   { rotulo: 'Usuários', curto: 'Usuários', rota: '/usuarios', icone: ManageAccountsIcon, perfis: ['ADMIN'] },
@@ -50,6 +52,7 @@ const MENU = [
 const TRILHA = {
   PROFESSOR: ['/professor', '/professor/turmas', '/notas', '/materiais'],
   MARKETING: ['/leads', '/whatsapp'],
+  FINANCEIRO: ['/financeiro'],
   padrao: ['/', '/alunos', '/turmas', '/notas', '/calendario'],
 }
 
@@ -343,6 +346,8 @@ export default function Layout({ children }) {
       ? '/materiais'
     : location.pathname.startsWith('/notas')
       ? '/notas'
+    : location.pathname.startsWith('/financeiro')
+      ? '/financeiro'
     : location.pathname.startsWith('/alunos')
       ? '/alunos'
         : location.pathname.startsWith('/turmas')
@@ -370,10 +375,13 @@ export default function Layout({ children }) {
         <Typography component="span" sx={{ fontSize: TOV.type.overline, color: TOV.onDarkMuted }}>acadêmico</Typography>
       </Box>
 
-      {perfil !== 'PROFESSOR' && <SeletorSistema onTrocar={trocarSistema} />}
+      {!['PROFESSOR', 'FINANCEIRO'].includes(perfil) && <SeletorSistema onTrocar={trocarSistema} />}
 
       <Box sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.micro, letterSpacing: '.16em', textTransform: 'uppercase', color: TOV.onDarkMuted, px: 1.5, mb: 1 }}>
-        {perfil === 'MARKETING' ? 'Marketing' : perfil === 'PROFESSOR' ? 'Portal do professor' : 'Secretaria'}
+        {perfil === 'MARKETING' ? 'Marketing'
+          : perfil === 'PROFESSOR' ? 'Portal do professor'
+            : perfil === 'FINANCEIRO' ? 'Tesouraria'
+              : 'Secretaria'}
       </Box>
 
       <Box component="nav" aria-label="Navegação principal" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
@@ -400,7 +408,11 @@ export default function Layout({ children }) {
         <Box sx={{ lineHeight: 1.2, overflow: 'hidden' }}>
           <Box sx={{ fontWeight: 700, fontSize: TOV.type.body, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{usuario}</Box>
           <Box sx={{ fontSize: TOV.type.overline, color: TOV.onDarkMuted }}>
-            {perfil === 'ADMIN' ? 'Administrador' : perfil === 'MARKETING' ? 'Marketing' : perfil === 'PROFESSOR' ? 'Professor' : 'Secretaria'}
+            {perfil === 'ADMIN' ? 'Administrador'
+              : perfil === 'MARKETING' ? 'Marketing'
+                : perfil === 'PROFESSOR' ? 'Professor'
+                  : perfil === 'FINANCEIRO' ? 'Financeiro'
+                    : 'Secretaria'}
           </Box>
         </Box>
         <Box
@@ -594,6 +606,8 @@ export default function Layout({ children }) {
               <BottomNavigationAction label="Notas" value="/notas" icon={<EditNoteIcon />} />
               <BottomNavigationAction label="Materiais" value="/materiais" icon={<FolderCopyOutlinedIcon />} />
             </>
+          ) : perfil === 'FINANCEIRO' ? (
+            <BottomNavigationAction label="Financeiro" value="/financeiro" icon={<PaidOutlinedIcon />} />
           ) : <>
             {perfil === 'MARKETING' ? (
               <BottomNavigationAction label="Leads" value="/leads" icon={<CampaignIcon />} />

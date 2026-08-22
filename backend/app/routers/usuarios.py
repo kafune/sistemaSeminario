@@ -17,7 +17,7 @@ SENHA_MINIMA = 6
 class UsuarioInput(BaseModel):
     user: str
     senha: str
-    perfil: Literal["ADMIN", "SECRETARIA", "MARKETING", "PROFESSOR"] = "SECRETARIA"
+    perfil: Literal["ADMIN", "SECRETARIA", "MARKETING", "FINANCEIRO", "PROFESSOR"] = "SECRETARIA"
     cod_pro: int | None = None
 
 
@@ -26,7 +26,7 @@ class SenhaInput(BaseModel):
 
 
 class PerfilInput(BaseModel):
-    perfil: Literal["ADMIN", "SECRETARIA", "MARKETING", "PROFESSOR"]
+    perfil: Literal["ADMIN", "SECRETARIA", "MARKETING", "FINANCEIRO", "PROFESSOR"]
     cod_pro: int | None = None
 
 

@@ -27,6 +27,11 @@ const Materiais = lazy(() => import('./pages/Materiais'))
 const PortalProfessor = lazy(() => import('./pages/PortalProfessor'))
 const TurmaProfessor = lazy(() => import('./pages/TurmaProfessor'))
 const Relatorios = lazy(() => import('./pages/Relatorios'))
+const Financeiro = lazy(() => import('./pages/Financeiro'))
+const FinanceiroTurma = lazy(() => import('./pages/FinanceiroTurma'))
+const FinanceiroAluno = lazy(() => import('./pages/FinanceiroAluno'))
+const FinanceiroConciliacao = lazy(() => import('./pages/FinanceiroConciliacao'))
+const MinhasFinancas = lazy(() => import('./pages/MinhasFinancas'))
 const Usuarios = lazy(() => import('./pages/Usuarios'))
 const WhatsApp = lazy(() => import('./pages/WhatsApp'))
 const Leads = lazy(() => import('./pages/Leads'))
@@ -55,7 +60,10 @@ function Protegida({ children, perfis }) {
   if (!getToken()) return <Navigate to="/login" replace state={{ retorno: `${location.pathname}${location.search}${location.hash}` }} />
   const perfil = getPerfil()
   if (perfis && !perfis.includes(perfil)) {
-    const inicio = perfil === 'MARKETING' ? '/leads' : perfil === 'PROFESSOR' ? '/professor' : '/'
+    const inicio = perfil === 'MARKETING' ? '/leads'
+      : perfil === 'PROFESSOR' ? '/professor'
+        : perfil === 'FINANCEIRO' ? '/financeiro'
+          : '/'
     return <Navigate to={inicio} replace />
   }
   return <Layout>{children}</Layout>
@@ -72,6 +80,7 @@ export default function App() {
           <Route path="/cadastro-professor/:token" element={<AutocadastroProfessor />} />
           <Route path="/acesso-professor/:token" element={<AcessoProfessor />} />
           <Route path="/presenca/:token" element={<PresencaTotem />} />
+          <Route path="/minhas-financas/:token" element={<MinhasFinancas />} />
           <Route path="/" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Dashboard /></Protegida>} />
           <Route path="/alunos" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Alunos /></Protegida>} />
           <Route path="/alunos/:codAlu" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><AlunoDetalhe /></Protegida>} />
@@ -88,6 +97,10 @@ export default function App() {
           <Route path="/professor/turmas" element={<Protegida perfis={['PROFESSOR']}><PortalProfessor somenteTurmas /></Protegida>} />
           <Route path="/professor/turmas/:docturmaId" element={<Protegida perfis={['PROFESSOR']}><TurmaProfessor /></Protegida>} />
           <Route path="/relatorios" element={<Protegida perfis={['ADMIN', 'SECRETARIA']}><Relatorios /></Protegida>} />
+          <Route path="/financeiro" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'FINANCEIRO']}><Financeiro /></Protegida>} />
+          <Route path="/financeiro/conciliacao" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'FINANCEIRO']}><FinanceiroConciliacao /></Protegida>} />
+          <Route path="/financeiro/turmas/:codTur" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'FINANCEIRO']}><FinanceiroTurma /></Protegida>} />
+          <Route path="/financeiro/alunos/:codAlu" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'FINANCEIRO']}><FinanceiroAluno /></Protegida>} />
           <Route path="/leads" element={<Protegida perfis={['ADMIN', 'MARKETING']}><Leads /></Protegida>} />
           <Route path="/usuarios" element={<Protegida perfis={['ADMIN']}><Usuarios /></Protegida>} />
           <Route path="/whatsapp" element={<Protegida perfis={['ADMIN', 'SECRETARIA', 'MARKETING']}><WhatsApp /></Protegida>} />

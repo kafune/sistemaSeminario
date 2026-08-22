@@ -29,7 +29,14 @@ export default function Login() {
       const retornoSeguro = typeof retornoSalvo === 'string' && retornoSalvo.startsWith('/') && !retornoSalvo.startsWith('//') && !retornoSalvo.startsWith('/login')
         ? retornoSalvo
         : null
-      navigate(retornoSeguro || (r.perfil === 'PROFESSOR' ? '/professor' : r.perfil === 'MARKETING' ? '/leads' : '/'), { replace: true })
+      navigate(
+        retornoSeguro
+        || (r.perfil === 'PROFESSOR' ? '/professor'
+          : r.perfil === 'MARKETING' ? '/leads'
+            : r.perfil === 'FINANCEIRO' ? '/financeiro'
+              : '/'),
+        { replace: true },
+      )
     } catch (err) {
       setErro(err.message)
     } finally {

@@ -27,3 +27,21 @@ export function emailValido(valor) {
   if (!String(valor || '').trim()) return true
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(valor).trim())
 }
+
+export function formatarMoeda(valor) {
+  return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+/** Data ISO (AAAA-MM-DD) em pt-BR sem passar por fuso horário. */
+export function formatarDataBr(iso) {
+  const [ano, mes, dia] = String(iso || '').slice(0, 10).split('-')
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : '—'
+}
+
+/** Competência AAAA-MM no formato "mar/2026". */
+export function formatarCompetencia(competencia) {
+  const [ano, mes] = String(competencia || '').split('-')
+  if (!ano || !mes) return '—'
+  const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+  return `${meses[Number(mes) - 1] || mes}/${ano}`
+}

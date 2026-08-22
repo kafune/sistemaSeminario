@@ -17,6 +17,12 @@ do Centro TOV. Banco de dados novo e vazio — sem migração de dados legados.
 - **Relatórios em PDF**: boletim, histórico escolar, diário de classe,
   lista de alunos da turma, ficha do aluno, boletins da turma inteira em ZIP
   e geração em lote a partir de planilha (CSV/XLSX/XLS)
+- **Financeiro**: plano de cobrança por turma (matrícula inicial +
+  mensalidades), geração idempotente das cobranças por aluno, baixa
+  individual ou em lote, estorno, cobrança avulsa, extrato do aluno com
+  link pessoal de consulta e conciliação de PIX/boleto informados pelo
+  banco — com perfil de acesso `FINANCEIRO`, restrito à tesouraria
+  ([docs/financeiro.md](docs/financeiro.md))
 - **Login** com senhas bcrypt e token JWT
 - **Seletor de sistemas**: alternância do TOV Acadêmico para o sistema legado
   do STG, mantendo aplicações, sessões e bancos de dados isolados

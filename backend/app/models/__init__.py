@@ -16,6 +16,14 @@ from .integracoes import (
     ItemImportacaoGoogleForms,
 )
 from .calendario import Aula, CalendarioPublico
+from .financeiro import (
+    AcessoFinanceiroAluno,
+    Cobranca,
+    ConfiguracaoFinanceira,
+    Pagamento,
+    PlanoFinanceiro,
+    TransacaoBancaria,
+)
 from .presencas import Chamada, Presenca
 from .whatsapp import (
     WhatsappArquivo,
@@ -42,6 +50,8 @@ __all__ = [
     "Usuario", "ImportacaoGoogleForms", "ItemImportacaoGoogleForms",
     "ConviteProfessor", "ConviteAcessoProfessor",
     "Aula", "CalendarioPublico", "Chamada", "Presenca",
+    "PlanoFinanceiro", "Cobranca", "Pagamento", "TransacaoBancaria",
+    "AcessoFinanceiroAluno", "ConfiguracaoFinanceira",
     "WhatsappConfiguracao", "WhatsappDisparo", "WhatsappDestinatario",
     "WhatsappArquivo", "WhatsappTemplate",
     "Notificacao", "NotificacaoPreferencia", "PushInscricao",

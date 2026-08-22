@@ -181,6 +181,28 @@ python importar_planilha_financeiro.py --arquivo ../PLANILHA.xlsx \
 transferência vai pagar. Quem tiver um número próprio se ajusta depois em
 **Financeiro › turma › Condição** — a planilha não registra isso.
 
+### Rodando no servidor
+
+O backend roda em container e o MySQL **não publica porta no host**, então o
+script não roda direto na máquina: ele precisa entrar pela rede do compose. A
+imagem já carrega o script; a planilha entra por um volume temporário.
+
+```bash
+cd /caminho/do/checkout          # o mesmo do redeploy.sh
+./redeploy.sh                    # primeiro sobe o código novo
+
+docker compose --env-file .env run --rm \
+    -v /caminho/PLANILHA.xlsx:/planilha.xlsx:ro \
+    backend python importar_planilha_financeiro.py --arquivo /planilha.xlsx
+```
+
+Esse comando **não grava nada**: mostra o relatório de correspondência de nomes.
+Confira a lista e repita acrescentando `--aplicar` (e as opções que decidir) no
+fim da linha.
+
+O `--env-file .env` é obrigatório: sem ele o compose não acha `TOV_DB_PASSWORD`
+e recusa a subir. O `--rm` apaga o container assim que o script termina.
+
 Duas garantias fecham o script:
 
 * **Ele confere o resultado contra a própria planilha** — aluno por aluno, na

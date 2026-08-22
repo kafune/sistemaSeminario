@@ -123,6 +123,18 @@ checkout:
 ./redeploy.sh
 ```
 
+### Scripts de manutenção no servidor
+
+`criar_usuario.py` e `importar_planilha_financeiro.py` vão dentro da imagem do
+backend e rodam pela rede do compose, porque o MySQL não publica porta no host:
+
+```bash
+docker compose --env-file .env run --rm backend python criar_usuario.py SECRETARIA
+```
+
+Para o importador da planilha, monte o arquivo no container — veja
+[docs/financeiro.md](docs/financeiro.md).
+
 O script atualiza `origin/main`, prepara o virtualenv do backend, instala as
 dependências, gera o frontend, reinicia o serviço systemd `tov`, valida
 `http://127.0.0.1:8000/health`, publica o build em `/var/www/tov` e recarrega o

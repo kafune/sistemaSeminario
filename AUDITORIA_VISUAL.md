@@ -56,19 +56,24 @@ de propósito: são coisas que parecem erradas numa leitura rápida e não são.
 | Severidade | Qtd. | O que dói |
 | --- | --- | --- |
 | **Crítico** | 3 | Conteúdo invisível, navegação sem rótulo e sem item ativo |
-| **Alto** | 10 | Coluna cortada sem aviso, "Sair" fora da tela, erro que vira "vazio" |
+| **Alto** | 11 | Coluna cortada sem aviso, "Sair" fora da tela, erro que vira "vazio" |
 | **Médio** | 38 | Alinhamento, hierarquia, estados, consistência do sistema |
 | **Baixo** | 32 | Polimento, microcópia, densidade |
-| **Total** | **83** | |
+| **Total** | **84** | |
 
-Dos 83 itens numerados, **80 são defeitos**: C1 é referência cruzada para A1,
+Dos 84 itens numerados, **81 são defeitos**: C1 é referência cruzada para A1,
 e G3/G5 registram resultados positivos onde havia suspeita. A seção **K** traz
 mais **13 verificações que deram certo** e não devem ser mexidas.
 
-Quatro achados sozinhos respondem pela maior parte do dano: o cartão branco
+Cinco achados sozinhos respondem pela maior parte do dano: o cartão branco
 sobre canvas em `/alunos/:id` (**A1**), a tabela cortada de 900px a 1600px
-(**B1/B2**), a sidebar mais alta que a tela (**B3**) e a barra inferior do
-celular sem rótulos e sem item ativo (**A2**).
+(**B1/B2**), a navegação mais alta que a janela — no desktop (**B3**) e no
+celular em paisagem (**B12**) — e a barra inferior do celular sem rótulos e
+sem item ativo (**A2**).
+
+Três deles (**A2**, **B3**, **B12**) são o mesmo defeito estrutural visto de
+três ângulos: **a navegação nunca cabe inteira e os itens que ficam de fora são
+sempre os mesmos** — as seções do fim do menu e o botão de sair.
 
 O sistema visual em si é **bom e levado a sério**: `DESIGN_SYSTEM.md` resolve
 contradições explicitamente, `theme.js` tokeniza cor, tipo, raio, sombra e
@@ -104,6 +109,7 @@ As imagens citadas estão em [`docs/auditoria-visual/`](docs/auditoria-visual/).
 | 18 | `18-coluna-nome-em-coral.png` | E16 |
 | 19 | `19-cabecalho-da-grade-de-notas.png` | H10 |
 | 20 | `20-quarto-vocabulario-de-escolha.png` | E2 |
+| 21 | `21-trilha-em-paisagem.png` | B12 |
 
 ---
 
@@ -550,6 +556,40 @@ sobreposta, não acontece nada.
 > o salto não pôde ser medido. O que está medido é o dado que o provoca: as
 > alturas acima cruzam o limiar. `scrollbar-gutter: stable` na raiz elimina o
 > risco sem custo.
+
+
+## B12 — ALTO — Em celular na horizontal, "Mais" some — e com ele nove seções e o botão de sair
+
+Ao girar o celular, a largura passa de ~390px para ~740–850px e o layout troca
+a barra inferior pela **trilha de ícones do tablet**. A trilha precisa de
+**448px de altura**; a janela tem 320–414px.
+
+![Trilha em paisagem](docs/auditoria-visual/21-trilha-em-paisagem.png)
+
+Medido em 740px de largura, variando a altura:
+
+| altura da janela | itens da trilha cortados |
+| --- | --- |
+| 320px (iPhone SE em paisagem) | Agenda, **Mais** |
+| 360px | Agenda, **Mais** |
+| 390px | **Mais** |
+| 414px | **Mais** |
+| 480px | nenhum |
+
+**"Mais" fica fora da tela em toda altura abaixo de 480px** — e "Mais" é a
+única porta para Professores, Matérias, Calendário, Materiais, Relatórios,
+Financeiro, Leads, WhatsApp, Usuários, o botão de instalar o PWA, as
+notificações e o **sair**. Em paisagem, nove das catorze seções do produto
+ficam inalcançáveis sem descobrir que uma faixa de ícones de 72px rola na
+vertical.
+
+A conta é direta: 6 itens × 60px + `pt: 'calc(76px + env(safe-area-inset-top))'`
+(`Layout.jsx:513`) + 16px embaixo = 452px. E esses 76px de topo existem para
+descontar uma AppBar que mede **61px** — 15px a mais do que o necessário.
+
+É a mesma raiz de **B3** (conteúdo de navegação mais alto que a janela,
+`overflow-y: auto`, sem afordância, com os itens críticos no fim), agora na
+orientação em que mais dói.
 
 
 ---

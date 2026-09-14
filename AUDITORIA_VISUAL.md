@@ -229,6 +229,14 @@ bottom/center com offset) **e** dar ao alerta dentro de Snackbar um fundo
 opaco. As duas coisas — só mover não resolve sobrepor conteúdo claro, só
 opacificar não resolve tapar a navegação.
 
+**E o padrão certo já existe no repositório.** `OfflineScreen.jsx:20-31` faz
+exatamente as três coisas: `anchorOrigin: { vertical: 'bottom', horizontal:
+'center' }`, `variant="filled"` (fundo opaco, `TOV.warning` com texto branco a
+6,3:1) e `bottom: { xs: 'calc(78px + env(safe-area-inset-bottom))', sm: 24 }`,
+que sobe a faixa acima da navegação inferior do celular. Verificado em 390px e
+1280px: o aviso de "sem conexão" aparece legível, centralizado e sem tapar
+nada. É esse componente que os outros 21 deveriam imitar.
+
 ---
 
 ## A4 — MÉDIO — Os números dos `CardMetrica` desalinham quando um rótulo quebra linha
@@ -1734,6 +1742,19 @@ Cada `input[type=number]` da grade carrega
 interruptor traz `aria-label="Marcar se Ana Silva cursou a matéria"`. Numa
 grade de 36 campos idênticos, isso é o que torna a tela navegável por leitor
 de tela. Bem feito.
+
+**K14 — O aviso de "sem conexão" é o único Snackbar bem resolvido.**
+`OfflineScreen.jsx` ancora no centro inferior, usa `variant="filled"` (opaco) e
+sobe 78px no celular para não cobrir a barra inferior. Testado forçando
+`navigator.onLine = false` em 390px e 1280px. Ver **A3**, onde ele serve de
+modelo para o resto.
+
+**K15 — O `ErrorBoundary` existe e é sóbrio.**
+`ErrorBoundary.jsx` envolve todas as rotas (`App.jsx:75-110`) e renderiza um cartão
+centralizado com `role="alert"`, título, explicação de que os dados salvos
+continuam seguros e um botão de recarregar. Não expõe *stack trace* ao usuário
+— o erro vai só para o `console.error`. A ressalva é que a única saída
+oferecida é recarregar a mesma rota que quebrou.
 
 
 ---

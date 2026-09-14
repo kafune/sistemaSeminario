@@ -57,11 +57,11 @@ de propósito: são coisas que parecem erradas numa leitura rápida e não são.
 | --- | --- | --- |
 | **Crítico** | 3 | Conteúdo invisível, navegação sem rótulo e sem item ativo |
 | **Alto** | 13 | Valor de dinheiro cortado, coluna fora da tela, "Sair" inalcançável |
-| **Médio** | 38 | Alinhamento, hierarquia, estados, consistência do sistema |
-| **Baixo** | 32 | Polimento, microcópia, densidade |
-| **Total** | **86** | |
+| **Médio** | 39 | Alinhamento, hierarquia, estados, consistência do sistema |
+| **Baixo** | 33 | Polimento, microcópia, densidade |
+| **Total** | **88** | |
 
-Dos 86 itens numerados, **83 são defeitos**: C1 é referência cruzada para A1,
+Dos 88 itens numerados, **85 são defeitos**: C1 é referência cruzada para A1,
 e G3/G5 registram resultados positivos onde havia suspeita. A seção **K** traz
 mais **13 verificações que deram certo** e não devem ser mexidas.
 
@@ -112,6 +112,7 @@ As imagens citadas estão em [`docs/auditoria-visual/`](docs/auditoria-visual/).
 | 21 | `21-trilha-em-paisagem.png` | B12 |
 | 22 | `22-cabecalho-fixo-que-nao-fixa.png` | H13 |
 | 23 | `23-centavos-cortados-no-financeiro.png` | A7 |
+| 24 | `24-textarea-cortando-a-ultima-linha.png` | A8 |
 
 ---
 
@@ -319,6 +320,40 @@ a 320px, com folga (ver **K1**).
 **Correção:** um passo de corpo em `lg`, ou `container queries`/`clamp()` no
 valor, ou trocar o `overflow: hidden` por redução de escala. Qualquer coisa
 menos cortar o número.
+
+
+## A8 — MÉDIO — O campo "Instruções para o aluno" corta a última linha ao meio no primeiro render
+
+Em `/financeiro/conciliacao` a 320px, o texto salvo pela tesouraria aparece com
+a terceira linha **fatiada na horizontal** — só a metade de cima de "PIX." é
+visível, e ainda sobra espaço vazio embaixo dentro da própria caixa:
+
+![Textarea cortando a última linha](docs/auditoria-visual/24-textarea-cortando-a-ultima-linha.png)
+
+Medido: `scrollHeight = 84px`, `clientHeight = 64px`, `overflow: hidden`,
+`resize: none` → **20px de texto escondidos, sem rolagem e sem alça para
+crescer**.
+
+**Causa.** `FinanceiroConciliacao.jsx:185-190` usa
+`<TextField fullWidth multiline minRows={2} …>`. O autoajuste do MUI calcula a
+altura na montagem, quando o valor ainda está vazio, e crava
+`style="height: 40px"` (duas linhas). O valor chega **depois**, pela API, e a
+altura não é recalculada.
+
+Verificado nos dois sentidos:
+
+| momento | altura | texto escondido |
+| --- | --- | --- |
+| valor vindo da API (320px) | 64px (`height: 40px` inline) | **20px** |
+| mesmo campo, depois de o usuário digitar | 185px (`height: 161px`) | 0 |
+
+Ou seja: **digitar um caractere conserta**. O defeito existe só enquanto o
+usuário apenas *lê* o que já estava salvo — que é o caso comum.
+
+Nesta auditoria a fatia só apareceu em 320px, porque nas outras larguras o
+texto semeado cabe em duas linhas. O campo aceita `maxLength: 2000`, então com
+uma instrução real de quatro ou cinco linhas o corte acontece em qualquer
+largura.
 
 
 ---
@@ -633,6 +668,27 @@ descontar uma AppBar que mede **61px** — 15px a mais do que o necessário.
 É a mesma raiz de **B3** (conteúdo de navegação mais alto que a janela,
 `overflow-y: auto`, sem afordância, com os itens críticos no fim), agora na
 orientação em que mais dói.
+
+
+## B13 — BAIXO — O seletor de matéria fica truncado mesmo com 473px livres ao lado
+
+`/materiais`, campo "Matéria e turma" (`Materiais.jsx:194`):
+
+```jsx
+sx={{ flex: '1 1 330px', maxWidth: 560 }}
+```
+
+O `maxWidth: 560` impede o campo de crescer, mesmo quando a linha tem espaço
+de sobra. Medido:
+
+| largura da janela | largura do campo | texto precisa de | perdido | espaço livre na mesma linha |
+| --- | --- | --- | --- | --- |
+| 1280px | 435px | 580px | **145px** | 58px |
+| 1920px | **560px** (no teto) | 580px | **20px** | **473px** |
+
+Em 1920px sobram 473px vazios ao lado e o rótulo continua com reticências:
+`Grego Koiné Instrumental · Turma 2025.2 — Bacharel em …`. É a única coisa na
+tela que diz de qual matéria e de qual turma são os materiais listados.
 
 
 ---

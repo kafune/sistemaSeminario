@@ -18,13 +18,16 @@ isso está dito no achado.
 > Em vez disso **o aplicativo real foi levantado localmente** e auditado:
 > `npm run build` de produção (o mesmo bundle minificado, com o
 > `check:design` passando) servido por `vite preview`, contra o backend
-> FastAPI real rodando sobre SQLite com um banco semeado de 30 alunos,
-> 5 professores, 4 turmas, 6 matérias, 56 vínculos matéria×turma, 784 aulas,
-> 24 leads, 217 cobranças, 12 transações bancárias e 3 notificações.
-> O código é o mesmo que está em produção; o que muda é o servidor.
+> FastAPI real rodando sobre SQLite. Contagem exata do banco semeado,
+> conferida no SQLite: 30 alunos, 5 professores, 4 turmas, 6 matérias,
+> 14 vínculos matéria×turma, 196 aulas, 84 notas, 42 atividades avaliativas,
+> 216 notas de atividade, 7 chamadas, 42 presenças, 24 leads, 189 cobranças,
+> 54 pagamentos, 12 transações bancárias, 6 disparos de WhatsApp,
+> 4 materiais e 3 notificações. O código é o mesmo que está em produção; o
+> que muda é o servidor e os dados.
 
 Nada aqui foi inferido só por leitura. O número de cada achado abaixo veio de
-um destes três instrumentos:
+um destes instrumentos:
 
 **1. Varredura de capturas — 348 combinações.**
 29 rotas × 12 larguras (320, 360, 390, 414, 600, 768, 820, 900, 1024, 1280,
@@ -38,13 +41,27 @@ menor que 44px; contraste de cada nó de texto contra o fundo efetivamente
 composto; texto abaixo de 12px; campos sem rótulo acessível; hierarquia de
 títulos; erros de console.
 
-**3. Sondas dirigidas.** Onde a captura levantou suspeita, foi feita uma
-medição específica: varredura de largura útil de 768px a 1920px, varredura de
-altura de 640px a 1080px, rastreamento da ordem de Tab, simulação de falha de
-API (abortando só a porta 8000, sem derrubar o app), fonte-raiz do navegador
-em 150% e 200%, e uma passagem de contraste dedicada em 25 rotas × 4 larguras
-(100 páginas) depois que a primeira composição de camadas alfa se mostrou
-errada — **os números de contraste aqui são os da segunda passagem, corrigida.**
+**3. Arnês de estados — 22 cenários × 4 larguras.** Nove diálogos, a gaveta de
+notificações, a gaveta de menu do celular, o menu do seletor de sistema, busca
+sem resultado, validação de formulário, foco por teclado, carregamento lento,
+troca de abas e a grade de notas com dados.
+
+**4. Sondas dirigidas.** Onde a captura levantou suspeita, foi feita uma
+medição específica: varredura de largura útil de 768px a 1920px e de altura de
+640px a 1080px, rastreamento da ordem de Tab, simulação de falha de API
+(abortando só a porta 8000, sem derrubar o app), fonte-raiz do navegador em
+150% e 200%, mídia de impressão emulada, `prefers-color-scheme: dark`,
+celular em paisagem (740×360 a 850×414), injeção de conteúdo longo em células
+de tabela, e uma passagem de contraste dedicada em 25 rotas × 4 larguras
+(100 páginas) — **os números de contraste aqui são os da segunda passagem**,
+feita depois que a composição de camadas alfa da primeira se mostrou errada.
+
+**Duas correções de percurso ficam registradas no próprio relatório**, porque
+dizem algo sobre o método: **K1** documenta uma verificação que deu "está
+certo" e estava errada — a medição fora feita só em 320px e 360px, e ao repetir
+nas larguras de desktop o corte apareceu (virou **A7**). E **A7** só foi
+encontrado numa segunda leitura dos *mesmos* dados da varredura 2, com um
+filtro melhor: os `legend` do MUI escondiam os casos reais de corte.
 
 A seção **K** lista o que foi investigado e **não** é defeito. Está no relatório
 de propósito: são coisas que parecem erradas numa leitura rápida e não são.
@@ -63,7 +80,7 @@ de propósito: são coisas que parecem erradas numa leitura rápida e não são.
 
 Dos 89 itens numerados, **86 são defeitos**: C1 é referência cruzada para A1,
 e G3/G5 registram resultados positivos onde havia suspeita. A seção **K** traz
-mais **13 verificações que deram certo** e não devem ser mexidas.
+mais **15 verificações que deram certo** e não devem ser mexidas.
 
 Cinco achados sozinhos respondem pela maior parte do dano: o cartão branco
 sobre canvas em `/alunos/:id` (**A1**), a tabela cortada de 900px a 1600px
@@ -113,6 +130,56 @@ As imagens citadas estão em [`docs/auditoria-visual/`](docs/auditoria-visual/).
 | 22 | `22-cabecalho-fixo-que-nao-fixa.png` | H13 |
 | 23 | `23-centavos-cortados-no-financeiro.png` | A7 |
 | 24 | `24-textarea-cortando-a-ultima-linha.png` | A8 |
+
+---
+
+## Por onde começar
+
+Ordenado por **dano dividido por esforço**, não por severidade. As seis
+primeiras linhas são correções de uma a cinco linhas de código que resolvem, em
+conjunto, os três achados críticos, sete dos treze altos e uma dúzia de médios.
+
+### Um dia de trabalho resolve o grosso
+
+| # | Correção | Arquivo | Resolve |
+| --- | --- | --- | --- |
+| 1 | Não passar `bgcolor: undefined` — o espalhamento do `sx` apaga a variante | `AlunoDetalhe.jsx:31` | **A1** (crítico) |
+| 2 | Tirar as ações do `BottomNavigation` de dentro dos fragmentos | `Layout.jsx:602-624` | **A2** (crítico) |
+| 3 | Separar a lista rolável do rodapé fixo na navegação (`flex:1 1 auto` + `overflow-y:auto` só na lista) | `Layout.jsx:432-441, 512-548` | **B3**, **B12** (altos) |
+| 4 | `overflowWrap: 'anywhere'` no `MuiTableCell` | `theme.js:375` | **B10** (alto), alivia **B1**/**B2** |
+| 5 | `anchorOrigin` fora da sidebar + fundo opaco nos alertas de Snackbar — copiar o que `OfflineScreen.jsx` já faz | `theme.js:478-481` + 21 páginas | **A3** (alto) |
+| 6 | `TOV.caption` no lugar de `TOV.border` como cor de texto | separadores `·` e traços `—` | **C2** (alto, 117 ocorrências) |
+
+### Depois, as decisões de layout
+
+| # | Correção | Resolve |
+| --- | --- | --- |
+| 7 | Subir a sidebar completa de `md` (900px) para `lg` (1200px), mantendo a trilha até lá | **B1** — devolve 215px de conteúdo na faixa de 900 a 1180px |
+| 8 | Afordância de rolagem horizontal na tabela (máscara/sombra nas bordas) | **B2**, **B10** |
+| 9 | Passo de corpo em `lg` para o valor do `CardMetrica` | **A7** — para de cortar centavos em 1280/1366/1440 |
+| 10 | `max-height` no `MuiTableContainer`, para que o `stickyHeader` tenha onde grudar | **H13** |
+| 11 | `EstadoErro` nas 17 páginas que carregam dados e não têm | **D1**, **D2** — falha de rede deixa de parecer "cadastro vazio" |
+| 12 | `InputLabelProps={{ shrink: true }}` nos selects de filtro | **E1** — um vocabulário de rótulo só |
+
+### E o que é decisão de produto, não bug
+
+- **C4** (foco e erro são o mesmo vermelho) e **C5**/**F1** (escala em px que
+  não acompanha a fonte do navegador) exigem escolha deliberada, não conserto.
+- **B6** (páginas de 12 a 18 mil pixels no celular) e **H3** (40% da grade do
+  calendário em dias vazios) pedem paginação/recorte, que é mudança de
+  comportamento.
+- **E2** (seis vocabulários para escolha única) é dívida acumulada: vale
+  consolidar no `GrupoSegmentado`, mas um por vez.
+
+### Uma linha para o `check:design`
+
+O verificador já impede cor, tipografia, raio, sombra e espaçamento fora do
+sistema — e passou limpo nesta árvore (**K9**). As quatro categorias que
+deixaram passar tudo o que está neste relatório são **altura de controle**
+(**E3**), **alvo de toque mínimo** (**G1**), **contraste** (**C**) e **token de
+borda usado como cor de texto** (**C2**). As duas primeiras são regras de
+`grep`; a terceira dá para rodar na varredura de capturas.
+
 
 ---
 
@@ -540,7 +607,7 @@ Altura da página inteira a 320px, sem paginação nem virtualização:
 | `/alunos` | 4.537px |
 | `/financeiro/conciliacao` | 4.408px |
 
-`/financeiro` traz 217 cobranças numa lista única. `/calendario` desenha o mês
+`/financeiro` traz as 189 cobranças numa lista única. `/calendario` desenha o mês
 inteiro em agenda cronológica. Em campo, com mais dados, isso cresce
 linearmente.
 

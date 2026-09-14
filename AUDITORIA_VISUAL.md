@@ -56,12 +56,12 @@ de propósito: são coisas que parecem erradas numa leitura rápida e não são.
 | Severidade | Qtd. | O que dói |
 | --- | --- | --- |
 | **Crítico** | 3 | Conteúdo invisível, navegação sem rótulo e sem item ativo |
-| **Alto** | 9 | Coluna cortada sem aviso, "Sair" fora da tela, erro que vira "vazio" |
-| **Médio** | 36 | Alinhamento, hierarquia, estados, consistência do sistema |
-| **Baixo** | 29 | Polimento, microcópia, densidade |
-| **Total** | **77** | |
+| **Alto** | 10 | Coluna cortada sem aviso, "Sair" fora da tela, erro que vira "vazio" |
+| **Médio** | 38 | Alinhamento, hierarquia, estados, consistência do sistema |
+| **Baixo** | 32 | Polimento, microcópia, densidade |
+| **Total** | **83** | |
 
-Dos 77 itens numerados, **74 são defeitos**: C1 é referência cruzada para A1,
+Dos 83 itens numerados, **80 são defeitos**: C1 é referência cruzada para A1,
 e G3/G5 registram resultados positivos onde havia suspeita. A seção **K** traz
 mais **13 verificações que deram certo** e não devem ser mexidas.
 
@@ -489,6 +489,65 @@ Na mesma largura, o `GrupoSegmentado` continua cortado ("Sem…") mesmo com
 afordância, como em **B8**.
 
 
+## B10 — ALTO — Célula de tabela não quebra token longo: um e-mail realista piora o corte em mais 365px
+
+As células herdam `overflow-wrap: normal` e `word-break: normal` — o tema não
+os define em `MuiTableCell` (`theme.js:375-400`). Uma sequência sem espaço
+(e-mail, URL, nome sem espaço) **não pode quebrar**, então força a coluna a
+crescer e empurra as demais para fora.
+
+Medido substituindo uma célula por
+`nome.sobrenome.composto.muito.longo@subdominio.instituicao.educacional.org.br`
+(76 caracteres, perfeitamente realista):
+
+| rota (1280px) | corte antes | corte depois | piora |
+| --- | --- | --- | --- |
+| `/professores` | 236px | **601px** | **+365px** |
+| `/leads` | **0px (cabia)** | **289px** | **+289px** |
+| `/alunos` | 0px | 304px | +304px |
+
+`/leads` cabe hoje em 1280px e **deixa de caber** por causa de um único
+endereço de e-mail. `/professores` perde mais da metade da tabela.
+
+O mesmo teste com um nome longo *com espaços* (98 caracteres) se comporta bem:
+quebra em quatro linhas, a altura da linha vai de 53px para 96px, nada estoura.
+O problema é estritamente o token indivisível.
+
+Isso transforma **B1** e **B2** em defeitos que **pioram com dados reais**: a
+medição base desta auditoria usou e-mails curtos de teste
+(`professor4@centrotov.org.br`). Em produção, com endereços institucionais
+completos, o corte é maior do que os números das tabelas de B1/B2.
+
+**Correção:** uma regra no tema —
+`MuiTableCell: { styleOverrides: { root: { overflowWrap: 'anywhere' } } }`.
+O sistema já usa `overflowWrap: 'anywhere'` em `CabecalhoPagina` (`ui.jsx:283`),
+`LinhaCartao` e `DialogoConfirmacao`; falta na tabela, que é onde mais importa.
+
+
+## B11 — BAIXO — Nenhuma reserva de calha de barra de rolagem entre páginas
+
+`scrollbar-gutter` não é declarado em lugar nenhum (medido: `auto` na raiz).
+As alturas de página em 1280×800 ficam exatamente nos dois lados do limiar:
+
+| rota | altura da página | rola? |
+| --- | --- | --- |
+| `/usuarios` | 800px | não |
+| `/materiais` | 800px | não |
+| `/alunos` | 1.994px | sim |
+| `/financeiro` | 6.930px | sim |
+
+Em sistemas com barra de rolagem clássica (Windows, a maioria dos Linux
+desktop), navegar de `/usuarios` para `/alunos` estreita a área de conteúdo
+em ~15px e desloca a página inteira na horizontal. Em macOS, com barra
+sobreposta, não acontece nada.
+
+> **Não reproduzido neste ambiente.** O Chromium headless usado na auditoria
+> tem barra sobreposta (`innerWidth − clientWidth = 0` em todas as rotas), então
+> o salto não pôde ser medido. O que está medido é o dado que o provoca: as
+> alturas acima cruzam o limiar. `scrollbar-gutter: stable` na raiz elimina o
+> risco sem custo.
+
+
 ---
 
 # C. Contraste e legibilidade
@@ -733,6 +792,22 @@ Quando o professor já tem acesso, a página mostra um cartão com o alerta
 "Este professor já possui acesso" e **nada mais** — sem link para o login,
 sem instrução. Um beco sem saída visual.
 
+## D9 — MÉDIO — O campo de senha usa `••••••••` como placeholder
+
+Medido em `/login`: `input[type=password]` tem
+`placeholder = "••••••••"` e `value = ""`.
+
+Oito bolinhas num campo de senha são **indistinguíveis de uma senha já
+preenchida** — é exatamente assim que o navegador mostra um valor mascarado.
+Na primeira captura desta auditoria a tela foi lida como "senha já
+preenchida"; só a medição do DOM desfez o engano.
+
+Na mesma tela, o campo "Usuário" está focado no carregamento (medido:
+`document.activeElement`), então o produto **abre** com um campo cercado pelo
+anel coral — que, por **C4**, é visualmente igual ao estado de erro. A
+primeira impressão do sistema é um formulário que parece ter sido recusado.
+
+
 ---
 
 # E. Consistência do sistema de design
@@ -917,6 +992,25 @@ Em `/notas`, com turma e matéria escolhidas, a última coluna traz um
 o polegar em `rgb(201,47,47)`. Coral é o token de ação/seleção; usado como
 *estado padrão de toda linha*, ele vira uma listra vermelha vertical ao lado
 da grade — o elemento mais chamativo de uma tela cujo foco é digitar notas.
+
+
+## E16 — MÉDIO — A coluna "Nome" de `/turmas/:id` é coral por padrão — e contradiz o cartão do mesmo arquivo
+
+No desktop, **toda** a coluna NOME da aba "Alunos" sai em `TOV.coral`
+`#C92F2F`. Uma tabela inteira de dados na cor que o `DESIGN_SYSTEM.md`
+reserva a "ação, seleção/estado ativo e alerta crítico".
+
+A contradição está dentro do mesmo arquivo, 34 linhas de distância:
+
+| | `pages/TurmaDetalhe.jsx` | cor |
+| --- | --- | --- |
+| versão em **cartão** (celular) | linha **206** | `color: TOV.ink`, `&:hover → TOV.coral` ✔ |
+| versão em **tabela** (desktop) | linha **240** | `color: TOV.coral`, `&:hover → TOV.coralHover` ✘ |
+
+É o mesmo link, para a mesma rota, com o mesmo texto — grafite no celular,
+coral no desktop. O padrão "tinta em repouso, coral no hover" aparece em
+**22 lugares** do frontend; a linha 240 é a única exceção, e está numa tabela
+inteira.
 
 
 ---
@@ -1170,6 +1264,46 @@ A coluna **Aluno** é mais estreita que "Faltas" em 768px, e o nome do aluno
 quebra — enquanto as três colunas de atividade, os campos numéricos de dois
 dígitos, mantêm 120px cada. A largura extra de 1280px vai quase toda para o
 espaço morto à direita.
+
+
+## H11 — BAIXO — Três margens esquerdas diferentes no formulário público de cadastro
+
+Medido em `/cadastro-professor/:token` a 1280px:
+
+| elemento | borda esquerda |
+| --- | --- |
+| título "Cadastro de professor" (faixa escura) | **226px** |
+| cartão do formulário | **214px** |
+| campos dentro do cartão | **247px** |
+
+Numa página de coluna única, nada se alinha com nada: o título da faixa fica
+12px à direita do cartão e 21px à esquerda dos campos.
+
+Some-se a isso o texto de ajuda: o tema define
+`MuiFormHelperText: { marginLeft: 4 }` (`theme.js:358-359`), então **todo** texto
+de ajuda do produto começa 4px à direita da borda do campo que explica —
+medido em 251px contra 247px do campo.
+
+Na mesma tela, as linhas de campos também não têm ritmo: uma linha com um
+campo inteiro, uma com dois, uma com **um campo de meia largura e 390px de
+vazio à direita** ("Outro telefone"), uma com o textarea inteiro, uma com três.
+
+
+## H12 — BAIXO — A composição de duas faixas do login se desfaz acima de 1600px
+
+O painel escuro do `/login` tem largura máxima fixa; a faixa clara não. Medido:
+
+| largura da janela | painel escuro | % da tela | cartão de acesso |
+| --- | --- | --- | --- |
+| 1024px | 471px | 46% | 553px |
+| 1280px | 589px | 46% | 440px |
+| 1920px | **640px** | **33%** | 440px |
+| 2560px | **640px** | **25%** | 440px |
+
+Até 1400px é uma composição editorial de duas metades. Em 2560px vira uma
+tira escura de 640px e 1920px de canvas vazio com um cartão de 440px flutuando
+no meio. O título também para de crescer em 34px e continua quebrando em três
+linhas dentro de um painel que tem 270px de largura sobrando.
 
 
 ---

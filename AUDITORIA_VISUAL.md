@@ -100,6 +100,10 @@ As imagens citadas estão em [`docs/auditoria-visual/`](docs/auditoria-visual/).
 | 14 | `14-aluno-detalhe-360.png` | E2, H5 |
 | 15 | `15-carregando-zero-falso.png` | D3 |
 | 16 | `16-cardmetrica-desalinhado.png` | A4 |
+| 17 | `17-impressao-sem-folha-de-estilo.png` | F5 |
+| 18 | `18-coluna-nome-em-coral.png` | E16 |
+| 19 | `19-cabecalho-da-grade-de-notas.png` | H10 |
+| 20 | `20-quarto-vocabulario-de-escolha.png` | E2 |
 
 ---
 
@@ -847,10 +851,11 @@ entalhe.
 | padrão | onde |
 | --- | --- |
 | `GrupoSegmentado` (o do sistema) | `/alunos`, `/financeiro/conciliacao` |
-| `Tabs` do MUI | `/alunos/:id`, `/turmas/:id` |
+| `Tabs` do MUI | `/alunos/:id`, `/turmas/:id`, `/professor/turmas/:id` |
 | pílulas coral + outline | gaveta de notificações ("Todas" / "Não lidas") |
+| pílulas coral + outline que **quebram linha** | `/whatsapp`, passo 2: `Texto · Imagem · Documento · Áudio · Botões · Enquete · Carrossel` (`WhatsApp.jsx:65-71`) — sete opções que quebram deixando "Carrossel" sozinho na segunda linha |
 | `Select` | "Ordenar por", "50 por página" |
-| botões soltos de largura diferente | `/whatsapp` ("Atualizar" / "Criar instância") |
+| botões soltos de largura diferente | `/whatsapp`, passo 1 ("Atualizar" / "Criar instância") |
 
 `GrupoSegmentado` foi criado justamente para substituir a "mistura de pílula
 própria com select do MUI numa mesma barra" (comentário em `ui.jsx:70-76`) — e
@@ -1000,6 +1005,8 @@ No desktop, **toda** a coluna NOME da aba "Alunos" sai em `TOV.coral`
 `#C92F2F`. Uma tabela inteira de dados na cor que o `DESIGN_SYSTEM.md`
 reserva a "ação, seleção/estado ativo e alerta crítico".
 
+![Coluna Nome em coral](docs/auditoria-visual/18-coluna-nome-em-coral.png)
+
 A contradição está dentro do mesmo arquivo, 34 linhas de distância:
 
 | | `pages/TurmaDetalhe.jsx` | cor |
@@ -1076,10 +1083,18 @@ específico ganha espaço ilimitado; o mais específico é truncado.
 ## F5 — BAIXO — Não há folha de estilo de impressão
 
 `grep` por `@media print` em todo o `frontend/src`: **zero ocorrências**.
-Imprimir qualquer tela do navegador leva junto a sidebar de 272px, a barra
-inferior e os botões. O produto gera PDFs pelo servidor para os relatórios
-formais, o que cobre o caso principal — mas imprimir uma lista filtrada
-direto da tela é um gesto natural numa secretaria.
+Confirmado renderizando `/alunos` com a mídia de impressão emulada:
+
+![Impressão sem folha de estilo](docs/auditoria-visual/17-impressao-sem-folha-de-estilo.png)
+
+Vai para o papel: a sidebar grafite de 272px (um quinto da folha em tinta
+chapada), o campo de busca, os seis filtros segmentados, o seletor "50 por
+página" e a coluna AÇÕES com botões de ícone que no papel não querem dizer
+nada. Nada é escondido, nada é reordenado.
+
+O produto gera PDFs pelo servidor para os relatórios formais, o que cobre o
+caso principal — mas imprimir uma lista filtrada direto da tela é um gesto
+natural numa secretaria, e hoje o resultado é esse.
 
 ---
 
@@ -1126,6 +1141,11 @@ para…"). **Abrir a ficha de um aluno pelo teclado é impossível a partir da
 lista.** É a única página com linhas clicáveis; `/professores`, `/materias`,
 `/leads`, `/usuarios`, `/financeiro`, `/turmas/:id` e `/turmas/:id/diario` têm
 linhas não clicáveis e não sofrem disso.
+
+Agrava: a **única forma rotulada** de abrir a ficha de um aluno é "Abrir ficha",
+dentro do menu de reticências da coluna AÇÕES — dois cliques, atrás de um
+ícone `…`. A ação principal da tela de alunos está ou num clique de linha sem
+rótulo e sem teclado, ou escondida em um menu de estouro.
 
 ## G3 — BAIXO — Anel de foco: funciona, com uma ressalva
 
@@ -1244,6 +1264,8 @@ Medido em `/notas` com turma e matéria escolhidas, em 768px **e** em 1280px
 | --- | --- |
 | linha de cabeçalho | **165px** |
 | linha de aluno | **61px** |
+
+![Cabeçalho da grade de notas](docs/auditoria-visual/19-cabecalho-da-grade-de-notas.png)
 
 O cabeçalho vale 2,7 linhas de aluno. A causa é a combinação de nome completo
 da atividade + linha de metadados (`Trabalho · até 10`), em caixa alta, dentro
@@ -1496,9 +1518,10 @@ mas vale saber que a equipe não controla isso e que não há dica de formato ao
 lado do campo.
 
 **K7 — A aplicação declara `color-scheme: light` e não quebra em modo escuro.**
-`theme.js:227` fixa `':root': { colorScheme: 'light' }`. Num sistema em modo
-escuro os controles nativos continuam claros e coerentes com a paleta. Optar
-por não ter tema escuro é uma decisão legítima e está implementada certo.
+`theme.js:227` fixa `':root': { colorScheme: 'light' }`. Verificado renderizando
+`/alunos` com `prefers-color-scheme: dark` forçado: a tela sai **pixel a pixel
+igual** à versão clara — nenhum controle nativo inverte, nenhum campo escurece.
+Optar por não ter tema escuro é uma decisão legítima e está implementada certo.
 
 **K8 — `prefers-reduced-motion` é respeitado globalmente.**
 `theme.js:242-248` zera `animation-duration`, `transition-duration` e

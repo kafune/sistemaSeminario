@@ -56,12 +56,12 @@ de propósito: são coisas que parecem erradas numa leitura rápida e não são.
 | Severidade | Qtd. | O que dói |
 | --- | --- | --- |
 | **Crítico** | 3 | Conteúdo invisível, navegação sem rótulo e sem item ativo |
-| **Alto** | 11 | Coluna cortada sem aviso, "Sair" fora da tela, erro que vira "vazio" |
+| **Alto** | 13 | Valor de dinheiro cortado, coluna fora da tela, "Sair" inalcançável |
 | **Médio** | 38 | Alinhamento, hierarquia, estados, consistência do sistema |
 | **Baixo** | 32 | Polimento, microcópia, densidade |
-| **Total** | **84** | |
+| **Total** | **86** | |
 
-Dos 84 itens numerados, **81 são defeitos**: C1 é referência cruzada para A1,
+Dos 86 itens numerados, **83 são defeitos**: C1 é referência cruzada para A1,
 e G3/G5 registram resultados positivos onde havia suspeita. A seção **K** traz
 mais **13 verificações que deram certo** e não devem ser mexidas.
 
@@ -110,6 +110,8 @@ As imagens citadas estão em [`docs/auditoria-visual/`](docs/auditoria-visual/).
 | 19 | `19-cabecalho-da-grade-de-notas.png` | H10 |
 | 20 | `20-quarto-vocabulario-de-escolha.png` | E2 |
 | 21 | `21-trilha-em-paisagem.png` | B12 |
+| 22 | `22-cabecalho-fixo-que-nao-fixa.png` | H13 |
+| 23 | `23-centavos-cortados-no-financeiro.png` | A7 |
 
 ---
 
@@ -277,6 +279,47 @@ censura e não como "sem informação".
 
 **Correção:** estado vazio próprio para métrica — o traço em corpo de texto e
 cor `caption`, não em corpo de display.
+
+## A7 — ALTO — No painel financeiro, os centavos são cortados em 1280, 1366 e 1440px
+
+Os quatro `CardMetrica` de `/financeiro` cortam o valor monetário no seco —
+sem reticências, sem quebra de linha, sem reduzir o corpo — porque o
+`Superficie` do `CardMetrica` tem `overflow: hidden` e a fonte fica em
+`TOV.type.display` (40px) de 900px para cima, sem nenhum passo intermediário.
+
+![Centavos cortados](docs/auditoria-visual/23-centavos-cortados-no-financeiro.png)
+
+Varredura de largura, medindo `scrollWidth − clientWidth` do valor "R$ 11.877,30":
+
+| largura da janela | largura do cartão | quanto do valor fica de fora |
+| --- | --- | --- |
+| 900px | 270px | **14px** |
+| 960px | 298px | 0 |
+| 1000–1180px | 316→399px | 0 |
+| **1200px** | **196px** | **88px** |
+| 1250px | 208px | 76px |
+| **1280px** | 214px | **70px** |
+| **1366px** | 234px | **50px** |
+| **1440px** | 251px | **33px** |
+| 1500px | 265px | 19px |
+| 1600px e acima | 288px+ | 0 |
+
+O produto exibe **"R$ 11.877,"**, **"R$ 27.259,"** e **"R$ 3.418,2"** — valores
+truncados no meio da casa decimal, na tela que a tesouraria abre primeiro, nas
+três resoluções de desktop mais comuns.
+
+**Causa e regressão.** Em `lg` (1200px) a grade sai de 2 para 4 colunas. O
+cartão despenca de **399px para 196px** — metade da largura — enquanto o valor
+continua em 40px. É o mesmo padrão de **B1**: uma janela mais larga mostra
+menos informação que uma mais estreita, e aqui o que se perde é dinheiro.
+
+Não afeta o celular: em `xs` a fonte é `displaySm` (32px) e o cartão tem 288px
+a 320px, com folga (ver **K1**).
+
+**Correção:** um passo de corpo em `lg`, ou `container queries`/`clamp()` no
+valor, ou trocar o `overflow: hidden` por redução de escala. Qualquer coisa
+menos cortar o número.
+
 
 ---
 
@@ -1368,6 +1411,42 @@ no meio. O título também para de crescer em 34px e continua quebrando em três
 linhas dentro de um painel que tem 270px de largura sobrando.
 
 
+## H13 — ALTO — O "cabeçalho fixo" das tabelas nunca fixa
+
+Regra 6 do `DESIGN_SYSTEM.md`: *"Tabelas usam cabeçalho fixo e divisores
+sutis."* O tema implementa a promessa — `MuiTable` tem
+`defaultProps: { stickyHeader: true }` (`theme.js:372`) e o `th` sai com
+`position: sticky; top: 0; z-index: 2` (medido). **E ainda assim ele nunca
+gruda.**
+
+![Cabeçalho fixo que não fixa](docs/auditoria-visual/22-cabecalho-fixo-que-nao-fixa.png)
+
+Medido em `/alunos`, `/financeiro` e `/leads` a 1280×800, rolando a página
+900px:
+
+| rota | `top` do `th` antes | depois de rolar 900px | continua visível? |
+| --- | --- | --- | --- |
+| `/alunos` | 311px | **−589px** | não |
+| `/financeiro` | 824px | **−76px** | não |
+| `/leads` | 255px | **−645px** | não |
+
+**Causa.** `position: sticky` gruda no ancestral que rola. Aqui o ancestral é
+o `MuiTableContainer`, que tem `overflow: auto` — mas **sem `max-height`**, ele
+nunca rola verticalmente (medido: `scrollHeight > clientHeight` é falso nas
+três rotas). Quem rola é a página, e para a página o container é um bloco
+comum: o cabeçalho sobe junto e sai de cena.
+
+O custo é maior onde a tabela é mais densa. Em `/financeiro`, depois de rolar,
+o usuário encara duas colunas de dinheiro lado a lado — `R$ 189,90` e
+`R$ 0,00` — **sem nenhum rótulo dizendo qual é VALOR e qual é SALDO**, em oito
+colunas sem cabeçalho.
+
+**Correção:** dar ao container uma altura máxima (`calc(100vh − …)`) para que
+ele seja de fato o elemento que rola — que é o que `stickyHeader` do MUI
+pressupõe. Alternativa: abrir mão do `stickyHeader` e assumir que a tabela
+rola com a página, corrigindo também a regra 6 do documento.
+
+
 ---
 
 # I. Texto na interface
@@ -1521,11 +1600,16 @@ consequência visível está na tela.)
 Hipóteses que pareciam defeito numa leitura rápida e foram medidas até o fim.
 Estão no relatório para ninguém "corrigir" o que já está certo.
 
-**K1 — O valor do `CardMetrica` não corta com números grandes.**
-Suspeita: `R$ 27.259,20` em 32px num cartão de 288px a 320px, com
+**K1 — No celular, o valor do `CardMetrica` não corta nem quebra — mas no
+desktop corta (ver A7).**
+Suspeita original: `R$ 27.259,20` em 32px num cartão de 288px a 320px, com
 `overflow: hidden` no `Superficie`. Medido injetando valores no elemento real:
-a altura permanece em 32px (uma linha) para `R$ 127.259,20` **e** para
-`R$ 1.234.567,89`. Não corta, não quebra. Falso alarme.
+em 320px e 360px a altura permanece em 32px (uma linha) para `R$ 127.259,20`
+**e** para `R$ 1.234.567,89` — não corta, não quebra. **Essa verificação vale
+só para o celular.** Ao repetir a medição nas larguras de desktop o corte
+apareceu, e virou o achado **A7**: entre 1200px e 1500px o cartão encolhe para
+196–265px e o valor perde até 88px. Fica registrado como lembrete de que
+medir numa faixa não autoriza conclusão nas outras.
 
 **K2 — A lasca clara no topo-esquerdo do login é decoração intencional.**
 Medida como `rgba(255,255,255,.28)`, 4 × 304px, `position: absolute` em

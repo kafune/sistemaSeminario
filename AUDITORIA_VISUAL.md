@@ -57,13 +57,13 @@ de propósito: são coisas que parecem erradas numa leitura rápida e não são.
 | --- | --- | --- |
 | **Crítico** | 3 | Conteúdo invisível, navegação sem rótulo e sem item ativo |
 | **Alto** | 9 | Coluna cortada sem aviso, "Sair" fora da tela, erro que vira "vazio" |
-| **Médio** | 31 | Alinhamento, hierarquia, estados, consistência do sistema |
-| **Baixo** | 23 | Polimento, microcópia, densidade |
-| **Total** | **66** | |
+| **Médio** | 36 | Alinhamento, hierarquia, estados, consistência do sistema |
+| **Baixo** | 29 | Polimento, microcópia, densidade |
+| **Total** | **77** | |
 
-Dos 66 itens numerados, **63 são defeitos**: C1 é referência cruzada para A1,
+Dos 77 itens numerados, **74 são defeitos**: C1 é referência cruzada para A1,
 e G3/G5 registram resultados positivos onde havia suspeita. A seção **K** traz
-mais **12 verificações que deram certo** e não devem ser mexidas.
+mais **13 verificações que deram certo** e não devem ser mexidas.
 
 Quatro achados sozinhos respondem pela maior parte do dano: o cartão branco
 sobre canvas em `/alunos/:id` (**A1**), a tabela cortada de 900px a 1600px
@@ -471,6 +471,24 @@ cortado no meio de "Inativos", e **nada** sugere que existam "Formados" e
 "Sem turma" à direita. Esconder a barra é uma decisão estética legítima; sem
 nenhuma afordância no lugar dela, vira conteúdo perdido.
 
+## B9 — MÉDIO — Entre 600px e 767px o produto usa navegação de tablet com lista de celular
+
+A trilha de ícones entra em `sm` (600px), mas a troca de cartões por tabela só
+acontece em `tablet` (768px) — `useTelaDesktop` é
+`breakpoints.up('tablet')` (`ui.jsx:34-37`). Na faixa de 168px entre os dois,
+o usuário tem a navegação do tablet e a lista do celular.
+
+Em `/alunos` a 600px cada cartão ocupa **705px de largura** para exibir três
+dados — nome, matrícula e celular — com cerca de 400px de vazio no meio de
+cada linha. A tabela equivalente cabe folgada (a 768px ela já é usada, com
+640px úteis). São 30 cartões, cada um com o triplo da altura da linha
+correspondente.
+
+Na mesma largura, o `GrupoSegmentado` continua cortado ("Sem…") mesmo com
+673px disponíveis, porque sua largura natural passa de 680px — e sem
+afordância, como em **B8**.
+
+
 ---
 
 # C. Contraste e legibilidade
@@ -586,6 +604,27 @@ por dois cinzas próximos. Nenhum texto, ícone ou padrão. A regra 4 do
 `DESIGN_SYSTEM.md` diz literalmente "cor nunca é o único indicador" — e a
 visão de agenda do celular (`pages/CalendarioGrade.jsx:121`) faz certo, imprimindo
 `STATUS[aula.status]`. As duas visões da mesma informação discordam.
+
+## C8 — MÉDIO — O selo de nota usa o tom `success` para **qualquer** nota
+
+`pages/TurmaProfessor.jsx:194` e `:262`:
+
+```jsx
+<StatusBadge tom={aluno.nota == null ? 'warning' : 'success'}>
+  {aluno.nota == null ? 'Sem nota' : `Nota ${aluno.nota.toLocaleString('pt-BR')}`}
+</StatusBadge>
+```
+
+Uma nota **2,0** e uma nota **10,0** saem no mesmo verde, com o mesmo ponto
+verde. O tom `success` do sistema significa estado positivo; aqui ele codifica
+apenas "existe nota lançada", o que já está escrito no próprio selo — a cor
+não acrescenta informação e sugere aprovação onde não há.
+
+Confirmado por busca: **não existe limiar de aprovação em lugar nenhum** do
+produto (nem no backend nem no frontend). Se a nota não tem semântica de
+pass/fail, o tom certo é `neutral`; `success`/`error` deveriam ficar reservados
+para quando o limiar existir.
+
 
 ---
 
@@ -827,6 +866,59 @@ contido (com ícone do WhatsApp) ao lado de "WhatsApp" em outline **verde**
 mesmo ícone, duas famílias de cor, e a mais chamativa não é a que leva ao
 WhatsApp.
 
+## E11 — MÉDIO — Três vocabulários para o link "voltar", copiado em sete arquivos
+
+| padrão | arquivos |
+| --- | --- |
+| `‹ Voltar para …` (chevron tipográfico, grafite) | `AlunoDetalhe.jsx:119`, `FinanceiroAluno.jsx:26`, `FinanceiroConciliacao.jsx:143`, `FinanceiroTurma.jsx:220`, `TurmaDetalhe.jsx:159` |
+| `←` (`ArrowBackRoundedIcon`, grafite) | `PresencasTurma.jsx:194` |
+| `←` (`ArrowBackRoundedIcon`, **coral**) | `DiarioClasse.jsx:211`, `/professor/turmas/:id` |
+
+Não é só a aparência: o mesmo bloco de ~5 linhas com o mesmo `sx`
+(`{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', … }`) está
+**copiado literalmente** em quatro desses arquivos. Não há componente
+compartilhado para o gesto mais repetido de navegação do produto, embora
+`ui.jsx` exporte componentes para praticamente todo o resto.
+
+## E12 — MÉDIO — `/materias` põe a busca no cabeçalho, fora da `BarraFiltros`
+
+Regra 9 do `DESIGN_SYSTEM.md`: *"Busca, recorte, ordenação e densidade ficam na
+mesma barra; o cabeçalho fica com criação e importação."*
+
+`/materias` coloca o campo "Buscar matéria" **ao lado de "Nova matéria"**, na
+linha de ações do cabeçalho, e não tem `BarraFiltros`, nem controle de
+densidade, nem paginação — enquanto `/alunos`, `/leads` e `/financeiro` têm os
+três. Duas telas de lista com anatomias diferentes.
+
+## E13 — BAIXO — O enum cru do backend vira rótulo de selo
+
+`pages/TurmaProfessor.jsx:236` imprime `{aula.status}` direto:
+**"REALIZADA"**, **"AGENDADA"**, **"CANCELADA"** em caixa alta. O mesmo dado
+aparece como "Realizada", "Agendada", "Cancelada" na agenda
+(`pages/CalendarioGrade.jsx:27-31`, que tem o mapa `STATUS`) e como "Realizada"
+no calendário do celular. Três telas, dois rótulos para o mesmo valor.
+
+## E14 — BAIXO — Duas ações coral contidas competindo na mesma tela
+
+| tela | as duas primárias |
+| --- | --- |
+| `/financeiro/turmas/:id` | "Gerar cobranças" (cabeçalho) e "Salvar plano" (rodapé do cartão), ambas coral contidas, separadas por ~460px |
+| diálogo "Importar alunos" | "Escolher pessoas" (coral contida) e "Importar todas" (outline) no primeiro cartão; "Selecionar arquivo" (outline), "Importar arquivo" (contida desabilitada, ilegível) no segundo; "Fechar" (outline) no rodapé — **quatro tratamentos de botão em um diálogo** |
+
+No diálogo de importação, "Nenhum arquivo selecionado" é renderizado como
+texto `caption` na mesma linha de base dos dois botões e com o mesmo
+espaçamento, então lê como um terceiro botão desabilitado.
+
+
+## E15 — BAIXO — A coluna "Cursou" da grade de notas é uma faixa de interruptores coral
+
+Em `/notas`, com turma e matéria escolhidas, a última coluna traz um
+`Switch` por aluno, ligado por padrão. Medido: **9 interruptores**, todos com
+o polegar em `rgb(201,47,47)`. Coral é o token de ação/seleção; usado como
+*estado padrão de toda linha*, ele vira uma listra vermelha vertical ao lado
+da grade — o elemento mais chamativo de uma tela cujo foco é digitar notas.
+
+
 ---
 
 # F. Tipografia e escala
@@ -1030,6 +1122,56 @@ todos em largura total e 44px, somam ~900px antes de qualquer dado.
 "Atualizar" e "Criar instância" quebram para linhas separadas mantendo cada um
 a largura do próprio texto, produzindo uma escada irregular à esquerda.
 
+## H9 — BAIXO — O hover da linha de tabela é um tingimento de 3,5%
+
+Medido com o cursor sobre a segunda linha de `/alunos`:
+
+```
+background-color: rgba(0,0,0,0) → rgba(44,50,54,0.035)
+```
+
+`theme.js:411` usa `alpha(TOV.graphite, 0.035)`. Sobre `#FFFEFC` isso dá
+~`rgb(247,247,246)` — uma diferença de luminância de cerca de 3%. É o retorno
+visual mais fraco do sistema, e pesa mais do que pareceria: em `/alunos` a
+**linha inteira é o alvo de clique** (ver **G2**), e esse tingimento de 3,5%
+mais o `cursor: pointer` são a única indicação disso.
+
+Para comparação, no mesmo teste o botão outline troca a borda inteira para
+grafite, o contido escurece o coral, e a ação de texto vira coral — todos
+sinais claros.
+
+
+## H10 — MÉDIO — Na grade de notas, o cabeçalho ocupa a altura de quase três alunos
+
+Medido em `/notas` com turma e matéria escolhidas, em 768px **e** em 1280px
+(idêntico nas duas):
+
+| | altura |
+| --- | --- |
+| linha de cabeçalho | **165px** |
+| linha de aluno | **61px** |
+
+O cabeçalho vale 2,7 linhas de aluno. A causa é a combinação de nome completo
+da atividade + linha de metadados (`Trabalho · até 10`), em caixa alta, dentro
+de colunas de **largura fixa de 120px** — "Resenha crítica de leitura
+dirigida" quebra em cinco linhas.
+
+As larguras não se ajustam com a tela:
+
+| coluna | 768px | 1280px |
+| --- | --- | --- |
+| # | 60px | 60px |
+| **Aluno** | **140px** | **164px** |
+| cada atividade | 120px | 120px |
+| Faltas | 120px | 120px |
+| Cursou | 110px | 110px |
+
+A coluna **Aluno** é mais estreita que "Faltas" em 768px, e o nome do aluno
+quebra — enquanto as três colunas de atividade, os campos numéricos de dois
+dígitos, mantêm 120px cada. A largura extra de 1280px vai quase toda para o
+espaço morto à direita.
+
+
 ---
 
 # I. Texto na interface
@@ -1088,8 +1230,40 @@ turma."
 ## I6 — BAIXO — Identificadores internos na interface
 
 `/turmas` mostra `#3`, `#1`, `#2`, `#4` — o `cod_tur` do banco — como selo de
-cada cartão. Para o usuário é um número sem significado; a ordenação é por
-nome, então os selos aparecem fora de ordem.
+cada cartão. `/materias` mostra `MT-06`, `MT-04`, `MT-01`, `MT-03`, `MT-05`,
+`MT-02` na primeira coluna, e `/professores` mostra `05`, `02`, `04`, `01`.
+Em todos os casos a ordenação é por **nome**, então a coluna de código — que
+parece uma sequência — aparece embaralhada, o que lê como defeito de dados.
+
+## I7 — BAIXO — "Bacharel em Teologia · Bacharel em Teologia"
+
+`pages/TurmaProfessor.jsx:162`:
+```jsx
+descricao={[vinculo.turma_nome, vinculo.curso, periodo].filter(Boolean).join(' · ')}
+```
+O nome da turma já contém o curso, então a linha sai como
+**"Turma 2026.1 — Bacharel em Teologia (Noite) · Bacharel em Teologia · 2026/2"**.
+Mesma família de **I1**: o nome da turma é tratado como se fosse um rótulo
+curto e ganha prefixo ou sufixo redundante.
+
+
+## I9 — BAIXO — Nome do professor e instrução de uso ligados por um `·`
+
+`/notas`, cabeçalho da grade:
+
+> Prof. responsável: Rev. Dr. Antônio Carlos Vasconcelos Bittencourt ·
+> edite direto na grade e salve tudo de uma vez
+
+e, no celular:
+
+> Prof. responsável: Rev. Dr. Antônio Carlos Vasconcelos Bittencourt ·
+> alterações não salvas ficam com filete âmbar
+
+Um dado (quem responde pela matéria) e uma instrução de interface viram uma
+frase só, separados pelo mesmo `·` que o produto usa para separar metadados
+homogêneos. Em 390px a frase ocupa três linhas e o nome do professor se perde
+no meio da instrução.
+
 
 ---
 
@@ -1216,6 +1390,14 @@ trilha, no `main` e na barra inferior, e o `index.html` traz
 `Layout.jsx:444-458`: "Ir para o conteúdo", escondido com
 `translateY(-160%)` e revelado em `:focus`. Presente em todas as telas
 autenticadas.
+
+**K13 — Os campos da grade de notas têm rótulo acessível descritivo.**
+Cada `input[type=number]` da grade carrega
+`aria-label="Prova Bimestral I de Ana Silva"` — atividade **e** aluno. O
+interruptor traz `aria-label="Marcar se Ana Silva cursou a matéria"`. Numa
+grade de 36 campos idênticos, isso é o que torna a tela navegável por leitor
+de tela. Bem feito.
+
 
 ---
 

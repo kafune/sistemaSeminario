@@ -58,10 +58,10 @@ de propósito: são coisas que parecem erradas numa leitura rápida e não são.
 | **Crítico** | 3 | Conteúdo invisível, navegação sem rótulo e sem item ativo |
 | **Alto** | 13 | Valor de dinheiro cortado, coluna fora da tela, "Sair" inalcançável |
 | **Médio** | 39 | Alinhamento, hierarquia, estados, consistência do sistema |
-| **Baixo** | 33 | Polimento, microcópia, densidade |
-| **Total** | **88** | |
+| **Baixo** | 34 | Polimento, microcópia, densidade |
+| **Total** | **89** | |
 
-Dos 88 itens numerados, **85 são defeitos**: C1 é referência cruzada para A1,
+Dos 89 itens numerados, **86 são defeitos**: C1 é referência cruzada para A1,
 e G3/G5 registram resultados positivos onde havia suspeita. A seção **K** traz
 mais **13 verificações que deram certo** e não devem ser mexidas.
 
@@ -1509,6 +1509,30 @@ colunas sem cabeçalho.
 ele seja de fato o elemento que rola — que é o que `stickyHeader` do MUI
 pressupõe. Alternativa: abrir mão do `stickyHeader` e assumir que a tabela
 rola com a página, corrigindo também a regra 6 do documento.
+
+
+## H14 — BAIXO — A barra de "alterações pendentes" reserva a altura errada entre 600px e 1050px
+
+`BarraAcaoFixa` (`ui.jsx:135-178`) é fixa na base e, para não cobrir o fim da
+página, insere antes de si um espaçador de altura `{ xs: 148, sm: 88 }`
+(`ui.jsx:140`). Mas a barra só encolhe para uma linha quando o resumo e os
+botões cabem lado a lado — o que só acontece a partir de ~1100px, não em `sm`.
+
+Medido em `/notas`, com a grade suja (uma nota digitada):
+
+| largura | altura real da barra | altura reservada | conteúdo coberto |
+| --- | --- | --- | --- |
+| 390px | 105px | 148px | nenhum (sobram 43px) |
+| **600px** | **105px** | 88px | **17px** |
+| **768px** | **105px** | 88px | **17px** |
+| **900px** | **105px** | 88px | **17px** |
+| **1000px** | **105px** | 88px | **17px** |
+| 1100px | 61px | 88px | nenhum (sobram 27px) |
+| 1280px | 61px | 88px | nenhum (sobram 27px) |
+
+Em toda a faixa de tablet e notebook pequeno, os últimos 17px da página ficam
+permanentemente embaixo da barra — mesmo rolando até o fim. Numa grade de
+notas, são 17px da última linha de aluno.
 
 
 ---

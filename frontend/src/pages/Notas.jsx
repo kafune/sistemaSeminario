@@ -29,6 +29,13 @@ const TIPOS_ATIVIDADE = [
 const rotuloTipo = (tipo) => TIPOS_ATIVIDADE.find((item) => item.valor === tipo)?.rotulo || tipo
 const formatarPontos = (valor) => Number(valor || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })
 
+// Ligado por padrão em toda linha, o "Cursou" não é seleção: fica em grafite,
+// e o coral segue reservado a ação. Um só tratamento para tabela e cartão.
+const switchCursouSx = {
+  '& .MuiSwitch-switchBase.Mui-checked': { color: TOV.surface },
+  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': { bgcolor: TOV.graphite, opacity: 1 },
+}
+
 /** Rótulo de um seletor (uppercase caption) acima do campo. */
 /** Professor e período: o que qualifica a matéria sem competir com o nome. */
 function contextoMateria(m) {
@@ -312,13 +319,10 @@ export default function Notas() {
     }
     setSalvando(true)
     try {
+      // Com `docturma_id` o backend usa turma, matéria, professor e período do
+      // próprio vínculo; repetir os cinco aqui só criaria dois donos do dado.
       await api.post('/notas/lancar', {
         docturma_id: docSel.id,
-        cod_tur: Number(codTur),
-        cod_mat: docSel.cod_mat,
-        cod_pro: docSel.cod_pro ?? null,
-        ano: ano || null,
-        semestre: semestre || null,
         alunos: sujas.map((l) => ({
           cod_alu: l.cod_alu,
           nota: l.nota === '' ? null : Number(l.nota),
@@ -483,8 +487,13 @@ export default function Notas() {
           {!telaDesktop && <Box>
             <Box sx={{ ...cardSx, p: '16px 20px', mb: 1.5 }}>
               <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>{linhas.length} {linhas.length === 1 ? 'aluno' : 'alunos'}</Typography>
-              <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, mt: 0.5 }}>
-                {profResponsavel ? `Prof. responsável: ${profResponsavel} · ` : ''}alterações não salvas ficam com filete âmbar
+              {profResponsavel && (
+                <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.graphite, fontWeight: 600, mt: 0.5, overflowWrap: 'anywhere' }}>
+                  Prof. responsável: {profResponsavel}
+                </Typography>
+              )}
+              <Typography sx={{ fontSize: TOV.type.caption, color: TOV.caption, mt: 0.5 }}>
+                Alterações não salvas ficam com filete âmbar.
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -506,7 +515,7 @@ export default function Notas() {
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                       <Box component="span" sx={{ fontSize: TOV.type.caption, color: TOV.caption, fontWeight: 600 }}>Cursou</Box>
-                      <Switch checked={l.cursou} inputProps={{ 'aria-label': `Marcar se ${l.nome} cursou a matéria` }} onChange={(e) => editarLinha(l.cod_alu, 'cursou', e.target.checked)} />
+                      <Switch color="default" checked={l.cursou} sx={switchCursouSx} inputProps={{ 'aria-label': `Marcar se ${l.nome} cursou a matéria` }} onChange={(e) => editarLinha(l.cod_alu, 'cursou', e.target.checked)} />
                     </Box>
                   </Box>
                   {atividades.length === 0 ? (
@@ -541,9 +550,18 @@ export default function Notas() {
           {telaDesktop && <TableContainer component={Box} sx={{ overflowX: 'auto' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', p: '20px 28px', borderBottom: `1px solid ${TOV.divider}` }}>
               <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>{linhas.length} {linhas.length === 1 ? 'aluno' : 'alunos'}</Typography>
-              <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>
-                {profResponsavel ? `Prof. responsável: ${profResponsavel} · ` : ''}edite direto na grade e salve tudo de uma vez
-              </Typography>
+              {/* Quem responde pela matéria é dado; como usar a grade é instrução.
+                  Duas linhas, dois pesos: não viram uma frase só. */}
+              <Box sx={{ textAlign: { sm: 'right' }, minWidth: 0 }}>
+                {profResponsavel && (
+                  <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.graphite, fontWeight: 600, overflowWrap: 'anywhere' }}>
+                    Prof. responsável: {profResponsavel}
+                  </Typography>
+                )}
+                <Typography sx={{ fontSize: TOV.type.caption, color: TOV.caption, mt: profResponsavel ? 0.5 : 0 }}>
+                  Edite direto na grade e salve tudo de uma vez.
+                </Typography>
+              </Box>
             </Box>
             <Table sx={{ minWidth: atividades.length > 0 ? 520 + (atividades.length * 120) : 640 }}>
               <TableHead>
@@ -593,7 +611,7 @@ export default function Notas() {
                     )}
                     <TableCell sx={{ fontWeight: 700, color: TOV.graphite }}>{l.falta}</TableCell>
                     <TableCell>
-                      <Switch checked={l.cursou} inputProps={{ 'aria-label': `Marcar se ${l.nome} cursou a matéria` }} onChange={(e) => editarLinha(l.cod_alu, 'cursou', e.target.checked)} />
+                      <Switch color="default" checked={l.cursou} sx={switchCursouSx} inputProps={{ 'aria-label': `Marcar se ${l.nome} cursou a matéria` }} onChange={(e) => editarLinha(l.cod_alu, 'cursou', e.target.checked)} />
                     </TableCell>
                   </TableRow>
                 ))}

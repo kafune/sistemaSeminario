@@ -18,7 +18,7 @@ import { TOV } from '../theme'
 import {
   BarraFiltros, CabecalhoPagina, CartaoLista, EstadoErro, EstadoVazio, GrupoSegmentado,
   LinhaCartao, LinhasSkeleton, PilulaStatus, SeletorDensidade, SkeletonCards,
-  useDensidade, usePreferencia, useTelaDesktop,
+  resetBotao, useDensidade, usePreferencia, useTelaDesktop,
 } from '../ui'
 import AlunoForm from './AlunoForm'
 import ImportarAlunosDialog from './ImportarAlunosDialog'
@@ -32,6 +32,7 @@ const RECORTES = [
   { rotulo: 'Ativos', valor: 'A' },
   { rotulo: 'Inativos', valor: 'I' },
   { rotulo: 'Formados', valor: 'F' },
+  { rotulo: 'Trancados', valor: 'T' },
   { rotulo: 'Sem turma', valor: 'sem_turma' },
 ]
 const ORDENACOES = [
@@ -301,7 +302,18 @@ export default function Alunos() {
             {dados.itens.map((a) => (
               <TableRow key={a.cod_alu} hover sx={{ cursor: 'pointer' }} onClick={() => navigate(`/alunos/${a.cod_alu}`)}>
                 <TableCell align="right" sx={{ color: TOV.caption, fontWeight: 600 }}>{a.cod_alu}</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>{a.nome}</TableCell>
+                <TableCell>
+                  {/* O clique na linha é atalho de mouse; o nome é o controle de
+                      verdade, alcançável por Tab e por leitor de tela. */}
+                  <Box
+                    component="button" type="button"
+                    aria-label={`Abrir ficha de ${a.nome}`}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/alunos/${a.cod_alu}`) }}
+                    sx={{ ...resetBotao, fontWeight: 600, color: TOV.ink, textAlign: 'left', '&:hover': { color: TOV.coral } }}
+                  >
+                    {a.nome}
+                  </Box>
+                </TableCell>
                 <TableCell sx={{ color: TOV.graphite }}>{a.fone1 || '—'}</TableCell>
                 <TableCell sx={{ color: TOV.graphite }}>{a.celular || '—'}</TableCell>
                 <TableCell><PilulaStatus status={a.status} /></TableCell>

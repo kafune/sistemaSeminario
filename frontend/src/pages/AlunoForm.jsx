@@ -9,7 +9,7 @@ import {
   DialogoConfirmacao, EstadoErro, LinhaCartao, cardSx, useDialogoTelaCheia,
 } from '../ui'
 import { useUnsavedChanges } from '../UnsavedChanges'
-import { emailValido, formatarCepInput, formatarCpfInput, formatarTelefoneInput } from '../formatters'
+import { emailValido, formatarCepInput, formatarCpfInput, formatarDataBr, formatarTelefoneInput } from '../formatters'
 
 const VAZIO = {
   nome: '', endereco: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
@@ -200,6 +200,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
                   <MenuItem value="A">Ativo</MenuItem>
                   <MenuItem value="I">Inativo</MenuItem>
                   <MenuItem value="F">Formado</MenuItem>
+                  <MenuItem value="T">Trancado</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -320,7 +321,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
               </Alert>
               {resumo('Identificação', 0, [
                 ['Nome', form.nome],
-                ['Nascimento', form.dat_nas],
+                ['Nascimento', form.dat_nas ? formatarDataBr(form.dat_nas) : null],
                 ['CPF', form.cpf],
                 ['RG', form.rg],
                 ['Status', STATUS_ALUNO[form.status] || form.status],
@@ -339,7 +340,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
               {resumo('Igreja', 3, [
                 ['Igreja', form.igreja],
                 ['Pastor', form.nome_pastor],
-                ['Membro desde', form.membro_desde],
+                ['Membro desde', form.membro_desde ? formatarDataBr(form.membro_desde) : null],
               ])}
               {resumo('Acadêmico', 4, [
                 ['Escolaridade', form.escolaridade],

@@ -4,7 +4,6 @@ import {
   Alert, Box, Button, CircularProgress, IconButton, MenuItem, Snackbar, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
-import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded'
@@ -17,7 +16,7 @@ import { api, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
   CabecalhoPagina, CardMetrica, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
-  LinhaCartao, SkeletonCards, StatusBadge, cardSx, resetBotao, useTelaDesktop,
+  LinhaCartao, LinkVoltar, SkeletonCards, StatusBadge, cardSx, resetBotao, useTelaDesktop,
 } from '../ui'
 import { FUSO_INSTITUICAO } from '../formatters'
 
@@ -195,9 +194,10 @@ export default function PresencasTurma() {
   if (carregando) return <SkeletonCards quantidade={3} altura={170} />
 
   const botaoVoltar = (
-    <Box component="button" type="button" onClick={() => navigate(ehProfessor && vinculoId ? `/professor/turmas/${vinculoId}?aba=aulas` : `/turmas/${codTur}`)} sx={{ ...resetBotao, px: 0.5, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TOV.type.body, color: TOV.caption, fontWeight: 700, mb: 1.5, '&:hover': { color: TOV.coral } }}>
-      <ArrowBackRoundedIcon sx={{ fontSize: TOV.type.section }} /> Voltar para a turma
-    </Box>
+    <LinkVoltar
+      para={ehProfessor && vinculoId ? `/professor/turmas/${vinculoId}?aba=aulas` : `/turmas/${codTur}`}
+      rotulo="Voltar para a turma"
+    />
   )
 
   if (erroCarga) {

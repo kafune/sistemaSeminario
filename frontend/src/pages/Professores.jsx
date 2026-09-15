@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
-  InputAdornment, MenuItem, Paper, Snackbar, Table, TableBody, TableCell,
+  InputAdornment, MenuItem, Snackbar, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
@@ -14,7 +14,7 @@ import { emailValido, formatarCepInput, formatarCpfInput, formatarDataHora, form
 import { useDirtyForm } from '../UnsavedChanges'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao,
-  LinhasSkeleton, PilulaStatus, SkeletonCards, resetBotao,
+  LinhasSkeleton, PilulaStatus, SkeletonCards, acaoTabelaSx,
   useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 
@@ -264,18 +264,18 @@ export default function Professores() {
                   <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption }}>
                     {!p.usuario_acesso && <>
                       <Box component="button" type="button" onClick={() => criarConviteAcesso(p)} disabled={criandoConvite}
-                        sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
+                        sx={acaoTabelaSx}>
                         Criar acesso
                       </Box>
                       <Box component="span" aria-hidden="true" sx={{ color: TOV.caption }}>·</Box>
                     </>}
                     <Box component="button" type="button" onClick={() => abrirForm(p)}
-                      sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
+                      sx={acaoTabelaSx}>
                       Editar
                     </Box>
                     <Box component="span" aria-hidden="true" sx={{ color: TOV.caption }}>·</Box>
                     <Box component="button" type="button" onClick={() => setParaExcluir(p)}
-                      sx={{ ...resetBotao, '&:hover': { color: TOV.danger } }}>
+                      sx={{ ...acaoTabelaSx, '&:hover': { color: TOV.danger, textDecorationStyle: 'solid' } }}>
                       Excluir
                     </Box>
                   </Box>

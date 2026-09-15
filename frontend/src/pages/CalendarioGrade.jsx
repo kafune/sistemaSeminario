@@ -3,6 +3,12 @@ import { TOV, focusRing } from '../theme'
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
+// Texto só para leitor de tela: a marca visual fica curta, o nome do estado não.
+const VISUALMENTE_OCULTO = {
+  position: 'absolute', width: '1px', height: '1px', overflow: 'hidden',
+  clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap',
+}
+
 export function isoLocal(data) {
   const ano = data.getFullYear()
   const mes = String(data.getMonth() + 1).padStart(2, '0')
@@ -151,19 +157,34 @@ export default function CalendarioGrade({ mes, aulas, onSelecionar, onNovo }) {
           const iso = isoLocal(data)
           const fora = data.getMonth() !== mes.getMonth()
           const eventos = aulas.filter((aula) => aula.data === iso)
+          // Teclado e leitor de tela têm o mesmo atalho do duplo clique: a célula
+          // é focável e Enter/Espaço abrem a aula nova naquele dia.
+          const aoTeclar = onNovo ? (evento) => {
+            if (evento.target !== evento.currentTarget) return
+            if (evento.key !== 'Enter' && evento.key !== ' ') return
+            evento.preventDefault()
+            onNovo(iso)
+          } : undefined
           return (
             <Box
               key={iso}
               onDoubleClick={() => onNovo?.(iso)}
+              onKeyDown={aoTeclar}
+              tabIndex={onNovo ? 0 : undefined}
+              role={onNovo ? 'button' : undefined}
+              aria-label={onNovo ? `Nova aula em ${dataLegivel(iso)}` : undefined}
               sx={{
                 minHeight: 118, p: 1, borderRight: `1px solid ${TOV.border}`,
                 borderBottom: `1px solid ${TOV.border}`, bgcolor: fora ? TOV.canvas : TOV.surfaceElevated,
+                '&:focus-visible': focusRing,
               }}
             >
               <Box sx={{ fontSize: TOV.type.caption, fontWeight: 700, color: fora ? TOV.caption : TOV.ink, mb: 0.5 }}>{data.getDate()}</Box>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                 {eventos.map((aula) => {
                   const cores = corEvento(aula.status)
+                  const cancelada = aula.status === 'CANCELADA'
+                  const realizada = aula.status === 'REALIZADA'
                   return (
                     <Box
                       component="button"
@@ -174,13 +195,26 @@ export default function CalendarioGrade({ mes, aulas, onSelecionar, onNovo }) {
                         appearance: 'none', border: 0, borderRadius: TOV.radiusSm, p: '4px 8px',
                         textAlign: 'left', cursor: onSelecionar ? 'pointer' : 'default',
                         bgcolor: cores.bg, color: cores.color, font: 'inherit', minWidth: 0,
+                        '&:focus-visible': focusRing,
                       }}
                     >
-                      <Box sx={{ fontSize: TOV.type.overline, fontWeight: 700, lineHeight: 1.2 }}>
-                        {aula.hora_inicio || ''} {aula.turma_nome}
-                      </Box>
-                      <Box sx={{ fontSize: TOV.type.overline, lineHeight: 1.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {/* A matéria é o que distingue uma aula da outra: ganha o peso e
+                          não trunca. Hora e turma vêm na linha de apoio. */}
+                      <Box sx={{ fontSize: TOV.type.caption, fontWeight: 700, lineHeight: 1.25, overflowWrap: 'anywhere', textDecoration: cancelada ? 'line-through' : 'none' }}>
                         {aula.materia_nome}
+                      </Box>
+                      <Box sx={{ fontSize: TOV.type.overline, lineHeight: 1.2, display: 'flex', alignItems: 'baseline', gap: 0.5, minWidth: 0 }}>
+                        <Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textDecoration: cancelada ? 'line-through' : 'none' }}>
+                          {[aula.hora_inicio, aula.turma_nome].filter(Boolean).join(' ')}
+                        </Box>
+                        {/* Cor nunca é o único indicador: cancelada e realizada têm texto. */}
+                        {cancelada && <Box component="span" sx={{ flexShrink: 0, fontWeight: 700 }}>Cancelada</Box>}
+                        {realizada && (
+                          <Box component="span" sx={{ flexShrink: 0, fontWeight: 700 }}>
+                            <Box component="span" aria-hidden="true">✓</Box>
+                            <Box component="span" sx={VISUALMENTE_OCULTO}>Realizada</Box>
+                          </Box>
+                        )}
                       </Box>
                     </Box>
                   )

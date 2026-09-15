@@ -11,7 +11,7 @@ import { api } from '../api'
 import { TOV } from '../theme'
 import {
   AvatarIniciais, BarraFiltros, CabecalhoPagina, CartaoLista, EstadoErro, EstadoVazio,
-  DialogoConfirmacao, LinhaCartao, StatusBadge, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  DialogoConfirmacao, LinhaCartao, StatusBadge, acaoTabelaSx, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import ImportarLeadsDialog from './ImportarLeadsDialog'
 import { emailValido, formatarTelefoneInput } from '../formatters'
@@ -318,7 +318,7 @@ export default function Leads() {
                 <TableCell><Chip size="small" variant="outlined" label={FUNIL[lead.status_funil] || lead.status_funil} /></TableCell>
                 <TableCell><PilulaConsentimento status={lead.consentimento_status} /></TableCell>
                 <TableCell align="right">
-                  <Box component="button" type="button" onClick={() => editar(lead)} sx={{ ...resetBotao, fontSize: TOV.type.bodySm, fontWeight: 700, color: TOV.caption, '&:hover': { color: TOV.coral } }}>Editar</Box>
+                  <Box component="button" type="button" onClick={() => editar(lead)} sx={acaoTabelaSx}>Editar</Box>
                 </TableCell>
               </TableRow>
             ))}

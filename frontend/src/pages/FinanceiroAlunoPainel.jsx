@@ -43,6 +43,8 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
   const [erroCarga, setErroCarga] = useState('')
   const [cobrancaPagando, setCobrancaPagando] = useState(null)
   const [pagamentoEstornar, setPagamentoEstornar] = useState(null)
+  const [confirmarNovoLink, setConfirmarNovoLink] = useState(false)
+  const [avisoLink, setAvisoLink] = useState('')
   const [processando, setProcessando] = useState(false)
   const [percentual, setPercentual] = useState('')
   const [motivo, setMotivo] = useState('')
@@ -139,10 +141,19 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
     }
   }
 
-  async function gerarLink() {
+  async function gerarLink(confirmado = false) {
+    // Regerar derruba o link que o aluno já recebeu: com link ativo, pede confirmação.
+    if (token && !confirmado) {
+      setConfirmarNovoLink(true)
+      return
+    }
+    setConfirmarNovoLink(false)
     setProcessando(true)
     try {
       const resposta = await api.post(`/financeiro/alunos/${codAlu}/acesso`)
+      setAvisoLink(resposta.substituiu_anterior
+        ? 'O link anterior enviado ao aluno deixou de funcionar. Envie a ele o novo endereço.'
+        : '')
       try {
         await navigator.clipboard.writeText(`${window.location.origin}/minhas-financas/${resposta.token}`)
         avisar('Link gerado e copiado para a área de transferência.', false)
@@ -170,6 +181,7 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
     setProcessando(true)
     try {
       await api.del(`/financeiro/alunos/${codAlu}/acesso`)
+      setAvisoLink('')
       avisar('Link desativado.', false)
       carregar()
     } catch (e) {
@@ -305,10 +317,13 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
               Último acesso do aluno em {formatarDataHora(extrato.acesso.ultimo_acesso_em)}
             </Typography>
           )}
+          {avisoLink && (
+            <Alert severity="warning" onClose={() => setAvisoLink('')} sx={{ mt: 1.5 }}>{avisoLink}</Alert>
+          )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           {token && <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={copiarLink}>Copiar link</Button>}
-          <Button variant={token ? 'outlined' : 'contained'} disabled={processando} onClick={gerarLink}>
+          <Button variant={token ? 'outlined' : 'contained'} disabled={processando} onClick={() => gerarLink()}>
             {token ? 'Gerar novo link' : 'Gerar link'}
           </Button>
           {token && <Button color="error" startIcon={<LinkOffIcon />} disabled={processando} onClick={revogarLink}>Desativar</Button>}
@@ -429,6 +444,16 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
         processando={processando}
         onConfirmar={lancarPagamento}
         onFechar={() => !processando && setCobrancaPagando(null)}
+      />
+
+      <DialogoConfirmacao
+        aberto={confirmarNovoLink}
+        titulo="Gerar novo link?"
+        descricao="O link atual deixa de funcionar na hora, inclusive o que já foi enviado ao aluno. Depois de gerar, envie a ele o novo endereço."
+        rotuloConfirmar="Gerar novo link"
+        processando={processando}
+        onConfirmar={() => gerarLink(true)}
+        onFechar={() => !processando && setConfirmarNovoLink(false)}
       />
 
       <DialogoConfirmacao

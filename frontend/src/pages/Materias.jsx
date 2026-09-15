@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
-  InputAdornment, Paper, Snackbar, Table, TableBody, TableCell, TableContainer,
+  InputAdornment, Snackbar, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TextField,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
@@ -11,7 +11,7 @@ import { TOV } from '../theme'
 import { useDirtyForm } from '../UnsavedChanges'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao,
-  LinhasSkeleton, SkeletonCards, resetBotao, useDialogoTelaCheia,
+  LinhasSkeleton, SkeletonCards, acaoTabelaSx, useDialogoTelaCheia,
   useTelaDesktop,
 } from '../ui'
 
@@ -187,12 +187,12 @@ export default function Materias() {
                 <TableCell align="right">
                   <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption }}>
                     <Box component="button" type="button" onClick={() => abrirForm(m)}
-                      sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
+                      sx={acaoTabelaSx}>
                       Editar
                     </Box>
                     <Box component="span" aria-hidden="true" sx={{ color: TOV.caption }}>·</Box>
                     <Box component="button" type="button" onClick={() => setParaExcluir(m)}
-                      sx={{ ...resetBotao, '&:hover': { color: TOV.danger } }}>
+                      sx={{ ...acaoTabelaSx, '&:hover': { color: TOV.danger, textDecorationStyle: 'solid' } }}>
                       Excluir
                     </Box>
                   </Box>

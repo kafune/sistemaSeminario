@@ -36,7 +36,7 @@ describe('formatarCompetencia', () => {
 
 describe('formatarMoeda e CPF', () => {
   it('formata em reais', () => {
-    expect(formatarMoeda(1200.5).replace(/ /g, ' ')).toBe('R$ 1.200,50')
+    expect(formatarMoeda(1200.5).replace(/\u00a0/g, ' ')).toBe('R$ 1.200,50')
   })
   it('mascara o CPF conforme digita', () => {
     expect(formatarCpfInput('12345678901')).toBe('123.456.789-01')

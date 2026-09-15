@@ -14,7 +14,7 @@ import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
   CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao, Regua,
-  SkeletonCards, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  LinkVoltar, SkeletonCards, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 
 function mesAno(iso) {
@@ -143,7 +143,7 @@ export default function TurmaDetalhe() {
   if (carregando && !turma) return <SkeletonCards quantidade={3} altura={150} />
   if (erroCarga && !turma) return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate('/turmas')} sx={{ ...resetBotao, px: 0.5, color: TOV.caption, fontWeight: 600, mb: 1.5 }}>‹ Voltar para Turmas</Box>
+      <LinkVoltar para="/turmas" rotulo="Voltar para Turmas" />
       <EstadoErro titulo="Não foi possível abrir esta turma" descricao={erroCarga} onTentarNovamente={carregar} />
     </Box>
   )
@@ -157,9 +157,7 @@ export default function TurmaDetalhe() {
 
   return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate('/turmas')} sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: TOV.type.body, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}>
-        ‹ Voltar para Turmas
-      </Box>
+      <LinkVoltar para="/turmas" rotulo="Voltar para Turmas" />
 
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
         <Box>
@@ -371,8 +369,11 @@ export default function TurmaDetalhe() {
         <DialogContent>
           <Grid container spacing={1.5} sx={{ mt: 0 }}>
             <Grid item xs={12}>
+              {/* Controlados: ao reabrir o diálogo o campo volta vazio junto com o estado. */}
               <Autocomplete
                 size="small" options={todasMaterias}
+                value={todasMaterias.find((m) => m.cod_mat === formMateria.cod_mat) || null}
+                isOptionEqualToValue={(a, b) => a.cod_mat === b.cod_mat}
                 getOptionLabel={(m) => (m.NOME || '').trim()}
                 onChange={(_, v) => setFormMateria({ ...formMateria, cod_mat: v?.cod_mat })}
                 renderInput={(p) => <TextField {...p} label="Matéria" />}
@@ -381,6 +382,8 @@ export default function TurmaDetalhe() {
             <Grid item xs={12}>
               <Autocomplete
                 size="small" options={professores}
+                value={professores.find((p) => p.cod_pro === formMateria.cod_pro) || null}
+                isOptionEqualToValue={(a, b) => a.cod_pro === b.cod_pro}
                 getOptionLabel={(p) => p.nome || ''}
                 onChange={(_, v) => setFormMateria({ ...formMateria, cod_pro: v?.cod_pro })}
                 renderInput={(p) => <TextField {...p} label="Professor" />}

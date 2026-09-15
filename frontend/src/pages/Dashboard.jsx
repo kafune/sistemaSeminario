@@ -170,7 +170,7 @@ export default function Dashboard() {
             <EstadoVazio compacto titulo="Sem atividade recente" descricao="Novos cadastros aparecerão nesta linha do tempo." />
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-              {dados.recentes.map((r, i) => (
+              {dados.recentes.map((r) => (
                 <Box
                   component="button"
                   type="button"

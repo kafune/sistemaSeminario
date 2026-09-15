@@ -5,7 +5,6 @@ import {
   DialogTitle, MenuItem, Snackbar, Tab, Tabs, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
-import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
 import CloudDownloadOutlinedIcon from '@mui/icons-material/CloudDownloadOutlined'
 import EditNoteOutlinedIcon from '@mui/icons-material/EditNoteOutlined'
@@ -18,7 +17,7 @@ import NoteAddOutlinedIcon from '@mui/icons-material/NoteAddOutlined'
 import { api, baixarArquivo } from '../api'
 import { TOV } from '../theme'
 import {
-  CabecalhoPagina, CardMetrica, DialogoConfirmacao, EstadoErro, EstadoVazio, StatusBadge,
+  CabecalhoPagina, CardMetrica, DialogoConfirmacao, EstadoErro, EstadoVazio, LinkVoltar, StatusBadge,
   cardSx, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import { FUSO_INSTITUICAO, formatarDataHora } from '../formatters'
@@ -157,7 +156,7 @@ export default function TurmaProfessor() {
     }
   }
 
-  if (erro) return <Box><Button startIcon={<ArrowBackRoundedIcon />} onClick={() => navigate('/professor/turmas')} sx={{ mb: 2 }}>Voltar</Button><EstadoErro titulo="Não foi possível carregar a turma" descricao={erro} onTentarNovamente={carregar} /></Box>
+  if (erro) return <Box><LinkVoltar para="/professor/turmas" rotulo="Voltar" /><EstadoErro titulo="Não foi possível carregar a turma" descricao={erro} onTentarNovamente={carregar} /></Box>
   if (!dados) return <Box sx={{ minHeight: 360, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>
 
   const { vinculo } = dados
@@ -169,7 +168,7 @@ export default function TurmaProfessor() {
 
   return (
     <Box>
-      <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => navigate('/professor/turmas')} sx={{ mb: 2 }}>Minhas turmas</Button>
+      <LinkVoltar para="/professor/turmas" rotulo="Minhas turmas" />
       <CabecalhoPagina
         titulo={vinculo.materia_nome}
         descricao={[vinculo.turma_nome, curso, periodo].filter(Boolean).join(' · ')}

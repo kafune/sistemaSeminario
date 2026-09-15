@@ -16,7 +16,7 @@ import { TOV } from '../theme'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
   GrupoSegmentado, LinhasSkeleton, Metadado, SkeletonCards, StatusBadge,
-  Superficie, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  LinkVoltar, Superficie, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import { formatarDataBr, formatarDataDoCarimbo, formatarMoeda } from '../formatters'
 import { SeloSituacao, numeroDoCampo, textoDoValor, textoPercentual } from './FinanceiroComum'
@@ -201,7 +201,7 @@ export default function FinanceiroTurma() {
   if (erroCarga && !dados) {
     return (
       <Box>
-        <Box component="button" type="button" onClick={() => navigate('/financeiro')} sx={{ ...resetBotao, px: 0.5, color: TOV.caption, fontWeight: 600, mb: 1.5 }}>‹ Voltar para Financeiro</Box>
+        <LinkVoltar para="/financeiro" rotulo="Voltar para Financeiro" />
         <EstadoErro titulo="Não foi possível abrir esta turma" descricao={erroCarga} onTentarNovamente={carregar} />
       </Box>
     )
@@ -215,12 +215,7 @@ export default function FinanceiroTurma() {
 
   return (
     <Box>
-      <Box
-        component="button" type="button" onClick={() => navigate('/financeiro')}
-        sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: TOV.type.body, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}
-      >
-        ‹ Voltar para Financeiro
-      </Box>
+      <LinkVoltar para="/financeiro" rotulo="Voltar para Financeiro" />
 
       <CabecalhoPagina
         eyebrow="Plano financeiro da turma"

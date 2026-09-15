@@ -13,7 +13,7 @@ import { api } from '../api'
 import { TOV } from '../theme'
 import {
   BarraFiltros, CabecalhoPagina, EstadoErro, EstadoVazio, GrupoSegmentado, SkeletonCards,
-  StatusBadge, Superficie, cardSx, resetBotao, useDialogoTelaCheia,
+  LinkVoltar, StatusBadge, Superficie, cardSx, useDialogoTelaCheia,
 } from '../ui'
 import { formatarDataBr, formatarMoeda } from '../formatters'
 import { SeloSituacao, hojeIso, numeroDoCampo } from './FinanceiroComum'
@@ -152,12 +152,7 @@ export default function FinanceiroConciliacao() {
 
   return (
     <Box>
-      <Box
-        component="button" type="button" onClick={() => navigate('/financeiro')}
-        sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: TOV.type.body, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}
-      >
-        ‹ Voltar para Financeiro
-      </Box>
+      <LinkVoltar para="/financeiro" rotulo="Voltar para Financeiro" />
 
       <CabecalhoPagina
         variante="operacional"

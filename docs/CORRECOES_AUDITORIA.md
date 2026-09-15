@@ -59,9 +59,9 @@ sem número da linha, poll a cada 5 min; **K6** aviso em `docs/superpowers`.
 ### Não feitos
 
 - **F2** testes em MySQL; **G2/G3** remover `titprof`/`matprof` (exige
-  migração destrutiva); **C7**; **C4** ficou com flag e lock, não com
-  Alembic; **E5** do visual (regra de foco/erro foi tratada por forma, ver
-  abaixo).
+  migração destrutiva); **C7** (lançamentos legados ambíguos); **C4** ficou
+  com flag e lock, não com Alembic; **F1** os desvios `isinstance(user, str)`
+  continuam nos routers (os testes antigos chamam as funções diretamente).
 
 ## AUDITORIA_VISUAL.md
 

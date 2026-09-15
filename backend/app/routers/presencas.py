@@ -1,6 +1,5 @@
 import secrets
-from datetime import date, datetime, timezone
-from zoneinfo import ZoneInfo
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
@@ -10,7 +9,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..tempo import agora_utc, hoje_local
-from ..config import settings
 from ..database import get_db
 from ..models import (
     Aluno,

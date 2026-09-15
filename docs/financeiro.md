@@ -355,6 +355,12 @@ Content-Type: application/json
 }
 ```
 
+Autenticação: `X-Webhook-Secret: <TOV_BANCO_WEBHOOK_SECRET>`; ou, quando o
+PSP souber assinar, `X-Webhook-Timestamp: <epoch em segundos>` e
+`X-Webhook-Signature: sha256=<hex do HMAC-SHA256(segredo, "<timestamp>.<corpo>")>`
+— a assinatura vale por cinco minutos e cobre o corpo inteiro, então capturar
+uma requisição não permite forjar outra.
+
 `identificador` é o E2E do PIX ou o nosso número do boleto e é **único**: o
 reenvio do mesmo aviso (o banco repete quando não recebe 200) devolve a
 transação já registrada em vez de lançar o pagamento duas vezes.

@@ -1,7 +1,7 @@
 import json
 import re
 import unicodedata
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from io import BytesIO
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -422,11 +422,18 @@ def atualizar(
         "status_funil": dados.status_funil.upper(),
     }.items():
         setattr(lead, campo, valor)
+    # O formulário devolve a origem antiga junto com o resto do cadastro; a
+    # trilha de consentimento precisa dizer que **esta** mudança foi manual.
+    origem_informada = _texto(dados.consentimento_origem)
     _registrar_consentimento(
         db,
         lead,
         novo_consentimento,
-        origem=_texto(dados.consentimento_origem) or "EDICAO_MANUAL",
+        origem=(
+            origem_informada
+            if origem_informada and origem_informada != lead.consentimento_origem
+            else "EDICAO_MANUAL"
+        ),
         usuario=usuario,
         detalhes="Alteração manual",
     )

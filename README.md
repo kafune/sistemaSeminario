@@ -203,10 +203,19 @@ chaves separadas para JWT e criptografia.
   `TOV_REPARO_INTEGRIDADE_NO_BOOT=1` restaura o comportamento antigo.
 - **Exclusão de aula** é recusada quando já existe chamada registrada:
   marque a aula como cancelada, e as faltas continuam no histórico.
-- **Testes e CI.** `cd backend && python -m unittest discover -s tests -t .`
-  roda a suíte (inclui a matriz de perfis pela camada HTTP);
-  `.github/workflows/ci.yml` executa backend e o build do frontend
-  (com `check:design` e o orçamento do bundle) a cada push.
+- **Trilha de auditoria.** Criação, exclusão, perfil e senha de usuários,
+  exclusão de cadastros e de aulas, estorno, cancelamento/isenção e plano
+  financeiro ficam em `auditoria` (`GET /usuarios/auditoria`, só ADMIN) e na
+  tela de Usuários.
+- **Webhook do banco.** Além do header `X-Webhook-Secret`, o PSP pode assinar
+  o corpo: `X-Webhook-Signature: sha256=<HMAC-SHA256("<timestamp>.<corpo>")>`
+  com `X-Webhook-Timestamp` (epoch, janela de 5 minutos). Ver
+  [docs/financeiro.md](docs/financeiro.md).
+- **Testes, lint e CI.** Backend: `cd backend && ruff check . && python -m
+  unittest discover -s tests -t .` (inclui a matriz de perfis pela camada
+  HTTP). Frontend: `npm run lint`, `npm test` (vitest) e `npm run build`
+  (com `check:design` e o orçamento do bundle). `.github/workflows/ci.yml`
+  roda tudo isso a cada push.
 Cada usuário troca a própria senha pelo menu do avatar (`POST /auth/trocar-senha`).
 
 ### WhatsApp / UazAPI

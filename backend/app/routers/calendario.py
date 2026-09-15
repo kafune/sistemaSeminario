@@ -1,5 +1,5 @@
 import secrets
-from datetime import date, datetime, time, timedelta
+from datetime import date, time, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
@@ -7,6 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..security import usuario_atual
+from ..services import auditoria
 from ..tempo import agora_utc, hoje_local
 from ..database import get_db
 from ..models import (
@@ -200,7 +202,9 @@ def atualizar_aula(
 
 
 @router.delete("/aulas/{aula_id}")
-def excluir_aula(aula_id: int, db: Session = Depends(get_db)):
+def excluir_aula(aula_id: int, db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     aula = db.get(Aula, aula_id)
     if not aula:
         raise HTTPException(404, "Aula não encontrada")
@@ -226,6 +230,7 @@ def excluir_aula(aula_id: int, db: Session = Depends(get_db)):
             PlanejamentoAula.aula_id == aula_id
         )
     )
+    auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="aula", entidade_id=aula_id, detalhes=f"{aula.data} vinculo {aula.docturma_id}")
     db.delete(aula)
     db.commit()
     return {"ok": True}

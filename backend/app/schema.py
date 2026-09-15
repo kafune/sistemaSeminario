@@ -4,7 +4,7 @@ O projeto não usa Alembic. O ``create_all`` cria bancos novos, enquanto esta
 rotina acrescenta as colunas introduzidas depois do primeiro deploy.
 """
 
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect, select, text
 from sqlalchemy.engine import Engine
 
 
@@ -192,6 +192,25 @@ def _reparar_integridade_academica_com_relatorio(engine: Engine) -> dict[str, in
     _reparar_integridade_academica(engine)
     depois = _contagens(engine)
     return {tabela: depois[tabela] - antes[tabela] for tabela in antes}
+
+
+def _preencher_nome_normalizado(engine: Engine) -> None:
+    """Uma vez só: alunos anteriores à coluna recebem a chave de comparação."""
+    from sqlalchemy.orm import Session
+
+    from .consultas import normalizar_nome
+    from .models import Aluno
+
+    with Session(engine) as sessao:
+        pendentes = list(
+            sessao.scalars(
+                select(Aluno).where(Aluno.nome_normalizado.is_(None), Aluno.nome.is_not(None))
+            )
+        )
+        for aluno in pendentes:
+            aluno.nome_normalizado = normalizar_nome(aluno.nome) or None
+        if pendentes:
+            sessao.commit()
 
 
 def _contagens(engine: Engine) -> dict[str, int]:
@@ -447,6 +466,9 @@ def _atualizar_schema(engine: Engine, *, reparar: bool | None) -> None:
                 "ALTER TABLE chamadas ADD COLUMN aula_id INT NULL"
             )
 
+    if "nome_normalizado" not in colunas:
+        comandos.append("ALTER TABLE alunos ADD COLUMN nome_normalizado VARCHAR(100) NULL")
+
     if "presencas" in tabelas:
         colunas_presenca = {
             coluna["name"] for coluna in inspector.get_columns("presencas")
@@ -601,6 +623,9 @@ def _atualizar_schema(engine: Engine, *, reparar: bool | None) -> None:
                 conexao.execute(
                     text("ALTER TABLE chamadas DROP INDEX uq_chamadas_turma_data")
                 )
+
+
+    _preencher_nome_normalizado(engine)
 
     if reparar is None:
         from .config import settings

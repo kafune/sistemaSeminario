@@ -1,12 +1,13 @@
 import re
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..services import auditoria
 from ..consultas import termo_like
 from ..tempo import agora_utc, hoje_local
 from ..database import get_db, row_to_dict
@@ -21,7 +22,7 @@ from ..models import (
     TitProf,
     Usuario,
 )
-from ..security import gerar_hash
+from ..security import gerar_hash, usuario_atual
 from ..services.notificacoes import agendar_entrega, criar_para_todos
 
 router = APIRouter(prefix="/professores", tags=["professores"])
@@ -229,7 +230,9 @@ def atualizar(cod_pro: int, dados: ProfessorInput, db: Session = Depends(get_db)
 
 
 @router.delete("/{cod_pro}")
-def excluir(cod_pro: int, db: Session = Depends(get_db)):
+def excluir(cod_pro: int, db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     prof = db.get(Professor, cod_pro)
     if not prof:
         raise HTTPException(404, "Professor não encontrado")
@@ -259,6 +262,7 @@ def excluir(cod_pro: int, db: Session = Depends(get_db)):
     db.execute(MatProf.__table__.delete().where(MatProf.cod_pro == cod_pro))
     db.execute(TitProf.__table__.delete().where(TitProf.cod_pro == cod_pro))
     db.delete(prof)
+    auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="professor", entidade_id=cod_pro, detalhes=str(prof.nome or ""))
     db.commit()
     return {"ok": True}
 

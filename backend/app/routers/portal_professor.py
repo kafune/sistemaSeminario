@@ -1,7 +1,6 @@
 """Painel e espaço de trabalho do professor."""
 
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,7 +8,6 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, load_only
 
 from ..tempo import agora_utc
-from ..config import settings
 from ..database import get_db
 from ..models import (
     Aluno,

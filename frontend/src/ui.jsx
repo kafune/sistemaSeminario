@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Skeleton,
   TableCell, TableRow, Typography, useMediaQuery, useTheme,
 } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import { TOV, focusRing } from './theme'
 
 export const resetBotao = {
@@ -33,7 +35,9 @@ export function useDialogoTelaCheia() {
  */
 export function useTelaDesktop() {
   const theme = useTheme()
-  return useMediaQuery(theme.breakpoints.up('tablet'), { noSsr: true })
+  // Alinhado à trilha de navegação (`sm`): entre 600 e 767px o produto tinha
+  // navegação de tablet com lista de celular — cartões de 705px para três dados.
+  return useMediaQuery(theme.breakpoints.up('sm'), { noSsr: true })
 }
 
 const PREFIXO_PREFERENCIA = 'tov.pref.'
@@ -85,6 +89,18 @@ export function GrupoSegmentado({ rotulo, opcoes, valor, onChange, sx }) {
         border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusSm,
         bgcolor: TOV.surface, overflowX: 'auto', overscrollBehaviorInline: 'contain',
         scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
+        // Sem barra de rolagem visível, uma sombra na borda direita/esquerda
+        // diz que há opções escondidas (mesma técnica do container de tabela).
+        backgroundImage: [
+          `linear-gradient(to right, ${TOV.surface} 40%, ${TOV.surfaceTransparent})`,
+          `linear-gradient(to left, ${TOV.surface} 40%, ${TOV.surfaceTransparent})`,
+          `linear-gradient(to right, ${TOV.scrollShade}, ${TOV.scrollShadeEnd})`,
+          `linear-gradient(to left, ${TOV.scrollShade}, ${TOV.scrollShadeEnd})`,
+        ].join(', '),
+        backgroundPosition: 'left center, right center, left center, right center',
+        backgroundRepeat: 'no-repeat',
+        backgroundSize: '32px 100%, 32px 100%, 12px 100%, 12px 100%',
+        backgroundAttachment: 'local, local, scroll, scroll',
         ...sx,
       }}
     >
@@ -104,6 +120,8 @@ export function GrupoSegmentado({ rotulo, opcoes, valor, onChange, sx }) {
               color: ativo ? TOV.ink : TOV.caption,
               bgcolor: ativo ? TOV.surfaceMuted : 'transparent',
               borderLeft: indice > 0 ? `1px solid ${TOV.border}` : 0,
+              // Estado ativo também pela forma: filete coral na base, como na navegação.
+              boxShadow: ativo ? `inset 0 -3px 0 ${TOV.coral}` : 'none',
               '&:hover': ativo ? {} : { color: TOV.ink },
             }}
           >
@@ -133,19 +151,32 @@ export function SeletorDensidade({ valor, onChange, sx }) {
  * navegação inferior e no desktop respeita a sidebar.
  */
 export function BarraAcaoFixa({ visivel, resumo, selo, acoes, rotulo = 'Alterações pendentes' }) {
+  // A barra só encolhe para uma linha quando resumo e botões cabem lado a
+  // lado (~1100px), não em `sm`: entre 600 e 1050px um espaçador fixo deixava
+  // 17px da página permanentemente cobertos. Medir é mais barato que adivinhar.
+  const barraRef = useRef(null)
+  const [altura, setAltura] = useState(88)
+  useLayoutEffect(() => {
+    if (!visivel || !barraRef.current || typeof ResizeObserver === 'undefined') return undefined
+    const observador = new ResizeObserver(([entrada]) => {
+      setAltura(Math.ceil(entrada.contentRect.height) + 16)
+    })
+    observador.observe(barraRef.current)
+    return () => observador.disconnect()
+  }, [visivel])
   if (!visivel) return null
   return (
     <>
-      {/* No celular a barra empilha resumo e botões: reserva mais altura. */}
-      <Box aria-hidden="true" sx={{ height: { xs: 148, sm: 88 } }} />
+      <Box aria-hidden="true" sx={{ height: altura }} />
       <Paper
+        ref={barraRef}
         role="region"
         aria-label={rotulo}
         elevation={0}
         sx={{
           position: 'fixed',
           zIndex: (theme) => theme.zIndex.appBar + 1,
-          left: { xs: 0, sm: `${TOV.railW}px`, md: `${TOV.sidebarW}px` },
+          left: { xs: 0, sm: `${TOV.railW}px`, lg: `${TOV.sidebarW}px` },
           right: 0,
           bottom: { xs: 'calc(66px + env(safe-area-inset-bottom))', sm: 0 },
           pb: { xs: 0, sm: 'env(safe-area-inset-bottom)' },
@@ -254,10 +285,17 @@ export function CabecalhoPagina({
               </Box>
             )}
           </Box>
-          {acoes && <Box sx={{ ...ACOES_CABECALHO, width: { xs: '100%', sm: 'auto' }, justifyContent: { sm: 'flex-end' } }}>{acoes}</Box>}
+          {/* No celular as ações quebram para a linha de baixo; a descrição
+              precisa ficar colada ao título, não depois do botão. */}
+          {texto != null && (
+            <Typography sx={{ display: { xs: 'block', sm: 'none' }, width: '100%', fontSize: TOV.type.bodySm, color: TOV.caption, maxWidth: '72ch', order: 1 }}>
+              {texto}
+            </Typography>
+          )}
+          {acoes && <Box sx={{ ...ACOES_CABECALHO, width: { xs: '100%', sm: 'auto' }, justifyContent: { sm: 'flex-end' }, order: 2 }}>{acoes}</Box>}
         </Box>
         {texto != null && (
-          <Typography sx={{ mt: 1, fontSize: TOV.type.bodySm, color: TOV.caption, maxWidth: '72ch' }}>
+          <Typography sx={{ display: { xs: 'none', sm: 'block' }, mt: 1, fontSize: TOV.type.bodySm, color: TOV.caption, maxWidth: '72ch' }}>
             {texto}
           </Typography>
         )}
@@ -551,7 +589,7 @@ export function EstadoVazio({
       <Box sx={{ width: 44, height: 44, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusFull, bgcolor: TOV.graphiteTint, color: TOV.graphite, mb: 1.5 }}>
         <Icone sx={{ fontSize: TOV.type.titleSm }} />
       </Box>
-      <Typography variant="h4" sx={{ fontSize: TOV.type.section, color: TOV.ink }}>{titulo}</Typography>
+      <Typography variant="h4" component="h2" sx={{ fontSize: TOV.type.section, color: TOV.ink }}>{titulo}</Typography>
       {descricao && <Typography sx={{ mt: 1, maxWidth: 480, fontSize: TOV.type.body }}>{descricao}</Typography>}
       {acao && <Box sx={{ mt: 2 }}>{acao}</Box>}
     </Box>
@@ -751,4 +789,48 @@ export function LinhaCartao({ rotulo, valor }) {
       </Box>
     </Box>
   )
+}
+
+/**
+ * O gesto de navegação mais repetido do produto, num vocabulário só: seta,
+ * grafite em repouso e coral no hover. Antes havia três variantes copiadas
+ * em sete arquivos.
+ */
+export function LinkVoltar({ para, rotulo, onClick, sx }) {
+  const navigate = useNavigate()
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick || (() => (para ? navigate(para) : navigate(-1)))}
+      sx={{
+        ...resetBotao, minHeight: 44, px: 0.5, mx: -0.5, mb: 1.5,
+        display: 'inline-flex', alignItems: 'center', gap: 0.5,
+        fontSize: TOV.type.body, fontWeight: 600, color: TOV.graphite,
+        borderRadius: TOV.radiusSm,
+        '&:hover': { color: TOV.coral },
+        '&:focus-visible': focusRing,
+        ...sx,
+      }}
+    >
+      <ArrowBackRoundedIcon sx={{ fontSize: TOV.type.section }} />
+      {rotulo}
+    </Box>
+  )
+}
+
+/**
+ * Ação de texto dentro de uma linha de tabela ("Editar", "Excluir"). Sublinhado
+ * pontilhado e alvo de 44px: sem isso a ação lia como texto corrido.
+ */
+export const acaoTabelaSx = {
+  ...resetBotao,
+  minHeight: 44, minWidth: 44, px: 0.5, mx: -0.5,
+  display: 'inline-flex', alignItems: 'center',
+  fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.graphite,
+  textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3,
+  borderRadius: TOV.radiusXs,
+  '&:hover': { color: TOV.coral, textDecorationStyle: 'solid' },
+  '&:focus-visible': focusRing,
+  '&:disabled': { color: TOV.caption, textDecoration: 'none', cursor: 'not-allowed' },
 }

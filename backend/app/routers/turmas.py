@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
+from ..security import usuario_atual
+from ..services import auditoria
 from ..database import get_db, row_to_dict
 from ..models import (
     Aluno,
@@ -119,7 +121,9 @@ def atualizar(cod_tur: int, dados: TurmaInput, db: Session = Depends(get_db)):
 
 
 @router.delete("/{cod_tur}")
-def excluir(cod_tur: int, db: Session = Depends(get_db)):
+def excluir(cod_tur: int, db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     turma = db.get(Turma, cod_tur)
     if not turma:
         raise HTTPException(404, "Turma não encontrada")
@@ -172,20 +176,15 @@ def excluir(cod_tur: int, db: Session = Depends(get_db)):
             400,
             f"Turma possui {tem_materiais} material(is) didático(s); remova-os antes.",
         )
-    tem_comunicados = db.scalar(
-        select(func.count())
-        .select_from(ComunicadoTurma)
-        .where(
+    # Comunicados só eram vistos pelo professor que os escreveu, e a secretaria
+    # não tinha onde removê-los: saem junto com a turma.
+    db.execute(
+        ComunicadoTurma.__table__.delete().where(
             ComunicadoTurma.docturma_id.in_(
                 select(DocTurma.id).where(DocTurma.cod_tur == cod_tur)
             )
         )
-    ) or 0
-    if tem_comunicados:
-        raise HTTPException(
-            400,
-            f"Turma possui {tem_comunicados} comunicado(s); remova-os antes.",
-        )
+    )
     ids_vinculos = select(DocTurma.id).where(DocTurma.cod_tur == cod_tur)
     ids_atividades = select(AtividadeAvaliativa.id).where(
         AtividadeAvaliativa.docturma_id.in_(ids_vinculos)
@@ -202,6 +201,7 @@ def excluir(cod_tur: int, db: Session = Depends(get_db)):
     )
     db.execute(DocTurma.__table__.delete().where(DocTurma.cod_tur == cod_tur))
     db.delete(turma)
+    auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="turma", entidade_id=cod_tur, detalhes=str(turma.nome or ""))
     db.commit()
     return {"ok": True}
 
@@ -414,16 +414,11 @@ def remover_materia(cod_tur: int, docturma_id: int, db: Session = Depends(get_db
             400,
             f"Este vínculo possui {tem_materiais} material(is) didático(s); remova-os antes.",
         )
-    tem_comunicados = db.scalar(
-        select(func.count())
-        .select_from(ComunicadoTurma)
-        .where(ComunicadoTurma.docturma_id == docturma_id)
-    ) or 0
-    if tem_comunicados:
-        raise HTTPException(
-            400,
-            f"Este vínculo possui {tem_comunicados} comunicado(s); remova-os antes.",
+    db.execute(
+        ComunicadoTurma.__table__.delete().where(
+            ComunicadoTurma.docturma_id == docturma_id
         )
+    )
     ids_atividades = select(AtividadeAvaliativa.id).where(
         AtividadeAvaliativa.docturma_id == docturma_id
     )

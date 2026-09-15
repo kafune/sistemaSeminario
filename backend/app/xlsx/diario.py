@@ -1,7 +1,6 @@
 import io
 import re
 import unicodedata
-from datetime import date
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, Side

@@ -153,7 +153,9 @@ class UazApiClient:
     def listar_mensagens(self, pasta_id: str) -> list[dict]:
         mensagens: list[dict] = []
         offset = 0
-        while True:
+        # Teto explícito: um ``totalRecords`` inconsistente não pode manter o
+        # laço buscando mil mensagens por vez dentro de uma requisição.
+        for _ in range(50):
             resposta = self._requisicao(
                 "POST",
                 "/sender/listmessages",
@@ -165,6 +167,7 @@ class UazApiClient:
             if not pagina or len(mensagens) >= total:
                 return mensagens
             offset += len(pagina)
+        return mensagens
 
     def listar_campanhas(self) -> list[dict]:
         resposta = self._requisicao("GET", "/sender/listfolders")

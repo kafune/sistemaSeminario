@@ -15,9 +15,8 @@ pago. Assim o banco nunca guarda um status que envelhece sozinho.
 
 import re
 import secrets
-import unicodedata
 from calendar import monthrange
-from datetime import date, datetime
+from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 from typing import NamedTuple
 
@@ -25,6 +24,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..tempo import agora_utc, hoje_local
+from ..consultas import normalizar_nome as _normalizar_nome
 from ..models import (
     Aluno,
     AluTurma,
@@ -112,10 +112,8 @@ def somente_digitos(valor: str | None) -> str:
     return re.sub(r"\D", "", valor or "")
 
 
-def normalizar_nome(valor: str | None) -> str:
-    sem_acento = unicodedata.normalize("NFKD", valor or "")
-    sem_acento = "".join(c for c in sem_acento if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", sem_acento).strip().upper()
+# Reexportado: a normalização vive em ``app.consultas`` porque o modelo a usa.
+normalizar_nome = _normalizar_nome
 
 
 # ---- datas -----------------------------------------------------------------
@@ -633,11 +631,11 @@ def _aluno_do_pagador(db: Session, transacao: TransacaoBancaria) -> Aluno | None
     nome = normalizar_nome(transacao.pagador_nome)
     if not nome:
         return None
-    candidatos = [
-        aluno
-        for aluno in db.scalars(select(Aluno).where(Aluno.nome.is_not(None)))
-        if normalizar_nome(aluno.nome) == nome
-    ]
+    # Coluna indexada mantida na escrita (ver ``Aluno.nome_normalizado``): antes
+    # cada aviso bancário varria a tabela inteira normalizando em Python.
+    candidatos = list(
+        db.scalars(select(Aluno).where(Aluno.nome_normalizado == nome).limit(2))
+    )
     # Homônimo não é identificação: com dois candidatos, quem decide é gente.
     return candidatos[0] if len(candidatos) == 1 else None
 

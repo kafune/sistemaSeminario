@@ -63,6 +63,10 @@ export const TOV = {
   onDarkBorderStrong: 'rgba(255,255,255,.45)',
   focusOnDark: 'rgba(255,154,154,.42)',
   darkHairline: 'rgba(20,22,24,.14)',
+  // Sombras de "há mais conteúdo" em containers que rolam na horizontal.
+  scrollShade: 'rgba(20,22,24,.14)',
+  scrollShadeEnd: 'rgba(20,22,24,0)',
+  surfaceTransparent: 'rgba(255,254,252,0)',
   darkGradient: 'linear-gradient(115deg, rgba(20,22,24,.26), rgba(44,50,54,0) 58%)',
   glassSurface: 'rgba(255,255,255,.94)',
   glassSurfaceSoft: 'rgba(255,255,255,.55)',
@@ -369,9 +373,15 @@ export const tovTheme = createTheme(
               boxShadow: `0 0 0 3px ${alpha(TOV.coral, 0.25)}`,
               '& .MuiOutlinedInput-notchedOutline': { borderColor: TOV.coral, borderWidth: 1.5 },
             },
+            // Erro difere do foco pela forma, não só pelo tom: borda dupla
+            // (2px) e, quando o campo em erro recebe foco, o anel é grafite.
             '&.Mui-error': {
               backgroundColor: alpha(TOV.danger, 0.025),
-              '& .MuiOutlinedInput-notchedOutline': { borderColor: TOV.danger },
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: TOV.danger, borderWidth: 2 },
+              '&.Mui-focused': {
+                boxShadow: `0 0 0 3px ${alpha(TOV.graphite, 0.22)}`,
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: TOV.danger, borderWidth: 2 },
+              },
             },
             '&.Mui-disabled': { backgroundColor: alpha(TOV.caption, 0.07) },
           },
@@ -449,7 +459,8 @@ export const tovTheme = createTheme(
         styleOverrides: {
           root: {
             transition: `background-color ${TOV.durationFast} ${TOV.ease}`,
-            '&.MuiTableRow-hover:hover': { backgroundColor: alpha(TOV.graphite, 0.035) },
+            // 3,5% era o retorno visual mais fraco do sistema, numa linha inteira clicável.
+            '&.MuiTableRow-hover:hover': { backgroundColor: alpha(TOV.graphite, 0.07) },
             '&:last-child td': { borderBottom: 0 },
           },
         },

@@ -475,6 +475,12 @@ def lancar(
                 mensagem="A nota final deve ficar entre 0 e 10",
             )
         if lanc.notas_atividades is None:
+            if atividades_por_id and lanc.nota is not None:
+                raise HTTPException(
+                    400,
+                    "Esta matéria tem atividades avaliativas: lance a nota por atividade, "
+                    "não a nota final.",
+                )
             continue
         ids_lancados = [item.atividade_id for item in lanc.notas_atividades]
         if len(ids_lancados) != len(set(ids_lancados)):

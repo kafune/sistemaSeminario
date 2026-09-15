@@ -3,9 +3,11 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from ..security import usuario_atual
+from ..services import auditoria
 from ..consultas import termo_like
 from ..tempo import hoje_local
 from ..database import get_db, row_to_dict
@@ -64,10 +66,10 @@ def listar(
     por_pagina = min(100, max(1, por_pagina))
     q = select(Aluno)
     if busca:
-        if busca.isdigit():
-            q = q.where(Aluno.cod_alu == int(busca))
-        else:
-            q = q.where(Aluno.nome.like(termo_like(busca), escape="\\"))
+        # Número procura pela matrícula **e** pelo nome: um nome que começa
+        # com dígito ou um trecho de telefone não deve devolver nada.
+        por_nome = Aluno.nome.like(termo_like(busca), escape="\\")
+        q = q.where(or_(Aluno.cod_alu == int(busca), por_nome) if busca.isdigit() else por_nome)
     if cod_tur:
         q = q.where(Aluno.cod_tur == cod_tur)
     if status:
@@ -163,7 +165,9 @@ def atualizar(cod_alu: int, dados: AlunoInput, db: Session = Depends(get_db)):
 
 
 @router.delete("/{cod_alu}")
-def excluir(cod_alu: int, db: Session = Depends(get_db)):
+def excluir(cod_alu: int, db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     aluno = db.get(Aluno, cod_alu)
     if not aluno:
         raise HTTPException(404, "Aluno não encontrado")
@@ -178,5 +182,6 @@ def excluir(cod_alu: int, db: Session = Depends(get_db)):
         )
     sincronizar_matricula(db, aluno, None)
     db.delete(aluno)
+    auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="aluno", entidade_id=cod_alu, detalhes=str(aluno.nome or ""))
     db.commit()
     return {"ok": True}

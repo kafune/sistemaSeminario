@@ -415,36 +415,6 @@ export default function Layout({ children }) {
 
   const tituloAtual = menuVisivel.find(estaAtivo)?.rotulo || 'TOV'
   const tituloForaDaTela = useTituloForaDaTela(location.pathname)
-  const valorNavegacao = location.pathname === '/'
-    ? '/'
-    : location.pathname === '/professor'
-      ? '/professor'
-    : location.pathname.startsWith('/professor/turmas')
-      ? '/professor/turmas'
-    : location.pathname.startsWith('/materiais')
-      ? '/materiais'
-    : location.pathname.startsWith('/notas')
-      ? '/notas'
-    : location.pathname.startsWith('/financeiro')
-      ? '/financeiro'
-    : location.pathname.startsWith('/alunos')
-      ? '/alunos'
-        : location.pathname.startsWith('/turmas')
-          ? '/turmas'
-          : location.pathname.startsWith('/leads')
-            ? '/leads'
-          : 'mais'
-
-  // Título da aba acompanha a seção e o scroll volta ao topo a cada rota.
-  useEffect(() => {
-    document.title = `${tituloAtual} · TOV Acadêmico`
-    window.scrollTo(0, 0)
-    const quadro = window.requestAnimationFrame(() => {
-      conteudoPrincipalRef.current?.focus({ preventScroll: true })
-    })
-    return () => window.cancelAnimationFrame(quadro)
-  }, [location.pathname, tituloAtual])
-
   const acoesInferiores = (
     perfil === 'PROFESSOR' ? [
       <BottomNavigationAction key="/professor" label="Início" value="/professor" icon={<SpaceDashboardIcon />} />,
@@ -462,6 +432,42 @@ export default function Layout({ children }) {
       <BottomNavigationAction key="/turmas" label="Turmas" value="/turmas" icon={<GroupsIcon />} />,
     ]
   )
+
+  // Rota atual reduzida ao item da barra que a representa. Só valores que a
+  // barra deste perfil realmente exibe; qualquer outra rota vive em "Mais".
+  const rotaResumida = location.pathname === '/'
+    ? '/'
+    : location.pathname === '/professor'
+      ? '/professor'
+    : location.pathname.startsWith('/professor/turmas')
+      ? '/professor/turmas'
+    : location.pathname.startsWith('/materiais')
+      ? '/materiais'
+    : location.pathname.startsWith('/notas')
+      ? '/notas'
+    : location.pathname.startsWith('/financeiro')
+      ? '/financeiro'
+    : location.pathname.startsWith('/alunos')
+      ? '/alunos'
+        : location.pathname.startsWith('/turmas')
+          ? '/turmas'
+          : location.pathname.startsWith('/leads')
+            ? '/leads'
+            : location.pathname.startsWith('/whatsapp')
+              ? '/whatsapp'
+          : 'mais'
+  const valoresDaBarra = acoesInferiores.map((acao) => acao.props.value)
+  const valorNavegacao = valoresDaBarra.includes(rotaResumida) ? rotaResumida : 'mais'
+
+  // Título da aba acompanha a seção e o scroll volta ao topo a cada rota.
+  useEffect(() => {
+    document.title = `${tituloAtual} · TOV Acadêmico`
+    window.scrollTo(0, 0)
+    const quadro = window.requestAnimationFrame(() => {
+      conteudoPrincipalRef.current?.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(quadro)
+  }, [location.pathname, tituloAtual])
 
   const conteudoMenu = (
     <>
@@ -640,13 +646,22 @@ export default function Layout({ children }) {
             />
           ))}
         </Box>
-        <Box sx={{ flex: '0 0 auto', pt: 0.5, borderTop: `1px solid ${TOV.onDarkBorder}` }}>
+        <Box sx={{ flex: '0 0 auto', pt: 0.5, borderTop: `1px solid ${TOV.onDarkBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
           <ItemTrilha
             icone={MoreHorizIcon}
             rotulo="Mais"
             rotuloAcessivel="Abrir menu completo"
             ativo={false}
             onClick={() => setMenuAberto(true)}
+          />
+          {/* Sair direto da trilha: no tablet, antes, exigia descobrir que
+              "Mais" abre um menu que tem um rodapé que rola. */}
+          <ItemTrilha
+            icone={LogoutIcon}
+            rotulo="Sair"
+            rotuloAcessivel={`Sair do sistema (${usuario})`}
+            ativo={false}
+            onClick={sair}
           />
         </Box>
       </Box>

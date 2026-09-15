@@ -1,6 +1,5 @@
 """Biblioteca de materiais das matérias e de aulas específicas."""
 
-from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 

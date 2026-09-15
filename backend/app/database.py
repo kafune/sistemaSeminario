@@ -1,12 +1,36 @@
 from decimal import Decimal
+from functools import lru_cache
 
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import settings
 
-engine = create_engine(settings.database_url, pool_pre_ping=True, pool_recycle=3600)
-SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+
+@lru_cache(maxsize=1)
+def get_engine():
+    """Motor criado na primeira necessidade, não na importação.
+
+    Importar um router (nos testes, com SQLite) não deve exigir ``pymysql``
+    nem uma URL de MySQL resolvível.
+    """
+    return create_engine(settings.database_url, pool_pre_ping=True, pool_recycle=3600)
+
+
+_fabrica = sessionmaker(autoflush=False, expire_on_commit=False)
+
+
+def SessionLocal(**opcoes) -> Session:
+    """Sessão ligada ao motor real; mantém a assinatura ``SessionLocal()``."""
+    return _fabrica(bind=get_engine(), **opcoes)
+
+
+def __getattr__(nome: str):
+    # ``from .database import engine`` continua funcionando, mas só cria o
+    # motor quando alguém de fato pede por ele.
+    if nome == "engine":
+        return get_engine()
+    raise AttributeError(nome)
 
 
 class Base(DeclarativeBase):

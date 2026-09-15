@@ -7,8 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import timedelta
 
 from pywebpush import WebPushException, webpush
 from sqlalchemy import delete, func, select

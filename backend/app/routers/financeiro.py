@@ -10,17 +10,19 @@ Três públicos usam este router:
   segredo compartilhado.
 """
 
+import hashlib
 import hmac
 import json
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
+from ..services import auditoria
 from ..consultas import termo_like
 from ..tempo import agora_utc, hoje_local
 from ..config import settings
@@ -550,6 +552,7 @@ def alterar_status(
     cobranca_id: int,
     dados: StatusInput,
     db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
 ):
     """Cancela, isenta ou reabre um título — pagar é sempre pelo pagamento."""
     novo = (dados.status or "").upper()
@@ -564,12 +567,17 @@ def alterar_status(
         )
     cobranca.status = novo
     servico.sincronizar_status(db, cobranca)
+    auditoria.registrar(db, usuario=usuario, acao="ALTERAR_STATUS", entidade="cobranca", entidade_id=cobranca_id, detalhes=f"-> {novo}")
     db.commit()
     return servico.cobranca_dict(cobranca, pago, hoje_local())
 
 
 @router.delete("/cobrancas/{cobranca_id}")
-def excluir_cobranca(cobranca_id: int, db: Session = Depends(get_db)):
+def excluir_cobranca(
+    cobranca_id: int,
+    db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     cobranca = _cobranca_ou_404(db, cobranca_id)
     if servico.total_pago(db, cobranca.id) > servico.ZERO:
         raise HTTPException(
@@ -584,6 +592,7 @@ def excluir_cobranca(cobranca_id: int, db: Session = Depends(get_db)):
     if vinculadas:
         raise HTTPException(400, "Há recebimento bancário conciliado com esta cobrança.")
     db.delete(cobranca)
+    auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="cobranca", entidade_id=cobranca_id, detalhes=f"{cobranca.descricao} R$ {cobranca.valor}")
     db.commit()
     return {"ok": True}
 
@@ -685,7 +694,11 @@ def listar_pagamentos(cobranca_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/pagamentos/{pagamento_id}")
-def estornar_pagamento(pagamento_id: int, db: Session = Depends(get_db)):
+def estornar_pagamento(
+    pagamento_id: int,
+    db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     pagamento = db.get(Pagamento, pagamento_id)
     if not pagamento:
         raise HTTPException(404, "Pagamento não encontrado")
@@ -704,6 +717,7 @@ def estornar_pagamento(pagamento_id: int, db: Session = Depends(get_db)):
     db.flush()
     if cobranca:
         servico.sincronizar_status(db, cobranca)
+    auditoria.registrar(db, usuario=usuario, acao="ESTORNAR", entidade="pagamento", entidade_id=pagamento_id, detalhes=f"cobranca {pagamento.cobranca_id} R$ {pagamento.valor}")
     db.commit()
     return {"ok": True}
 
@@ -832,6 +846,7 @@ def salvar_plano(
     plano.observacao = dados.observacao
     plano.atualizado_em = agora_utc()
     plano.atualizado_por = usuario
+    auditoria.registrar(db, usuario=usuario, acao="SALVAR_PLANO", entidade="turma", entidade_id=cod_tur, detalhes=f"matricula {dados.valor_matricula} mensalidade {dados.valor_mensalidade} x{dados.parcelas}")
     db.commit()
     db.refresh(plano)
     return _plano_dict(plano)
@@ -1144,6 +1159,7 @@ def gerar_acesso_do_aluno(cod_alu: int, db: Session = Depends(get_db)):
     acesso = db.scalar(
         select(AcessoFinanceiroAluno).where(AcessoFinanceiroAluno.cod_alu == cod_alu)
     )
+    substituiu_anterior = acesso is not None and acesso.ativo == "S" and bool(acesso.token)
     if acesso is None:
         acesso = AcessoFinanceiroAluno(cod_alu=cod_alu, criado_em=agora_utc())
         db.add(acesso)
@@ -1151,7 +1167,8 @@ def gerar_acesso_do_aluno(cod_alu: int, db: Session = Depends(get_db)):
     acesso.ativo = "S"
     acesso.criado_em = agora_utc()
     db.commit()
-    return {"token": acesso.token}
+    # Regerar derruba o link já enviado ao aluno: a tela precisa avisar.
+    return {"token": acesso.token, "substituiu_anterior": substituiu_anterior}
 
 
 @router.delete("/alunos/{cod_alu}/acesso")
@@ -1399,7 +1416,36 @@ def extrato_publico(token: str, db: Session = Depends(get_db)):
 
 # ---- webhook do banco ------------------------------------------------------
 
-def _validar_segredo_banco(x_webhook_secret: str | None = Header(default=None)) -> None:
+# Janela aceita para o carimbo que acompanha a assinatura do corpo.
+TOLERANCIA_ASSINATURA_SEGUNDOS = 300
+
+
+def validar_assinatura_banco(
+    corpo: bytes,
+    assinatura: str | None,
+    carimbo: str | None,
+    *,
+    segredo: str,
+    agora: int | None = None,
+) -> None:
+    """HMAC-SHA256 de ``"{carimbo}.{corpo}"`` com o segredo, dentro da janela."""
+    try:
+        emitido_em = int(carimbo or "")
+    except ValueError:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Carimbo da assinatura ausente")
+    agora = int(datetime.now(tz=timezone.utc).timestamp()) if agora is None else agora
+    if abs(agora - emitido_em) > TOLERANCIA_ASSINATURA_SEGUNDOS:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Assinatura expirada")
+    esperado = hmac.new(
+        segredo.encode(), f"{emitido_em}.".encode() + corpo, hashlib.sha256
+    ).hexdigest()
+    recebido = (assinatura or "").split("=", 1)[-1].strip().lower()
+    if not hmac.compare_digest(recebido, esperado):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Assinatura inválida")
+
+
+def validar_segredo_banco(x_webhook_secret: str | None) -> str:
+    """Segredo compartilhado simples; devolve o segredo configurado."""
     segredo = settings.banco_webhook_secret
     if not segredo:
         raise HTTPException(
@@ -1408,6 +1454,33 @@ def _validar_segredo_banco(x_webhook_secret: str | None = Header(default=None)) 
         )
     if not x_webhook_secret or not hmac.compare_digest(x_webhook_secret, segredo):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Segredo inválido")
+    return segredo
+
+
+async def _validar_segredo_banco(
+    request: Request,
+    x_webhook_secret: str | None = Header(default=None),
+    x_webhook_signature: str | None = Header(default=None),
+    x_webhook_timestamp: str | None = Header(default=None),
+) -> None:
+    """Aceita o segredo compartilhado ou, melhor, uma assinatura do corpo.
+
+    Com ``X-Webhook-Signature: sha256=<hmac>`` e ``X-Webhook-Timestamp``, quem
+    capturar uma requisição não consegue forjar outra nem repetir esta fora
+    da janela. O header simples continua valendo para PSPs que não assinam.
+    """
+    segredo = settings.banco_webhook_secret
+    if not segredo:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Integração bancária não configurada",
+        )
+    if x_webhook_signature:
+        validar_assinatura_banco(
+            await request.body(), x_webhook_signature, x_webhook_timestamp, segredo=segredo
+        )
+        return
+    validar_segredo_banco(x_webhook_secret)
 
 
 def _registrar_transacao(

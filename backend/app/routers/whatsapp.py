@@ -2182,6 +2182,12 @@ def reenviar_falhos(
             409,
             "Não há destinatários elegíveis com falha para reenviar.",
         )
+    limite_massa = max(1, settings.whatsapp_mass_max_recipients)
+    if len(falhos) > limite_massa:
+        raise HTTPException(
+            400,
+            f"O reenvio alcançaria {len(falhos)} destinatários; o limite é {limite_massa}.",
+        )
     conteudo = json.loads(original.conteudo_json)
     agora = _agora()
     novo = WhatsappDisparo(

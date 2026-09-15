@@ -1,4 +1,7 @@
-import { Box, Button, Typography } from '@mui/material'
+import { useState } from 'react'
+import { Box, Button, IconButton, Typography } from '@mui/material'
+import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import { TOV, focusRing } from '../theme'
 
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
@@ -43,8 +46,55 @@ function dataLegivel(iso) {
   return texto.charAt(0).toUpperCase() + texto.slice(1)
 }
 
-/** Lista cronológica, pensada para leitura e toque no celular. */
+/** Semanas do mês (domingo a sábado), recortadas nos limites do mês. */
+export function semanasDoMes(mes) {
+  const primeiro = new Date(mes.getFullYear(), mes.getMonth(), 1)
+  const ultimo = new Date(mes.getFullYear(), mes.getMonth() + 1, 0)
+  const cursor = new Date(primeiro)
+  cursor.setDate(primeiro.getDate() - primeiro.getDay())
+  const semanas = []
+  while (cursor <= ultimo) {
+    const fim = new Date(cursor)
+    fim.setDate(cursor.getDate() + 6)
+    semanas.push({
+      inicio: isoLocal(cursor < primeiro ? primeiro : cursor),
+      fim: isoLocal(fim > ultimo ? ultimo : fim),
+    })
+    cursor.setDate(cursor.getDate() + 7)
+  }
+  return semanas
+}
+
+function rotuloSemana({ inicio, fim }) {
+  const de = new Date(`${inicio}T12:00:00`)
+  const ate = new Date(`${fim}T12:00:00`)
+  const mesCurto = de.toLocaleDateString('pt-BR', { month: 'short' })
+  if (inicio === fim) return `${de.getDate()} de ${mesCurto}`
+  return `Semana de ${de.getDate()} a ${ate.getDate()} de ${mesCurto}`
+}
+
+/**
+ * Lista cronológica, pensada para leitura e toque no celular.
+ *
+ * Mostra uma semana por vez: o mês inteiro numa página só chegava a 18 mil
+ * pixels de rolagem. Abre na semana de hoje (ou na primeira do mês) e
+ * "Ver mês inteiro" devolve a lista completa a quem preferir.
+ */
 export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
+  const semanas = semanasDoMes(mes)
+  const chaveMes = `${mes.getFullYear()}-${mes.getMonth()}`
+  const hoje = isoLocal(new Date())
+  const indiceHoje = semanas.findIndex((semana) => semana.inicio <= hoje && hoje <= semana.fim)
+  // A escolha guarda a chave do mês: ao trocar de mês volta ao padrão sem efeito.
+  const [selecao, setSelecao] = useState(null)
+  const [mesInteiro, setMesInteiro] = useState(false)
+  const indiceSemana = selecao?.chave === chaveMes ? selecao.indice : Math.max(indiceHoje, 0)
+  const semana = semanas[indiceSemana]
+  const mudarSemana = (passo) => setSelecao({
+    chave: chaveMes,
+    indice: Math.min(semanas.length - 1, Math.max(0, indiceSemana + passo)),
+  })
+
   const doMes = [...aulas]
     .filter((aula) => {
       const data = new Date(`${aula.data}T12:00:00`)
@@ -70,9 +120,36 @@ export function CalendarioAgenda({ mes, aulas, onSelecionar, onNovo }) {
     )
   }
 
+  const visiveis = [...grupos.entries()]
+    .filter(([data]) => mesInteiro || (data >= semana.inicio && data <= semana.fim))
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      {[...grupos.entries()].map(([data, eventos]) => (
+      <Box role="group" aria-label="Recorte da agenda" sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+        {!mesInteiro && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: '1 1 auto', minWidth: 0 }}>
+            <IconButton aria-label="Semana anterior" title="Semana anterior" disabled={indiceSemana === 0} onClick={() => mudarSemana(-1)}>
+              <ChevronLeftRoundedIcon />
+            </IconButton>
+            <Typography aria-live="polite" sx={{ flex: 1, minWidth: 0, textAlign: 'center', fontSize: TOV.type.body, fontWeight: 700 }}>
+              {rotuloSemana(semana)}
+            </Typography>
+            <IconButton aria-label="Próxima semana" title="Próxima semana" disabled={indiceSemana === semanas.length - 1} onClick={() => mudarSemana(1)}>
+              <ChevronRightRoundedIcon />
+            </IconButton>
+          </Box>
+        )}
+        <Button size="small" variant="text" onClick={() => setMesInteiro((atual) => !atual)} aria-pressed={mesInteiro} sx={{ ml: 'auto' }}>
+          {mesInteiro ? 'Ver por semana' : 'Ver mês inteiro'}
+        </Button>
+      </Box>
+      {!visiveis.length && (
+        <Box sx={{ bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusMd, p: 3, textAlign: 'center' }}>
+          <Typography variant="h3" sx={{ fontSize: TOV.type.section }}>Nenhuma aula nesta semana</Typography>
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mt: 1 }}>Avance para outra semana ou veja o mês inteiro.</Typography>
+        </Box>
+      )}
+      {visiveis.map(([data, eventos]) => (
         <Box key={data} sx={{ bgcolor: TOV.surface, border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusMd, overflow: 'hidden' }}>
           <Box sx={{ px: 2, py: 1.5, bgcolor: TOV.canvas, display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography
@@ -174,7 +251,8 @@ export default function CalendarioGrade({ mes, aulas, onSelecionar, onNovo }) {
               role={onNovo ? 'button' : undefined}
               aria-label={onNovo ? `Nova aula em ${dataLegivel(iso)}` : undefined}
               sx={{
-                minHeight: 118, p: 1, borderRight: `1px solid ${TOV.border}`,
+                // 88 e não 118: semana sem aula não precisa de 40% da altura da grade.
+                minHeight: 88, p: 1, borderRight: `1px solid ${TOV.border}`,
                 borderBottom: `1px solid ${TOV.border}`, bgcolor: fora ? TOV.canvas : TOV.surfaceElevated,
                 '&:focus-visible': focusRing,
               }}

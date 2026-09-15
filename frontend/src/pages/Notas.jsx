@@ -567,22 +567,26 @@ export default function Notas() {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ width: 60 }}>#</TableCell>
-                  <TableCell>Aluno</TableCell>
+                  {/* O nome do aluno fica com a largura que sobra; as colunas
+                      numéricas ocupam só o que o campo de dois dígitos pede. */}
+                  <TableCell sx={{ minWidth: 220, width: '100%' }}>Aluno</TableCell>
                   {atividades.length === 0 ? (
-                    <TableCell sx={{ width: 120 }}>Nota (0–10)</TableCell>
+                    <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>Nota (0–10)</TableCell>
                   ) : (
                     <>
                       {atividades.map((atividade) => (
-                        <TableCell key={atividade.id} sx={{ width: 120 }}>
-                          <Box sx={{ fontWeight: 700 }}>{atividade.nome}</Box>
+                        <TableCell key={atividade.id} sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                          {/* Nome numa linha só, com reticências e o nome inteiro no
+                              tooltip: cinco linhas de nome davam um cabeçalho de 165px. */}
+                          <Box title={atividade.nome} sx={{ fontWeight: 700, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{atividade.nome}</Box>
                           <Box sx={{ color: TOV.caption, fontSize: TOV.type.overline, mt: 0.5 }}>{rotuloTipo(atividade.tipo)} · até {formatarPontos(atividade.valor_maximo)}</Box>
                         </TableCell>
                       ))}
-                      <TableCell sx={{ width: 90 }}>Total</TableCell>
+                      <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>Total</TableCell>
                     </>
                   )}
-                  <TableCell sx={{ width: 120 }}>Faltas</TableCell>
-                  <TableCell sx={{ width: 110 }}>Cursou</TableCell>
+                  <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>Faltas</TableCell>
+                  <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>Cursou</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

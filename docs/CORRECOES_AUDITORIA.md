@@ -100,8 +100,18 @@ tabela com sublinhado e 44px), E11 (`LinkVoltar` compartilhado), E15, F3
 G2 (nome do aluno é botão focável), G4, H2 (colunas de perfil e professor em
 Usuários), H9 (hover de 7%), H14 (barra fixa mede a própria altura), I9.
 
+### Terceira rodada (também corrigidos)
+
+B6/H3 (agenda do celular por semana, com "Ver mês inteiro"; células da grade
+mais baixas), D7 (`DialogoTitulo` com ✕ nos 30 diálogos), E2 (parcial:
+`GrupoSegmentado` na central de notificações e no passo 2 do WhatsApp), E9,
+E10, E12 (busca de matérias na `BarraFiltros`), E14, H1, H4, H5, H7 (filtros
+de leads recolhidos no celular), H8, H10 (cabeçalho da grade de notas em
+duas linhas curtas), H11, H12, I6 (ids internos fora da tela), J1 (preload
+das fontes injetado pelo build), J2.
+
 ### Não feitos
 
-B6/H3 (paginação e recorte por semana no calendário), D7 (✕ nos diálogos),
-E2, E9, E10, E12, E14, H1, H4–H8, H10–H12, I6, J1 (pré-carregar fontes exige
-plugin no Vite), J3 (CORS em 409 — não reproduzido).
+H6 (ponto separador órfão — CSS não sabe quando a linha quebra), J3 (CORS
+em 409 — não reproduzido), E2 completo (abas e selects restantes são
+vocabulários legítimos para o que fazem).

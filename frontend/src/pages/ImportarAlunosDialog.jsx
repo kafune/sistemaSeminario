@@ -399,26 +399,28 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
               </Typography>
               <input ref={inputArquivo} hidden type="file" accept=".xlsx,.xls,.csv"
                 onChange={(e) => { setArquivo(e.target.files?.[0] || null); setResultadoArquivo(null) }} />
-              <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap', mt: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mt: 2 }}>
                 <Button variant="outlined" startIcon={<UploadFileIcon />} disabled={!!processando || previaPronta}
                   onClick={() => inputArquivo.current?.click()}>
                   Selecionar arquivo
                 </Button>
-                <Typography sx={{ color: arquivo ? TOV.ink : TOV.caption, fontSize: TOV.type.body, overflowWrap: 'anywhere' }}>
-                  {arquivo?.name || 'Nenhum arquivo selecionado'}
-                </Typography>
                 <Button variant="contained" disabled={!arquivo || !!processando || previaPronta} onClick={importarArquivo}
                   startIcon={enviandoArquivo ? <CircularProgress size={16} color="inherit" /> : null}>
                   {enviandoArquivo ? 'Importando…' : 'Importar arquivo'}
                 </Button>
               </Box>
+              {/* Fora da linha dos botões: na mesma base, o texto lia como um
+                  terceiro botão desabilitado. */}
+              <Typography sx={{ mt: 1, color: arquivo ? TOV.ink : TOV.caption, fontSize: TOV.type.caption, overflowWrap: 'anywhere' }}>
+                {arquivo?.name || 'Nenhum arquivo selecionado'}
+              </Typography>
               <Resumo resultado={resultadoArquivo} />
             </Box>
           </Box>
         </Box>
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 1.5 }}>
-        <Button variant="outlined" onClick={aoFechar} disabled={!!processando}>Fechar</Button>
+        <Button variant="text" onClick={aoFechar} disabled={!!processando}>Fechar</Button>
       </DialogActions>
     </Dialog>
   )

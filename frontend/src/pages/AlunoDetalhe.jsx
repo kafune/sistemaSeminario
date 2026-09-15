@@ -8,6 +8,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import DescriptionIcon from '@mui/icons-material/Description'
 import EditIcon from '@mui/icons-material/Edit'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
+import OpenInNewRoundedIcon from '@mui/icons-material/OpenInNewRounded'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
@@ -137,7 +138,7 @@ export default function AlunoDetalhe() {
       <LinkVoltar para="/alunos" rotulo="Voltar para Alunos" />
 
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 3.5 }}>
-        <Box sx={{ display: 'flex', gap: { xs: 2, md: 3 }, alignItems: 'center', minWidth: 0 }}>
+        <Box sx={{ display: 'flex', gap: { xs: 2, md: 3 }, alignItems: 'flex-start', minWidth: 0 }}>
           <AvatarIniciais
             nome={aluno.nome}
             sx={{
@@ -158,9 +159,9 @@ export default function AlunoDetalhe() {
         </Box>
         <Box
           sx={{
-            display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'flex-end',
+            display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'stretch',
             width: { xs: '100%', md: 'auto' },
-            '& > button': { flex: { xs: '1 1 42%', sm: '0 0 auto' } },
+            '& > button': { flex: { xs: '1 1 42%', sm: '0 0 auto' }, whiteSpace: 'nowrap' },
           }}
         >
           <Button
@@ -171,14 +172,16 @@ export default function AlunoDetalhe() {
           >
             Enviar mensagem
           </Button>
+          {/* Uma primária só: o atalho direto para o aplicativo é neutro, em
+              grafite, para não disputar com "Enviar mensagem" em coral. */}
           <Button
             variant="outlined"
             disabled={!whatsapp}
-            startIcon={<WhatsAppIcon />}
+            startIcon={<OpenInNewRoundedIcon />}
             onClick={() => window.open(`https://wa.me/${whatsapp}`, '_blank', 'noopener,noreferrer')}
-            sx={{ color: TOV.success, borderColor: TOV.success }}
+            sx={{ color: TOV.graphite, borderColor: TOV.border }}
           >
-            WhatsApp
+            Abrir no WhatsApp
           </Button>
           <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setEditando(true)}>Editar</Button>
           <Button

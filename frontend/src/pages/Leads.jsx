@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent,
+  Alert, Badge, Box, Button, Chip, Dialog, DialogActions, DialogContent,
   Grid, InputAdornment, MenuItem, Pagination, Snackbar, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import FileUploadIcon from '@mui/icons-material/FileUpload'
 import SearchIcon from '@mui/icons-material/Search'
+import FilterListIcon from '@mui/icons-material/FilterList'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
@@ -113,6 +114,10 @@ export default function Leads() {
   const [opcoes, setOpcoes] = useState({ origens: [], campanhas: [], tags: [] })
   const [busca, setBusca] = useState('')
   const [filtros, setFiltros] = useState({ status: '', origem: '', campanha: '', status_funil: '', consentimento: '' })
+  // No celular os cinco selects ficam atrás de "Filtrar": empilhados, somavam
+  // ~900px antes do primeiro lead. A busca continua sempre à vista.
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false)
+  const filtrosAtivos = Object.values(filtros).filter(Boolean).length
   const [pagina, setPagina] = useState(1)
   const [carregando, setCarregando] = useState(true)
   const [importacaoAberta, setImportacaoAberta] = useState(false)
@@ -210,6 +215,7 @@ export default function Leads() {
     }
   }
 
+  const SX_FILTRO_XS = { display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' } }
   const totalPaginas = Math.max(1, Math.ceil(dados.total / porPagina))
   const intervalo = useMemo(() => {
     if (!dados.total) return [0, 0]
@@ -241,24 +247,33 @@ export default function Leads() {
           onChange={(e) => { setBusca(e.target.value); setPagina(1) }}
           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
         />
-        <TextField select size="small" label="Status" value={filtros.status} onChange={(e) => mudarFiltro('status', e.target.value)} {...SELECT_FILTRO}>
+        <Button
+          variant="outlined"
+          startIcon={<Badge badgeContent={filtrosAtivos} color="primary"><FilterListIcon /></Badge>}
+          onClick={() => setFiltrosAbertos((aberto) => !aberto)}
+          aria-expanded={filtrosAbertos}
+          sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+        >
+          {filtrosAbertos ? 'Ocultar filtros' : 'Filtrar'}
+        </Button>
+        <TextField select size="small" label="Status" value={filtros.status} onChange={(e) => mudarFiltro('status', e.target.value)} {...SELECT_FILTRO} sx={SX_FILTRO_XS}>
           <MenuItem value="">Todos</MenuItem>
           <MenuItem value="ATIVO">Ativos</MenuItem>
           <MenuItem value="INATIVO">Inativos</MenuItem>
         </TextField>
-        <TextField select size="small" label="Origem" value={filtros.origem} onChange={(e) => mudarFiltro('origem', e.target.value)} {...SELECT_FILTRO}>
+        <TextField select size="small" label="Origem" value={filtros.origem} onChange={(e) => mudarFiltro('origem', e.target.value)} {...SELECT_FILTRO} sx={SX_FILTRO_XS}>
           <MenuItem value="">Todas</MenuItem>
           {opcoes.origens?.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Campanha" value={filtros.campanha} onChange={(e) => mudarFiltro('campanha', e.target.value)} {...SELECT_FILTRO}>
+        <TextField select size="small" label="Campanha" value={filtros.campanha} onChange={(e) => mudarFiltro('campanha', e.target.value)} {...SELECT_FILTRO} sx={SX_FILTRO_XS}>
           <MenuItem value="">Todas</MenuItem>
           {opcoes.campanhas?.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Funil" value={filtros.status_funil} onChange={(e) => mudarFiltro('status_funil', e.target.value)} {...SELECT_FILTRO}>
+        <TextField select size="small" label="Funil" value={filtros.status_funil} onChange={(e) => mudarFiltro('status_funil', e.target.value)} {...SELECT_FILTRO} sx={SX_FILTRO_XS}>
           <MenuItem value="">Todos</MenuItem>
           {Object.entries(FUNIL).map(([valor, rotulo]) => <MenuItem key={valor} value={valor}>{rotulo}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Consentimento" value={filtros.consentimento} onChange={(e) => mudarFiltro('consentimento', e.target.value)} {...SELECT_FILTRO}>
+        <TextField select size="small" label="Consentimento" value={filtros.consentimento} onChange={(e) => mudarFiltro('consentimento', e.target.value)} {...SELECT_FILTRO} sx={SX_FILTRO_XS}>
           <MenuItem value="">Todos</MenuItem>
           {Object.entries(CONSENTIMENTO).map(([valor, [rotulo]]) => <MenuItem key={valor} value={valor}>{rotulo}</MenuItem>)}
         </TextField>

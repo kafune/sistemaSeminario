@@ -59,8 +59,10 @@ export default function AutocadastroProfessor() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: TOV.canvas }}>
-      <Box component="header" sx={{ bgcolor: TOV.graphite, color: TOV.onDark, px: 2, py: 2.5, borderTop: `4px solid ${TOV.ink}` }}>
-        <Box sx={{ maxWidth: 900, mx: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box component="header" sx={{ bgcolor: TOV.graphite, color: TOV.onDark, py: 2.5, borderTop: `4px solid ${TOV.ink}` }}>
+        {/* Mesmo container do cartão (largura e recuo): a faixa e o formulário
+            partem da mesma linha vertical. */}
+        <Box sx={{ maxWidth: 900, mx: 'auto', px: { xs: 1.5, sm: 3 }, display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <SchoolIcon />
           <Box>
             <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.title, lineHeight: 1.1 }}>
@@ -104,11 +106,13 @@ export default function AutocadastroProfessor() {
             </Typography>
 
             <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>Contato</Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5, mb: 3 }}>
-              <TextField required label="Nome completo" value={form.nome} onChange={(e) => alterar('nome', e.target.value)} sx={{ gridColumn: { sm: '1 / -1' } }} inputProps={{ maxLength: 100 }} />
-              <TextField required type="email" label="E-mail" value={form.e_mail} onChange={(e) => alterar('e_mail', e.target.value)} inputProps={{ maxLength: 100 }} />
-              <TextField required label="Celular / WhatsApp" value={form.celular} onChange={(e) => alterar('celular', e.target.value)} inputProps={{ maxLength: 20 }} />
-              <TextField label="Outro telefone" value={form.fone1} onChange={(e) => alterar('fone1', e.target.value)} inputProps={{ maxLength: 20 }} />
+            {/* Grade de 12 colunas em todas as seções: linha inteira, metades e
+                terços — nenhum campo de meia largura sobra ao lado do vazio. */}
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(12, minmax(0, 1fr))' }, gap: 1.5, mb: 3 }}>
+              <TextField required label="Nome completo" value={form.nome} onChange={(e) => alterar('nome', e.target.value)} sx={{ gridColumn: { sm: 'span 12' } }} inputProps={{ maxLength: 100 }} />
+              <TextField required type="email" label="E-mail" value={form.e_mail} onChange={(e) => alterar('e_mail', e.target.value)} sx={{ gridColumn: { sm: 'span 12' } }} inputProps={{ maxLength: 100 }} />
+              <TextField required label="Celular / WhatsApp" value={form.celular} onChange={(e) => alterar('celular', e.target.value)} sx={{ gridColumn: { sm: 'span 6' } }} inputProps={{ maxLength: 20 }} />
+              <TextField label="Outro telefone" value={form.fone1} onChange={(e) => alterar('fone1', e.target.value)} sx={{ gridColumn: { sm: 'span 6' } }} inputProps={{ maxLength: 20 }} />
             </Box>
 
             <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>Áreas de atuação</Typography>
@@ -125,7 +129,7 @@ export default function AutocadastroProfessor() {
             />
 
             <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>Dados pessoais</Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' }, gap: 1.5, mb: 3 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(12, minmax(0, 1fr))' }, gap: 1.5, mb: 3, '& > *': { gridColumn: { sm: 'span 4' } } }}>
               <TextField type="date" label="Data de nascimento" value={form.dat_nas} onChange={(e) => alterar('dat_nas', e.target.value)} InputLabelProps={{ shrink: true }} />
               <TextField select label="Sexo" value={form.sexo} onChange={(e) => alterar('sexo', e.target.value)}>
                 <MenuItem value="">Não informar</MenuItem>
@@ -139,13 +143,13 @@ export default function AutocadastroProfessor() {
             </Box>
 
             <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>Endereço</Typography>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(6, 1fr)' }, gap: 1.5, mb: 3 }}>
-              <TextField label="Endereço" value={form.endereco} onChange={(e) => alterar('endereco', e.target.value)} inputProps={{ maxLength: 100 }} sx={{ gridColumn: { sm: 'span 4' } }} />
-              <TextField label="Complemento" value={form.complemento} onChange={(e) => alterar('complemento', e.target.value)} inputProps={{ maxLength: 60 }} sx={{ gridColumn: { sm: 'span 2' } }} />
-              <TextField label="Bairro" value={form.bairro} onChange={(e) => alterar('bairro', e.target.value)} inputProps={{ maxLength: 60 }} sx={{ gridColumn: { sm: 'span 2' } }} />
-              <TextField label="Cidade" value={form.cidade} onChange={(e) => alterar('cidade', e.target.value)} inputProps={{ maxLength: 60 }} sx={{ gridColumn: { sm: 'span 2' } }} />
-              <TextField label="UF" value={form.uf} onChange={(e) => alterar('uf', e.target.value.toUpperCase())} inputProps={{ maxLength: 2 }} sx={{ gridColumn: { sm: 'span 1' } }} />
-              <TextField label="CEP" value={form.cep} onChange={(e) => alterar('cep', e.target.value)} inputProps={{ maxLength: 10 }} sx={{ gridColumn: { sm: 'span 1' } }} />
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(12, minmax(0, 1fr))' }, gap: 1.5, mb: 3 }}>
+              <TextField label="Endereço" value={form.endereco} onChange={(e) => alterar('endereco', e.target.value)} inputProps={{ maxLength: 100 }} sx={{ gridColumn: { sm: 'span 8' } }} />
+              <TextField label="Complemento" value={form.complemento} onChange={(e) => alterar('complemento', e.target.value)} inputProps={{ maxLength: 60 }} sx={{ gridColumn: { sm: 'span 4' } }} />
+              <TextField label="Bairro" value={form.bairro} onChange={(e) => alterar('bairro', e.target.value)} inputProps={{ maxLength: 60 }} sx={{ gridColumn: { sm: 'span 4' } }} />
+              <TextField label="Cidade" value={form.cidade} onChange={(e) => alterar('cidade', e.target.value)} inputProps={{ maxLength: 60 }} sx={{ gridColumn: { sm: 'span 4' } }} />
+              <TextField label="UF" value={form.uf} onChange={(e) => alterar('uf', e.target.value.toUpperCase())} inputProps={{ maxLength: 2 }} sx={{ gridColumn: { sm: 'span 2' } }} />
+              <TextField label="CEP" value={form.cep} onChange={(e) => alterar('cep', e.target.value)} inputProps={{ maxLength: 10 }} sx={{ gridColumn: { sm: 'span 2' } }} />
             </Box>
 
             {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}

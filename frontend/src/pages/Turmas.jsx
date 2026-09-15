@@ -34,8 +34,9 @@ function CardTurma({ turma, onClick }) {
         '&:focus-visible': focusRing,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Box component="span" sx={{ px: 1.5, py: 0.5, bgcolor: TOV.graphiteTint, color: TOV.graphite, borderRadius: TOV.radiusFull, fontSize: TOV.type.caption, fontWeight: 700 }}>#{turma.cod_tur}</Box>
+      {/* Altura reservada mesmo sem selo: o título fica na mesma base em todos
+          os cartões da grade. O id do banco não aparece — não diz nada a quem lê. */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minHeight: 28, mb: 2 }}>
         {/* O canto direito é o slot de estado: chamada aberta é o que pede
             ação hoje, e quem chega do painel reconhece a turma sem abrir uma
             por uma. O horário desce para a linha do curso. */}
@@ -128,7 +129,7 @@ export default function Turmas() {
             onClick={abrirForm}
             sx={{
               ...resetBotao,
-              bgcolor: 'transparent', border: `1px dashed ${TOV.borderHover}`, borderRadius: TOV.radiusMd, p: '24px 28px',
+              bgcolor: 'transparent', border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusMd, p: '24px 28px',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               color: TOV.caption, minHeight: 200,
               '&:hover': { borderColor: TOV.coral },

@@ -16,7 +16,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, enviarArquivoJson, getPerfil } from '../api'
 import { TOV, focusRing } from '../theme'
 import {
-  DialogoTitulo, CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio, Eyebrow, StatusBadge,
+  DialogoTitulo, CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio, Eyebrow, GrupoSegmentado, StatusBadge,
   cardSx, useDialogoTelaCheia,
 } from '../ui'
 import { dataDaApi, formatarDataHora } from '../formatters'
@@ -71,6 +71,7 @@ const TIPOS = [
   ['poll', 'Enquete'],
   ['carousel', 'Carrossel'],
 ]
+const OPCOES_TIPO = TIPOS.map(([valor, rotulo]) => ({ valor, rotulo }))
 
 function dataHora(iso) {
   if (!iso) return '—'
@@ -135,7 +136,7 @@ function CardInstancia({
             </Typography>
           )}
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' }, '& > *': { flexGrow: { xs: 1, sm: 0 } } }}>
           <Button
             variant="outlined" startIcon={<RefreshIcon />} disabled={carregando}
             onClick={onAtualizar}
@@ -893,16 +894,10 @@ function Compositor({
           </Box>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0,1fr)', lg: 'minmax(0,1.15fr) minmax(0,.85fr)' }, gap: 2.5, minWidth: 0 }}>
             <Box sx={{ minWidth: 0 }}>
-              <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
-                {TIPOS.map(([valor, label]) => (
-                  <Chip
-                    key={valor} clickable label={label} size="small"
-                    color={tipoMensagem === valor ? 'primary' : 'default'}
-                    variant={tipoMensagem === valor ? 'filled' : 'outlined'}
-                    onClick={() => setTipoMensagem(valor)}
-                    sx={{ fontWeight: tipoMensagem === valor ? 700 : 500 }}
-                  />
-                ))}
+              {/* Controle segmentado do sistema: rola na horizontal em vez de
+                  quebrar linha e deixar "Carrossel" sozinho embaixo. */}
+              <Box sx={{ mb: 1.5, minWidth: 0 }}>
+                <GrupoSegmentado rotulo="Tipo de mensagem" opcoes={OPCOES_TIPO} valor={tipoMensagem} onChange={setTipoMensagem} />
               </Box>
               {['image', 'document', 'audio'].includes(tipoMensagem) && (
                 <Box sx={{ border: `1px dashed ${TOV.border}`, borderRadius: TOV.radiusLg, p: 2, mb: 2, textAlign: 'center' }}>

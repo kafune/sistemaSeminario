@@ -201,9 +201,9 @@ export default function Professores() {
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
               <Box sx={{ minWidth: 0 }}>
                 <Box sx={{ fontWeight: 700, fontSize: TOV.type.bodyLg, lineHeight: 1.3 }}>{p.nome}</Box>
-                <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>
-                  Código {String(p.cod_pro).padStart(2, '0')}{p.sigla ? ` · ${p.sigla}` : ''}
-                </Box>
+                {p.sigla && (
+                  <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>{p.sigla}</Box>
+                )}
               </Box>
               <PilulaStatus status={p.status} sx={{ flexShrink: 0 }} />
             </Box>
@@ -222,40 +222,40 @@ export default function Professores() {
 
       {/* Tabela — desktop */}
       {telaDesktop && <TableContainer component={Box} sx={{ overflowX: 'auto' }}>
-        <Table sx={{ minWidth: 920 }}>
+        <Table sx={{ minWidth: 840 }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: 90 }}>Código</TableCell>
-              <TableCell>Nome</TableCell>
-              <TableCell sx={{ width: 90 }}>Sigla</TableCell>
-              <TableCell>Telefone</TableCell>
+              {/* O nome é a coluna que se lê; as que quase sempre trazem "—"
+                  ocupam só o que o conteúdo pede. */}
+              <TableCell sx={{ minWidth: 220 }}>Nome</TableCell>
+              <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>Sigla</TableCell>
+              <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>Telefone</TableCell>
               <TableCell>E-mail</TableCell>
-              <TableCell>Acesso</TableCell>
-              <TableCell>Áreas indicadas</TableCell>
+              <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>Acesso</TableCell>
+              <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>Áreas indicadas</TableCell>
               <TableCell sx={{ width: 110 }}>Status</TableCell>
               <TableCell align="right" sx={{ width: 190 }}>Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {carregando && professores.length === 0 && (
-              <LinhasSkeleton colunas={9} />
+              <LinhasSkeleton colunas={8} />
             )}
             {!carregando && erroCarga && (
-              <TableRow><TableCell colSpan={9} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar os professores" descricao={erroCarga} onTentarNovamente={carregar} /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar os professores" descricao={erroCarga} onTentarNovamente={carregar} /></TableCell></TableRow>
             )}
             {!carregando && !erroCarga && professores.length === 0 && (
-              <TableRow><TableCell colSpan={9} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></TableCell></TableRow>
             )}
             {professores.map((p) => (
               <TableRow key={p.cod_pro} hover>
-                <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{String(p.cod_pro).padStart(2, '0')}</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>{p.nome}</TableCell>
-                <TableCell sx={{ color: TOV.graphite }}>{p.sigla || '—'}</TableCell>
-                <TableCell sx={{ color: TOV.graphite }}>{p.fone1 || p.celular || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite, whiteSpace: 'nowrap' }}>{p.sigla || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite, whiteSpace: 'nowrap' }}>{p.fone1 || p.celular || '—'}</TableCell>
                 <TableCell sx={{ color: TOV.graphite }}>{p.e_mail || '—'}</TableCell>
-                <TableCell sx={{ color: TOV.graphite }}>{p.usuario_acesso || '—'}</TableCell>
-                <TableCell sx={{ color: TOV.graphite, maxWidth: 260 }}>
-                  <Box sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.materias_atuacao || ''}>
+                <TableCell sx={{ color: TOV.graphite, whiteSpace: 'nowrap' }}>{p.usuario_acesso || '—'}</TableCell>
+                <TableCell sx={{ color: TOV.graphite }}>
+                  <Box sx={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.materias_atuacao || ''}>
                     {p.materias_atuacao || '—'}
                   </Box>
                 </TableCell>

@@ -224,7 +224,7 @@ export default function FinanceiroTurma() {
         metadados={`${plural(dados.matriculados, 'aluno matriculado', 'alunos matriculados')}${dados.transferencias ? ` · ${dados.transferencias} de transferência` : ''}`}
         acoes={(
           <Button
-            variant="contained"
+            variant="outlined"
             startIcon={gerando ? <CircularProgress size={16} color="inherit" /> : <AutorenewIcon />}
             disabled={semPlano || gerando}
             onClick={() => setConfirmarGeracao(true)}

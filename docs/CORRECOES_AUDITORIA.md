@@ -58,10 +58,21 @@ sem número da linha, poll a cada 5 min; **K6** aviso em `docs/superpowers`.
 
 ### Não feitos
 
-- **F2** testes em MySQL; **G2/G3** remover `titprof`/`matprof` (exige
-  migração destrutiva); **C7** (lançamentos legados ambíguos); **C4** ficou
-  com flag e lock, não com Alembic; **F1** os desvios `isinstance(user, str)`
-  continuam nos routers (os testes antigos chamam as funções diretamente).
+### Terceira rodada
+
+**F2** a suíte roda também em MySQL 8.4 no CI (`tests/bancos.py`,
+`TOV_TEST_DATABASE_URL`; validada localmente em MariaDB 10.11); **G2/G3** o
+código de `matprof`/`titprof` foi removido (modelos, endpoint
+`PUT /professores/{id}/materias`, reparo e índice em `schema.py`); a ficha do
+professor passa a listar as matérias pelos vínculos das turmas. As duas
+tabelas continuam no banco, vazias e sem uso, até um `DROP TABLE` deliberado.
+
+### Não feitos
+
+- **C7** (lançamentos legados ambíguos); **C4** ficou com flag e lock, não
+  com Alembic — trocar o mecanismo de migração é um projeto à parte; **F1**
+  os desvios `isinstance(user, str)` continuam nos routers (os testes
+  antigos chamam as funções diretamente).
 
 ## AUDITORIA_VISUAL.md
 

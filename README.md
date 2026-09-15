@@ -213,7 +213,10 @@ chaves separadas para JWT e criptografia.
   [docs/financeiro.md](docs/financeiro.md).
 - **Testes, lint e CI.** Backend: `cd backend && ruff check . && python -m
   unittest discover -s tests -t .` (inclui a matriz de perfis pela camada
-  HTTP). Frontend: `npm run lint`, `npm test` (vitest) e `npm run build`
+  HTTP). A suíte usa SQLite em memória; com
+  `TOV_TEST_DATABASE_URL=mysql+pymysql://tov:tov@127.0.0.1:3306/tov_test`
+  ela roda contra um MySQL/MariaDB descartável (o CI faz isso num MySQL
+  8.4). Frontend: `npm run lint`, `npm test` (vitest) e `npm run build`
   (com `check:design` e o orçamento do bundle). `.github/workflows/ci.yml`
   roda tudo isso a cada push.
 Cada usuário troca a própria senha pelo menu do avatar (`POST /auth/trocar-senha`).

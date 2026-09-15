@@ -3,9 +3,7 @@ from datetime import date, datetime
 from unittest.mock import patch
 
 from fastapi import HTTPException
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.database import Base
 from app.models import (
@@ -20,15 +18,12 @@ from app.models import (
 )
 from app.routers import presencas
 from app.routers.notas import grade_por_vinculo
+from tests.bancos import engine_de_teste
 
 
 class PresencasTest(unittest.TestCase):
     def setUp(self):
-        self.engine = create_engine(
-            "sqlite://",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
+        self.engine = engine_de_teste()
         Base.metadata.create_all(self.engine)
         self.db = sessionmaker(bind=self.engine, expire_on_commit=False)()
         self.turma = Turma(nome="Teologia — Noturno", curso="Teologia")

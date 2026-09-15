@@ -7,7 +7,7 @@ from ..security import usuario_atual
 from ..services import auditoria
 from ..consultas import termo_like
 from ..database import get_db, row_to_dict
-from ..models import AluNota, DocTurma, Materia, MatProf
+from ..models import AluNota, DocTurma, Materia
 
 router = APIRouter(prefix="/materias", tags=["materias"])
 
@@ -70,7 +70,6 @@ def excluir(cod_mat: int, db: Session = Depends(get_db),
             400,
             f"Matéria está vinculada a {turmas} turma(s); remova os vínculos antes.",
         )
-    db.execute(MatProf.__table__.delete().where(MatProf.cod_mat == cod_mat))
     db.delete(mat)
     auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="materia", entidade_id=cod_mat, detalhes=str(mat.NOME or ""))
     db.commit()

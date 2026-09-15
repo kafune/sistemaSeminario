@@ -23,6 +23,39 @@ jobs:
       - run: ruff check .
       - run: python -m unittest discover -s tests -t . -v
 
+  backend-mysql:
+    name: Backend (unittest em MySQL 8.4)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: tov_test
+          MYSQL_USER: tov
+          MYSQL_PASSWORD: tov
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      # A mesma suíte, contra o banco de produção: with_for_update, LONGBLOB,
+      # LIKE com utf8mb4_unicode_ci e o caminho MySQL-only de schema.py.
+      - run: python -m unittest discover -s tests -t .
+        env:
+          TOV_TEST_DATABASE_URL: mysql+pymysql://tov:tov@127.0.0.1:3306/tov_test?charset=utf8mb4
+
   frontend:
     name: Frontend (design check, build, bundle budget)
     runs-on: ubuntu-latest

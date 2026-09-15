@@ -7,7 +7,7 @@ from .academico import (
     NotaAtividade,
     Turma,
 )
-from .pessoas import Aluno, Professor, MatProf, TitProf
+from .pessoas import Aluno, Professor
 from .auth import RegistroAuditoria, Usuario
 from .integracoes import (
     ConviteAcessoProfessor,
@@ -47,7 +47,7 @@ from .leads import (
 __all__ = [
     "Materia", "Turma", "AluTurma", "DocTurma", "AluNota",
     "AtividadeAvaliativa", "NotaAtividade",
-    "Aluno", "Professor", "MatProf", "TitProf", "RegistroAuditoria",
+    "Aluno", "Professor", "RegistroAuditoria",
     "Usuario", "ImportacaoGoogleForms", "ItemImportacaoGoogleForms",
     "ConviteProfessor", "ConviteAcessoProfessor",
     "Aula", "CalendarioPublico", "Chamada", "Presenca",

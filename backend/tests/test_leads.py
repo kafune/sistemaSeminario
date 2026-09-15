@@ -8,7 +8,7 @@ from zipfile import ZipFile
 
 from fastapi import HTTPException
 from starlette.datastructures import UploadFile
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
@@ -31,6 +31,7 @@ from app.routers.whatsapp import (
     _cancelar_campanhas_por_optout,
     _processar_interacoes_webhook,
 )
+from tests.bancos import engine_de_teste
 
 
 class ImportacaoLeadsTest(unittest.TestCase):
@@ -92,7 +93,7 @@ class ImportacaoLeadsTest(unittest.TestCase):
 
 class OptOutWebhookTest(unittest.TestCase):
     def setUp(self):
-        self.engine = create_engine("sqlite://")
+        self.engine = engine_de_teste()
         Base.metadata.create_all(self.engine)
         self.Session = sessionmaker(bind=self.engine, expire_on_commit=False)
 

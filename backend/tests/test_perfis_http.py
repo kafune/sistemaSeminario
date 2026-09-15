@@ -8,14 +8,13 @@ ele deve e não deve abrir.
 import unittest
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.database import Base, get_db
 from app.main import app
 from app.models import Usuario
 from app.security import gerar_hash
+from tests.bancos import engine_de_teste
 
 PERFIS = ("ADMIN", "SECRETARIA", "MARKETING", "FINANCEIRO", "PROFESSOR")
 
@@ -23,11 +22,7 @@ PERFIS = ("ADMIN", "SECRETARIA", "MARKETING", "FINANCEIRO", "PROFESSOR")
 class MatrizDePerfisTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.engine = create_engine(
-            "sqlite://",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
+        cls.engine = engine_de_teste()
         Base.metadata.create_all(cls.engine)
         cls.sessao = sessionmaker(bind=cls.engine, expire_on_commit=False)
         db = cls.sessao()

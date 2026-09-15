@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Skeleton,
+  Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper, Skeleton,
   TableCell, TableRow, Typography, useMediaQuery, useTheme,
 } from '@mui/material'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import { TOV, focusRing } from './theme'
 
 export const resetBotao = {
@@ -833,4 +834,29 @@ export const acaoTabelaSx = {
   '&:hover': { color: TOV.coral, textDecorationStyle: 'solid' },
   '&:focus-visible': focusRing,
   '&:disabled': { color: TOV.caption, textDecoration: 'none', cursor: 'not-allowed' },
+}
+
+/**
+ * Título de diálogo com o ✕ no canto. Sem ele, a única saída era o
+ * "Cancelar" do rodapé — que, num diálogo de tela cheia com seis etapas,
+ * fica depois de toda a rolagem.
+ */
+export function DialogoTitulo({ children, onFechar, desabilitado = false, id, sx }) {
+  return (
+    <DialogTitle id={id} sx={{ display: 'flex', alignItems: 'center', gap: 2, pr: 1.5, ...sx }}>
+      <Box component="span" sx={{ flex: '1 1 auto', minWidth: 0, overflowWrap: 'anywhere' }}>{children}</Box>
+      {onFechar && (
+        <IconButton
+          onClick={onFechar}
+          disabled={desabilitado}
+          aria-label="Fechar"
+          title="Fechar"
+          size="small"
+          sx={{ flexShrink: 0, color: TOV.caption, '&:hover': { color: TOV.ink } }}
+        >
+          <CloseRoundedIcon />
+        </IconButton>
+      )}
+    </DialogTitle>
+  )
 }

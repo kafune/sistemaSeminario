@@ -166,24 +166,6 @@ def _reparar_integridade_academica(engine: Engine) -> None:
                     )
                 )
 
-        if "matprof" in tabelas:
-            conexao.execute(
-                text(
-                    "DELETE FROM matprof WHERE "
-                    "NOT EXISTS ("
-                    "SELECT 1 FROM professor "
-                    "WHERE professor.cod_pro = matprof.cod_pro"
-                    ") OR NOT EXISTS ("
-                    "SELECT 1 FROM materias "
-                    "WHERE materias.cod_mat = matprof.cod_mat"
-                    ")"
-                )
-            )
-            _remover_duplicatas_exatas(
-                conexao,
-                "matprof",
-                ("cod_mat", "cod_pro"),
-            )
 
 
 def _reparar_integridade_academica_com_relatorio(engine: Engine) -> dict[str, int]:
@@ -214,7 +196,7 @@ def _preencher_nome_normalizado(engine: Engine) -> None:
 
 
 def _contagens(engine: Engine) -> dict[str, int]:
-    tabelas = ("aluturma", "matprof", "alunos")
+    tabelas = ("aluturma", "alunos")
     existentes = set(inspect(engine).get_table_names())
     with engine.connect() as conexao:
         return {
@@ -641,10 +623,6 @@ def _atualizar_schema(engine: Engine, *, reparar: bool | None) -> None:
         "aluturma": (
             "uq_aluturma_cod_tur_cod_alu",
             ["cod_tur", "cod_alu"],
-        ),
-        "matprof": (
-            "uq_matprof_cod_mat_cod_pro",
-            ["cod_mat", "cod_pro"],
         ),
         "usuarios": ("uq_usuarios_cod_pro", ["cod_pro"]),
         "alunota": (

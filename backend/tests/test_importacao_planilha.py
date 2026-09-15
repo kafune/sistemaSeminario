@@ -11,13 +11,13 @@ from decimal import Decimal
 from io import BytesIO
 
 import openpyxl
-from sqlalchemy import create_engine, select
+from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.database import Base
 from app.models import Aluno, AluTurma, Cobranca, CondicaoFinanceiraAluno, Pagamento, Turma
 from app.services import financeiro as servico
+from tests.bancos import engine_de_teste
 from importar_planilha_financeiro import (
     assinatura,
     casar_nomes,
@@ -126,11 +126,7 @@ class LeituraDaPlanilhaTest(unittest.TestCase):
 
 class BaseCadastroTest(unittest.TestCase):
     def setUp(self):
-        self.engine = create_engine(
-            "sqlite://",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
+        self.engine = engine_de_teste()
         Base.metadata.create_all(self.engine)
         self.db = sessionmaker(bind=self.engine, expire_on_commit=False)()
         self.manha = Turma(nome="Turma da manhã")

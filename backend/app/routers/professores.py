@@ -17,9 +17,7 @@ from ..models import (
     ConviteProfessor,
     DocTurma,
     Materia,
-    MatProf,
     Professor,
-    TitProf,
     Usuario,
 )
 from ..security import gerar_hash, usuario_atual
@@ -192,17 +190,16 @@ def obter(cod_pro: int, db: Session = Depends(get_db)):
     if not prof:
         raise HTTPException(404, "Professor não encontrado")
     dados = row_to_dict(prof)
+    # Matérias que o professor leciona de fato: os vínculos das turmas.
     dados["materias"] = [
-        {"cod_mat": m.cod_mat, "nome": m.NOME}
-        for m in db.scalars(
-            select(Materia)
-            .join(MatProf, MatProf.cod_mat == Materia.cod_mat)
-            .where(MatProf.cod_pro == cod_pro)
+        {"cod_mat": cod_mat, "nome": nome}
+        for cod_mat, nome in db.execute(
+            select(Materia.cod_mat, Materia.NOME)
+            .join(DocTurma, DocTurma.cod_mat == Materia.cod_mat)
+            .where(DocTurma.cod_pro == cod_pro)
+            .distinct()
+            .order_by(Materia.NOME)
         )
-    ]
-    dados["titulos"] = [
-        row_to_dict(t)
-        for t in db.scalars(select(TitProf).where(TitProf.cod_pro == cod_pro))
     ]
     return dados
 
@@ -259,34 +256,10 @@ def excluir(cod_pro: int, db: Session = Depends(get_db),
             + " e ".join(detalhes)
             + "; altere o status para inativo em vez de excluir.",
         )
-    db.execute(MatProf.__table__.delete().where(MatProf.cod_pro == cod_pro))
-    db.execute(TitProf.__table__.delete().where(TitProf.cod_pro == cod_pro))
     db.delete(prof)
     auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="professor", entidade_id=cod_pro, detalhes=str(prof.nome or ""))
     db.commit()
     return {"ok": True}
-
-
-@router.put("/{cod_pro}/materias")
-def definir_materias(cod_pro: int, cod_mats: list[int], db: Session = Depends(get_db)):
-    """Substitui o conjunto de matérias que o professor leciona."""
-    if not db.get(Professor, cod_pro):
-        raise HTTPException(404, "Professor não encontrado")
-    codigos = list(dict.fromkeys(cod_mats))
-    existentes = set(
-        db.scalars(select(Materia.cod_mat).where(Materia.cod_mat.in_(codigos)))
-    ) if codigos else set()
-    ausentes = sorted(set(codigos) - existentes)
-    if ausentes:
-        raise HTTPException(
-            404,
-            f"Matéria(s) não encontrada(s): {', '.join(map(str, ausentes))}",
-        )
-    db.execute(MatProf.__table__.delete().where(MatProf.cod_pro == cod_pro))
-    for i, cod_mat in enumerate(codigos, start=1):
-        db.add(MatProf(cod_mat=cod_mat, cod_pro=cod_pro, seq_mp=i))
-    db.commit()
-    return {"ok": True, "quantidade": len(codigos)}
 
 
 @public_router.get("/{token}")

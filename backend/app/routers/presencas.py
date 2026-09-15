@@ -50,9 +50,7 @@ def _hoje_local():
     return hoje_local()
 
 
-def _cod_professor_usuario(db: Session, user) -> int | None:
-    if not isinstance(user, str):
-        return None
+def _cod_professor_usuario(db: Session, user: str) -> int | None:
     usuario = db.get(Usuario, user)
     if usuario and (usuario.perfil or "").upper() == "PROFESSOR":
         if usuario.cod_pro is None:

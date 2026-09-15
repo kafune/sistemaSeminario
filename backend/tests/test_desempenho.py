@@ -22,6 +22,7 @@ from app.routers.notificacoes import listar as listar_notificacoes
 from app.routers.notificacoes import marcar_todas_lidas
 from app.routers.turmas import listar as listar_turmas
 from app.services.notificacoes import agora_utc
+from tests import SEM_LOGIN
 
 
 class ConsultasEscalaveisTest(unittest.TestCase):
@@ -96,10 +97,12 @@ class ConsultasEscalaveisTest(unittest.TestCase):
         )
 
         resposta, quantidade_selects = self.contar_selects(
-            lambda: lancar(dados, db=self.db)
+            lambda: lancar(dados, db=self.db, user=SEM_LOGIN)
         )
 
-        self.assertLessEqual(quantidade_selects, 4)
+        # Teto constante: vínculo, usuário logado, matriculados e lançamentos
+        # existentes. Nenhuma consulta por aluno — com 20 alunos ou 200.
+        self.assertLessEqual(quantidade_selects, 5)
         self.assertEqual(resposta["criados"], 20)
 
     def test_notificacoes_agregam_contagem_e_marcam_em_lote(self):

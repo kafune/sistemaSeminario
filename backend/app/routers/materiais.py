@@ -51,7 +51,7 @@ MIMES_PERMITIDOS = {
 
 
 def _usuario_logado(db: Session, user: str) -> Usuario | None:
-    return db.get(Usuario, user) if isinstance(user, str) and user else None
+    return db.get(Usuario, user)
 
 
 def _validar_acesso_vinculo(

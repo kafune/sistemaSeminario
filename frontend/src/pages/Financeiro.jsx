@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, InputAdornment, LinearProgress, MenuItem,
+  DialogContent, InputAdornment, LinearProgress, MenuItem,
   Snackbar, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   TextField, Typography,
 } from '@mui/material'
@@ -17,10 +17,11 @@ import { TOV } from '../theme'
 import {
   BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CardMetrica, CartaoLista,
   EstadoErro, EstadoVazio, LinhasSkeleton, SkeletonCards, StatusBadge, Superficie,
-  cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  TituloDialogo, acaoTabelaSx, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import { formatarCompetencia, formatarDataBr, formatarMoeda } from '../formatters'
 import { DialogoPagamento, SeloSituacao, numeroDoCampo, hojeIso } from './FinanceiroComum'
+import DialogoCobranca from './DialogoCobranca'
 
 const SITUACOES_FILTRO = [
   { valor: '', rotulo: 'Todas as situações' },
@@ -68,6 +69,7 @@ export default function Financeiro() {
 
   const [selecionadas, setSelecionadas] = useState([])
   const [cobrancaPagando, setCobrancaPagando] = useState(null)
+  const [cobrancaGerindo, setCobrancaGerindo] = useState(null)
   const [processando, setProcessando] = useState(false)
   const [novaAberta, setNovaAberta] = useState(false)
   const [nova, setNova] = useState({ cod_alu: '', cod_tur: '', descricao: '', valor: '', vencimento: hojeIso() })
@@ -437,11 +439,16 @@ export default function Financeiro() {
                   {formatarMoeda(item.valor)} · {formatarMoeda(item.saldo)}
                 </Box>
               </Box>
-              {item.saldo > 0 && (
-                <Button size="small" variant="outlined" startIcon={<PaidOutlinedIcon />} onClick={() => setCobrancaPagando(item)}>
-                  Registrar pagamento
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {item.saldo > 0 && (
+                  <Button size="small" variant="outlined" startIcon={<PaidOutlinedIcon />} onClick={() => setCobrancaPagando(item)} sx={{ flex: '1 1 auto' }}>
+                    Registrar pagamento
+                  </Button>
+                )}
+                <Button size="small" variant="outlined" onClick={() => setCobrancaGerindo(item)} sx={{ flex: '1 1 auto' }}>
+                  Gerenciar
                 </Button>
-              )}
+              </Box>
             </CartaoLista>
           ))}
         </Box>
@@ -519,18 +526,16 @@ export default function Financeiro() {
                     <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>{formatarMoeda(item.saldo)}</TableCell>
                     <TableCell><SeloSituacao situacao={item.situacao} /></TableCell>
                     <TableCell align="right">
-                      {item.saldo > 0 ? (
-                        <Box
-                          component="button"
-                          type="button"
-                          onClick={() => setCobrancaPagando(item)}
-                          sx={{ ...resetBotao, fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption, '&:hover': { color: TOV.coral } }}
-                        >
-                          Registrar pagamento
+                      <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                        {item.saldo > 0 && (
+                          <Box component="button" type="button" onClick={() => setCobrancaPagando(item)} sx={acaoTabelaSx}>
+                            Registrar pagamento
+                          </Box>
+                        )}
+                        <Box component="button" type="button" onClick={() => setCobrancaGerindo(item)} sx={acaoTabelaSx}>
+                          Gerenciar
                         </Box>
-                      ) : (
-                        <Box component="span" sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>—</Box>
-                      )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                 )
@@ -584,6 +589,12 @@ export default function Financeiro() {
         )}
       />
 
+      <DialogoCobranca
+        cobranca={cobrancaGerindo}
+        onFechar={() => setCobrancaGerindo(null)}
+        onAlterado={(texto) => { avisar(texto, false); recarregar() }}
+      />
+
       <DialogoPagamento
         cobranca={cobrancaPagando}
         processando={processando}
@@ -592,7 +603,7 @@ export default function Financeiro() {
       />
 
       <Dialog open={novaAberta} onClose={processando ? undefined : () => setNovaAberta(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Nova cobrança avulsa</DialogTitle>
+        <TituloDialogo onFechar={processando ? undefined : () => setNovaAberta(false)}>Nova cobrança avulsa</TituloDialogo>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
           <Alert severity="info">
             Matrícula e mensalidades saem do plano da turma. Use a avulsa para taxas pontuais, como segunda via ou material.

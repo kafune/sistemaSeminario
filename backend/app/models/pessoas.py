@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Index, Integer, String, Text, UniqueConstraint, event
+from sqlalchemy import Date, DateTime, Index, Integer, String, Text, event
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..consultas import normalizar_nome
@@ -90,25 +90,11 @@ class Professor(Base):
     cadastro_recebido_em: Mapped[datetime | None] = mapped_column(DateTime)
 
 
-class MatProf(Base):
-    __tablename__ = "matprof"
-    __table_args__ = (
-        UniqueConstraint("cod_mat", "cod_pro", name="uq_matprof_cod_mat_cod_pro"),
-    )
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cod_mat: Mapped[int] = mapped_column(Integer)
-    cod_pro: Mapped[int] = mapped_column(Integer)
-    seq_mp: Mapped[int | None] = mapped_column(Integer)
-
-
-class TitProf(Base):
-    __tablename__ = "titprof"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    cod_pro: Mapped[int] = mapped_column(Integer)
-    seq_tp: Mapped[int | None] = mapped_column(Integer)
-    nome: Mapped[str | None] = mapped_column(String(100))
-    area: Mapped[str | None] = mapped_column(String(100))
-    local: Mapped[str | None] = mapped_column(String(100))
+# `matprof` e `titprof` saíram do modelo (AUDITORIA.md G2/G3): a primeira foi
+# substituída pelo texto livre `Professor.materias_atuacao` — os vínculos que
+# valem são os de `docturma` — e a segunda nunca teve endpoint de escrita.
+# Bancos novos não as criam mais; num banco existente elas ficam paradas até
+# alguém rodar o DROP documentado no README.
 
 
 @event.listens_for(Aluno, "before_insert")

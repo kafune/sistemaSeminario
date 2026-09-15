@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Alert, Box, Button, Menu, MenuItem, Snackbar, Tab, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, Tabs, Typography,
+  Alert, Autocomplete, Box, Button, Dialog, DialogActions, DialogContent, Grid,
+  Menu, MenuItem, Snackbar, Tab, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Tabs, TextField, Typography,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import DescriptionIcon from '@mui/icons-material/Description'
+import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
   AvatarIniciais, CartaoLista, DialogoConfirmacao, LinhaCartao, LinkVoltar, PilulaStatus,
-  EstadoErro, Regua, SkeletonCards, Superficie, cardSx, resetBotao, useTelaDesktop,
+  EstadoErro, Regua, SkeletonCards, Superficie, TituloDialogo, acaoTabelaSx, cardSx,
+  resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import { formatarCpfInput, formatarDataBr } from '../formatters'
 import AlunoForm from './AlunoForm'
@@ -81,6 +84,16 @@ export default function AlunoDetalhe() {
   const [carregando, setCarregando] = useState(true)
   const navigate = useNavigate()
   const telaDesktop = useTelaDesktop()
+  const telaCheiaNota = useDialogoTelaCheia()
+
+  // Lançamento avulso de nota: a única via para registrar uma dispensa e para
+  // corrigir um lançamento antigo. Os três endpoints existiam sem nenhuma
+  // tela (AUDITORIA.md G1).
+  const [formNota, setFormNota] = useState(null)
+  const [notaEditando, setNotaEditando] = useState(null)
+  const [notaExcluindo, setNotaExcluindo] = useState(null)
+  const [salvandoNota, setSalvandoNota] = useState(false)
+  const [materiasNota, setMateriasNota] = useState([])
 
   const carregar = useCallback(() => {
     setCarregando(true)
@@ -103,6 +116,79 @@ export default function AlunoDetalhe() {
       faltas: totalFaltas,
     }
   }, [notas])
+
+  function abrirNota(nota) {
+    setNotaEditando(nota || null)
+    setFormNota(nota
+      ? {
+        cod_mat: nota.cod_mat ?? null,
+        nota: nota.nota != null ? String(nota.nota).replace('.', ',') : '',
+        falta: nota.falta != null ? String(nota.falta) : '',
+        ano: nota.ano || '',
+        semestre: nota.semestre || '',
+        cursou: nota.cursou || 'S',
+        dispensa: nota.dispensa || '',
+        cod_pro: nota.cod_pro ?? null,
+        cod_tur: nota.cod_tur ?? null,
+      }
+      : {
+        cod_mat: null,
+        nota: '',
+        falta: '',
+        ano: String(new Date().getFullYear()),
+        semestre: '1',
+        cursou: 'S',
+        dispensa: '',
+        cod_pro: null,
+        cod_tur: null,
+      })
+    if (materiasNota.length === 0) {
+      api.getCached('/materias').then(setMateriasNota).catch(() => setMateriasNota([]))
+    }
+  }
+
+  async function salvarNota() {
+    setSalvandoNota(true)
+    const numero = formNota.nota.trim() ? Number(formNota.nota.replace(',', '.')) : null
+    const corpo = {
+      cod_mat: formNota.cod_mat,
+      nota: Number.isFinite(numero) ? numero : null,
+      falta: formNota.falta.trim() ? Number(formNota.falta) : null,
+      ano: formNota.ano.trim() || null,
+      semestre: formNota.semestre || null,
+      cursou: formNota.cursou,
+      dispensa: formNota.dispensa.trim() || null,
+      cod_pro: formNota.cod_pro ?? null,
+      cod_tur: formNota.cod_tur ?? null,
+    }
+    try {
+      if (notaEditando) await api.put(`/notas/${notaEditando.id}`, corpo)
+      else await api.post(`/notas/aluno/${codAlu}`, corpo)
+      setFormNota(null)
+      setNotaEditando(null)
+      carregar()
+      setMsg(notaEditando ? 'Lançamento atualizado.' : 'Nota lançada.')
+    } catch (e) {
+      setMsg(e.message)
+    } finally {
+      setSalvandoNota(false)
+    }
+  }
+
+  async function excluirNota() {
+    setSalvandoNota(true)
+    try {
+      await api.del(`/notas/${notaExcluindo.id}`)
+      setNotaExcluindo(null)
+      carregar()
+      setMsg('Lançamento excluído.')
+    } catch (e) {
+      setMsg(e.message)
+      setNotaExcluindo(null)
+    } finally {
+      setSalvandoNota(false)
+    }
+  }
 
   async function excluir() {
     setExcluindo(true)
@@ -268,9 +354,14 @@ export default function AlunoDetalhe() {
 
       {/* Notas em cards — celular/tablet */}
       {!telaDesktop && <Box>
-        <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 1.5 }}>
-          Notas <Box component="span" sx={{ color: TOV.caption, fontSize: TOV.type.body, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 1.5, flexWrap: 'wrap' }}>
+          <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>
+            Notas <Box component="span" sx={{ color: TOV.caption, fontSize: TOV.type.body, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
+          </Typography>
+          <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => abrirNota(null)}>
+            Lançar nota
+          </Button>
+        </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {notas.length === 0 && (
             <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhuma nota lançada.</CartaoLista>
@@ -293,7 +384,12 @@ export default function AlunoDetalhe() {
               </Box>
               <LinhaCartao rotulo="Faltas" valor={n.falta != null ? String(n.falta) : '—'} />
               <LinhaCartao rotulo="Cursou" valor={n.cursou === 'S' ? 'Sim' : n.cursou === 'N' ? 'Não' : (n.cursou || '—')} />
+              <LinhaCartao rotulo="Dispensa" valor={n.dispensa} />
               <LinhaCartao rotulo="Professor" valor={n.professor_nome} />
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Box component="button" type="button" onClick={() => abrirNota(n)} sx={acaoTabelaSx}>Editar</Box>
+                <Box component="button" type="button" onClick={() => setNotaExcluindo(n)} sx={{ ...acaoTabelaSx, color: TOV.danger }}>Excluir</Box>
+              </Box>
             </CartaoLista>
           ))}
         </Box>
@@ -301,10 +397,13 @@ export default function AlunoDetalhe() {
 
       {/* Tabela — desktop */}
       {telaDesktop && <TableContainer component={Box} sx={{ overflowX: 'auto' }}>
-        <Box sx={{ p: '24px 28px 4px' }}>
+        <Box sx={{ p: '24px 28px 4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
           <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>
             Notas <Box component="span" sx={{ color: TOV.caption, fontSize: TOV.type.body, fontWeight: 600 }}>· {notas.length} lançamentos</Box>
           </Typography>
+          <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={() => abrirNota(null)}>
+            Lançar nota
+          </Button>
         </Box>
         <Table sx={{ mt: 1, minWidth: 760 }}>
           <TableHead>
@@ -314,12 +413,14 @@ export default function AlunoDetalhe() {
               <TableCell>Faltas</TableCell>
               <TableCell>Período</TableCell>
               <TableCell>Cursou</TableCell>
+              <TableCell>Dispensa</TableCell>
               <TableCell>Professor</TableCell>
+              <TableCell align="right">Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {notas.length === 0 && (
-              <TableRow><TableCell colSpan={6} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhuma nota lançada.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhuma nota lançada.</TableCell></TableRow>
             )}
             {notas.map((n) => (
               <TableRow key={n.id} hover>
@@ -328,7 +429,14 @@ export default function AlunoDetalhe() {
                 <TableCell sx={{ color: TOV.graphite }}>{n.falta ?? '—'}</TableCell>
                 <TableCell sx={{ color: TOV.graphite }}>{n.ano || '—'}{n.semestre ? ` · ${n.semestre}º` : ''}</TableCell>
                 <TableCell sx={{ color: TOV.graphite }}>{n.cursou === 'S' ? 'Sim' : n.cursou === 'N' ? 'Não' : (n.cursou || '—')}</TableCell>
+                <TableCell sx={{ color: TOV.graphite }}>{n.dispensa || '—'}</TableCell>
                 <TableCell sx={{ color: TOV.graphite }}>{n.professor_nome || '—'}</TableCell>
+                <TableCell align="right">
+                  <Box sx={{ display: 'inline-flex', gap: 2 }}>
+                    <Box component="button" type="button" onClick={() => abrirNota(n)} sx={acaoTabelaSx}>Editar</Box>
+                    <Box component="button" type="button" onClick={() => setNotaExcluindo(n)} sx={{ ...acaoTabelaSx, color: TOV.danger }}>Excluir</Box>
+                  </Box>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -341,6 +449,91 @@ export default function AlunoDetalhe() {
         </Button>
       </Box>
       </>)}
+
+      <Dialog open={!!formNota} onClose={salvandoNota ? undefined : () => setFormNota(null)} maxWidth="sm" fullWidth fullScreen={telaCheiaNota}>
+        <TituloDialogo onFechar={salvandoNota ? undefined : () => setFormNota(null)}>
+          {notaEditando ? 'Editar lançamento de nota' : 'Lançar nota avulsa'}
+        </TituloDialogo>
+        <DialogContent>
+          {formNota && (
+            <Grid container spacing={1.5} sx={{ mt: 0 }}>
+              <Grid item xs={12}>
+                <Alert severity="info">
+                  A grade da turma é o caminho normal. Use este formulário para histórico de
+                  outra instituição, correção de lançamento antigo e para registrar dispensa.
+                </Alert>
+              </Grid>
+              <Grid item xs={12}>
+                <Autocomplete
+                  size="small" options={materiasNota}
+                  value={materiasNota.find((m) => m.cod_mat === formNota.cod_mat) || null}
+                  isOptionEqualToValue={(a, b) => a.cod_mat === b.cod_mat}
+                  getOptionLabel={(m) => (m.NOME || '').trim()}
+                  onChange={(_, v) => setFormNota({ ...formNota, cod_mat: v?.cod_mat ?? null })}
+                  renderInput={(props) => <TextField {...props} label="Matéria" required />}
+                  noOptionsText={materiasNota.length === 0 ? 'Carregando matérias…' : 'Nenhuma matéria'}
+                />
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <TextField size="small" fullWidth label="Nota" value={formNota.nota}
+                  inputProps={{ inputMode: 'decimal' }}
+                  helperText="0 a 10"
+                  onChange={(e) => setFormNota({ ...formNota, nota: e.target.value })} />
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <TextField size="small" fullWidth label="Faltas" value={formNota.falta}
+                  inputProps={{ inputMode: 'numeric' }}
+                  onChange={(e) => setFormNota({ ...formNota, falta: e.target.value.replace(/\D/g, '') })} />
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <TextField size="small" fullWidth label="Ano" value={formNota.ano}
+                  onChange={(e) => setFormNota({ ...formNota, ano: e.target.value })} />
+              </Grid>
+              <Grid item xs={6} sm={3}>
+                <TextField select size="small" fullWidth label="Semestre" value={formNota.semestre}
+                  onChange={(e) => setFormNota({ ...formNota, semestre: e.target.value })}>
+                  <MenuItem value="">—</MenuItem>
+                  <MenuItem value="1">1º</MenuItem>
+                  <MenuItem value="2">2º</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={4}>
+                <TextField select size="small" fullWidth label="Cursou" value={formNota.cursou}
+                  onChange={(e) => setFormNota({ ...formNota, cursou: e.target.value })}>
+                  <MenuItem value="S">Sim</MenuItem>
+                  <MenuItem value="N">Não</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={8}>
+                <TextField size="small" fullWidth label="Dispensa" value={formNota.dispensa}
+                  placeholder="Ex.: aproveitamento de estudos"
+                  helperText="Preenchido, marca a matéria como dispensada no boletim."
+                  onChange={(e) => setFormNota({ ...formNota, dispensa: e.target.value })} />
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 1 }}>
+          <Button variant="outlined" onClick={() => setFormNota(null)} disabled={salvandoNota}>Cancelar</Button>
+          <Button variant="contained" onClick={salvarNota} disabled={!formNota?.cod_mat || salvandoNota}>
+            {salvandoNota ? 'Salvando…' : notaEditando ? 'Salvar lançamento' : 'Lançar nota'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <DialogoConfirmacao
+        aberto={!!notaExcluindo}
+        titulo="Excluir este lançamento?"
+        descricao="A nota, a falta e a dispensa deste registro saem do histórico do aluno. Não há como desfazer."
+        itens={notaExcluindo ? [{
+          rotulo: notaExcluindo.materia_nome || 'Matéria',
+          detalhe: notaExcluindo.nota != null ? String(notaExcluindo.nota).replace('.', ',') : 'sem nota',
+        }] : undefined}
+        rotuloConfirmar="Excluir lançamento"
+        processando={salvandoNota}
+        onConfirmar={excluirNota}
+        onFechar={() => setNotaExcluindo(null)}
+      />
 
       <DialogoConfirmacao
         aberto={confirmarExclusao}

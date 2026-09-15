@@ -77,9 +77,8 @@ class LancamentoInput(BaseModel):
     alunos: list[LancamentoAluno]
 
 
-def _usuario_logado(db: Session, user) -> Usuario | None:
-    # Chamadas diretas nos testes não passam pela resolução de dependências.
-    return db.get(Usuario, user) if isinstance(user, str) else None
+def _usuario_logado(db: Session, user: str) -> Usuario | None:
+    return db.get(Usuario, user)
 
 
 def _validar_acesso_vinculo(db: Session, user, vinculo: DocTurma) -> None:

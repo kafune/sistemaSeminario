@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, Grid,
   InputAdornment, MenuItem, Snackbar, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, TextField,
+  TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -14,13 +14,94 @@ import { emailValido, formatarCepInput, formatarCpfInput, formatarDataHora, form
 import { useDirtyForm } from '../UnsavedChanges'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao,
-  LinhasSkeleton, PilulaStatus, SkeletonCards, acaoTabelaSx,
+  LinhasSkeleton, PilulaStatus, SkeletonCards, TituloDialogo, acaoTabelaSx,
   useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 
 const VAZIO = {
   nome: '', e_mail: '', fone1: '', celular: '', sigla: '',
   status: 'A', materias_atuacao: '',
+}
+
+/**
+ * Ficha do professor: as turmas e matérias que ele leciona hoje.
+ * `GET /professores/{cod_pro}` existia sem nenhuma tela (AUDITORIA.md G1) e
+ * respondia a partir de `matprof`, tabela que nada alimentava (G2/G3); agora
+ * lê os vínculos reais de turma.
+ */
+function FichaProfessor({ professor, aoFechar }) {
+  const [ficha, setFicha] = useState(null)
+  const [erro, setErro] = useState('')
+  const telaCheia = useDialogoTelaCheia()
+
+  useEffect(() => {
+    if (!professor) return
+    setFicha(null)
+    setErro('')
+    api.get(`/professores/${professor.cod_pro}`).then(setFicha).catch((e) => setErro(e.message))
+  }, [professor])
+
+  return (
+    <Dialog open={!!professor} onClose={aoFechar} maxWidth="sm" fullWidth fullScreen={telaCheia}>
+      <TituloDialogo onFechar={aoFechar}>{professor?.nome}</TituloDialogo>
+      <DialogContent>
+        {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
+        {!erro && !ficha && (
+          <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body }}>Carregando a ficha…</Typography>
+        )}
+        {ficha && (
+          <>
+            <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mb: 2 }}>
+              {[
+                ficha.sigla,
+                ficha.usuario_acesso ? `acesso ${ficha.usuario_acesso}` : 'sem acesso ao portal',
+                `${ficha.notas_lancadas} ${ficha.notas_lancadas === 1 ? 'nota lançada' : 'notas lançadas'}`,
+              ].filter(Boolean).join(' · ')}
+            </Typography>
+            {ficha.materias_atuacao && (
+              <Box sx={{ mb: 2.5 }}>
+                <Typography component="h3" sx={{ fontWeight: 700, fontSize: TOV.type.body }}>Áreas indicadas</Typography>
+                <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5, overflowWrap: 'anywhere' }}>
+                  {ficha.materias_atuacao}
+                </Typography>
+              </Box>
+            )}
+            <Typography component="h3" sx={{ fontWeight: 700, fontSize: TOV.type.body }}>
+              Matérias que leciona
+            </Typography>
+            <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5, mb: 1.5 }}>
+              São os vínculos de turma — os mesmos que geram diário, chamada e boletim.
+            </Typography>
+            {ficha.vinculos.length === 0 && (
+              <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>
+                Nenhum vínculo com turma. Vincule pela aba "Matérias e professores" da turma.
+              </Typography>
+            )}
+            {ficha.vinculos.length > 0 && (
+              <Box sx={{ border: `1px solid ${TOV.divider}`, borderRadius: TOV.radiusSm, overflow: 'hidden' }}>
+                {ficha.vinculos.map((vinculo, indice) => (
+                  <Box key={vinculo.docturma_id} sx={{ p: 2, borderTop: indice > 0 ? `1px solid ${TOV.divider}` : 0 }}>
+                    <Box sx={{ fontWeight: 700, fontSize: TOV.type.body, overflowWrap: 'anywhere' }}>
+                      {vinculo.materia_nome || 'Matéria removida'}
+                    </Box>
+                    <Box sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5, overflowWrap: 'anywhere' }}>
+                      {[
+                        vinculo.turma_nome,
+                        vinculo.ano && `${vinculo.ano}${vinculo.semestre ? `/${vinculo.semestre}` : ''}`,
+                      ].filter(Boolean).join(' · ')}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ p: 3, pt: 1 }}>
+        <Button variant="outlined" onClick={aoFechar}>Fechar</Button>
+      </DialogActions>
+    </Dialog>
+  )
 }
 
 export default function Professores() {
@@ -38,6 +119,7 @@ export default function Professores() {
   const [msgTipo, setMsgTipo] = useState('error')
   const [convite, setConvite] = useState(null)
   const [criandoConvite, setCriandoConvite] = useState(false)
+  const [fichaAberta, setFichaAberta] = useState(null)
   const telaCheia = useDialogoTelaCheia()
   const telaDesktop = useTelaDesktop()
   const formAlterado = useDirtyForm(!!form, form, 'Há dados do professor que ainda não foram salvos.')
@@ -200,10 +282,13 @@ export default function Professores() {
           <CartaoLista key={p.cod_pro}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
               <Box sx={{ minWidth: 0 }}>
-                <Box sx={{ fontWeight: 700, fontSize: TOV.type.bodyLg, lineHeight: 1.3 }}>{p.nome}</Box>
-                <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>
-                  Código {String(p.cod_pro).padStart(2, '0')}{p.sigla ? ` · ${p.sigla}` : ''}
+                <Box component="button" type="button" onClick={() => setFichaAberta(p)}
+                  sx={{ ...acaoTabelaSx, fontWeight: 700, fontSize: TOV.type.bodyLg, lineHeight: 1.3, textAlign: 'left', overflowWrap: 'anywhere' }}>
+                  {p.nome}
                 </Box>
+                {p.sigla && (
+                  <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>{p.sigla}</Box>
+                )}
               </Box>
               <PilulaStatus status={p.status} sx={{ flexShrink: 0 }} />
             </Box>
@@ -225,31 +310,36 @@ export default function Professores() {
         <Table sx={{ minWidth: 920 }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: 90 }}>Código</TableCell>
-              <TableCell>Nome</TableCell>
-              <TableCell sx={{ width: 90 }}>Sigla</TableCell>
-              <TableCell>Telefone</TableCell>
-              <TableCell>E-mail</TableCell>
-              <TableCell>Acesso</TableCell>
-              <TableCell>Áreas indicadas</TableCell>
-              <TableCell sx={{ width: 110 }}>Status</TableCell>
+              {/* A largura vai para o que é longo e variável (nome, áreas), não
+                  para colunas que quase sempre trazem um traço. */}
+              <TableCell sx={{ width: '26%', minWidth: 220 }}>Nome</TableCell>
+              <TableCell sx={{ width: 76 }}>Sigla</TableCell>
+              <TableCell sx={{ width: 140 }}>Telefone</TableCell>
+              <TableCell sx={{ width: '18%' }}>E-mail</TableCell>
+              <TableCell sx={{ width: 120 }}>Acesso</TableCell>
+              <TableCell sx={{ width: '20%' }}>Áreas indicadas</TableCell>
+              <TableCell sx={{ width: 104 }}>Status</TableCell>
               <TableCell align="right" sx={{ width: 190 }}>Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {carregando && professores.length === 0 && (
-              <LinhasSkeleton colunas={9} />
+              <LinhasSkeleton colunas={8} />
             )}
             {!carregando && erroCarga && (
-              <TableRow><TableCell colSpan={9} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar os professores" descricao={erroCarga} onTentarNovamente={carregar} /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar os professores" descricao={erroCarga} onTentarNovamente={carregar} /></TableCell></TableRow>
             )}
             {!carregando && !erroCarga && professores.length === 0 && (
-              <TableRow><TableCell colSpan={9} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></TableCell></TableRow>
             )}
             {professores.map((p) => (
               <TableRow key={p.cod_pro} hover>
-                <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{String(p.cod_pro).padStart(2, '0')}</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>{p.nome}</TableCell>
+                <TableCell>
+                  <Box component="button" type="button" onClick={() => setFichaAberta(p)}
+                    sx={{ ...acaoTabelaSx, fontWeight: 700, fontSize: TOV.type.body, textAlign: 'left', overflowWrap: 'anywhere' }}>
+                    {p.nome}
+                  </Box>
+                </TableCell>
                 <TableCell sx={{ color: TOV.graphite }}>{p.sigla || '—'}</TableCell>
                 <TableCell sx={{ color: TOV.graphite }}>{p.fone1 || p.celular || '—'}</TableCell>
                 <TableCell sx={{ color: TOV.graphite }}>{p.e_mail || '—'}</TableCell>
@@ -287,7 +377,9 @@ export default function Professores() {
       </TableContainer>}
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{form?.cod_pro ? 'Editar professor' : 'Novo professor'}</DialogTitle>
+        <TituloDialogo onFechar={salvando ? undefined : fecharForm}>
+          {form?.cod_pro ? 'Editar professor' : 'Novo professor'}
+        </TituloDialogo>
         <DialogContent>
           {form && (
             <Grid container spacing={1.5} sx={{ mt: 0 }}>
@@ -402,7 +494,9 @@ export default function Professores() {
       />
 
       <Dialog open={!!convite} onClose={() => setConvite(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>{convite?.tipo === 'acesso' ? 'Link de acesso às notas' : 'Link de autocadastro'}</DialogTitle>
+        <TituloDialogo onFechar={() => setConvite(null)}>
+          {convite?.tipo === 'acesso' ? 'Link de acesso às notas' : 'Link de autocadastro'}
+        </TituloDialogo>
         <DialogContent>
           <Box sx={{ color: TOV.graphite, fontSize: TOV.type.body, mb: 2 }}>
             {convite?.tipo === 'acesso'
@@ -421,6 +515,8 @@ export default function Professores() {
           <Button variant="contained" startIcon={<ContentCopyIcon />} onClick={copiarConvite}>Copiar link</Button>
         </DialogActions>
       </Dialog>
+
+      <FichaProfessor professor={fichaAberta} aoFechar={() => setFichaAberta(null)} />
 
       <DialogoConfirmacao
         aberto={!!paraExcluir}

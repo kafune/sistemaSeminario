@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Paper, Skeleton,
-  TableCell, TableRow, Typography, useMediaQuery, useTheme,
+  Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, Paper,
+  Skeleton, TableCell, TableRow, Typography, useMediaQuery, useTheme,
 } from '@mui/material'
+import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import InboxOutlinedIcon from '@mui/icons-material/InboxOutlined'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
@@ -740,6 +741,38 @@ export function CartaoLista({ children, onClick, sx }) {
 }
 
 /**
+ * Título de diálogo com saída no canto. O "Cancelar" do rodapé continua lá,
+ * mas num diálogo de tela cheia com formulário longo ele fica depois de toda
+ * a rolagem — e o gesto que todo mundo procura primeiro é o ✕.
+ */
+export function TituloDialogo({ children, onFechar, id }) {
+  return (
+    <DialogTitle
+      id={id}
+      sx={{
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        gap: 1.5, pr: onFechar ? 1.5 : undefined,
+      }}
+    >
+      <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{children}</Box>
+      {onFechar && (
+        <IconButton
+          onClick={onFechar}
+          aria-label="Fechar"
+          sx={{
+            flexShrink: 0, mt: -0.5, color: TOV.caption,
+            '&:hover': { color: TOV.graphite },
+            '&:focus-visible': focusRing,
+          }}
+        >
+          <CloseRoundedIcon />
+        </IconButton>
+      )}
+    </DialogTitle>
+  )
+}
+
+/**
  * Confirmação de ação destrutiva. `itens` lista o impacto real
  * ("Leitura 2 · 24 notas"); o botão nomeia a ação, nunca "OK".
  * O foco nunca começa no botão destrutivo.
@@ -749,7 +782,7 @@ export function DialogoConfirmacao({
 }) {
   return (
     <Dialog open={aberto} onClose={processando ? undefined : onFechar} maxWidth="xs" fullWidth>
-      <DialogTitle>{titulo}</DialogTitle>
+      <TituloDialogo onFechar={processando ? undefined : onFechar}>{titulo}</TituloDialogo>
       <DialogContent>
         <Typography sx={{ fontSize: TOV.type.body, color: TOV.caption }}>{descricao}</Typography>
         {itens?.length > 0 && (

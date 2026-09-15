@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent,
   Grid, InputAdornment, MenuItem, Pagination, Snackbar, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
@@ -11,10 +11,11 @@ import { api } from '../api'
 import { TOV } from '../theme'
 import {
   AvatarIniciais, BarraFiltros, CabecalhoPagina, CartaoLista, EstadoErro, EstadoVazio,
-  DialogoConfirmacao, LinhaCartao, StatusBadge, acaoTabelaSx, useDialogoTelaCheia, useTelaDesktop,
+  DialogoConfirmacao, LinhaCartao, StatusBadge, TituloDialogo, acaoTabelaSx,
+  useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import ImportarLeadsDialog from './ImportarLeadsDialog'
-import { emailValido, formatarTelefoneInput } from '../formatters'
+import { emailValido, formatarDataHora, formatarTelefoneInput } from '../formatters'
 import { useDirtyForm } from '../UnsavedChanges'
 
 const FUNIL = {
@@ -105,6 +106,71 @@ function FormLead({ form, setForm }) {
         </TextField>
       </Grid>
     </Grid>
+  )
+}
+
+/**
+ * Trilha de consentimento do lead — o artefato de LGPD que `GET /leads/{id}`
+ * devolvia desde sempre e nenhuma tela exibia (AUDITORIA.md G1).
+ */
+function TrilhaConsentimento({ leadId }) {
+  const [eventos, setEventos] = useState(null)
+  const [erro, setErro] = useState('')
+
+  useEffect(() => {
+    if (!leadId) return
+    setEventos(null)
+    setErro('')
+    api.get(`/leads/${leadId}`)
+      .then((lead) => setEventos(lead.auditoria_consentimento || []))
+      .catch((e) => setErro(e.message))
+  }, [leadId])
+
+  return (
+    <Box sx={{ mt: 3, borderTop: `1px solid ${TOV.divider}`, pt: 2.5 }}>
+      <Typography component="h3" sx={{ fontWeight: 700, fontSize: TOV.type.body }}>
+        Trilha de consentimento
+      </Typography>
+      <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5, mb: 2 }}>
+        Toda mudança de consentimento fica registrada com data, origem e quem alterou. É o
+        que se apresenta numa solicitação de titular.
+      </Typography>
+      {erro && <Alert severity="error">{erro}</Alert>}
+      {!erro && eventos === null && (
+        <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>Carregando o histórico…</Typography>
+      )}
+      {eventos?.length === 0 && (
+        <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>
+          Nenhuma mudança registrada desde o cadastro.
+        </Typography>
+      )}
+      {eventos?.length > 0 && (
+        <Box sx={{ border: `1px solid ${TOV.divider}`, borderRadius: TOV.radiusSm, overflow: 'hidden' }}>
+          {eventos.map((evento, indice) => (
+            <Box key={evento.id} sx={{ p: 2, borderTop: indice > 0 ? `1px solid ${TOV.divider}` : 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                {evento.status_anterior && (
+                  <>
+                    <PilulaConsentimento status={evento.status_anterior} />
+                    <Box component="span" sx={{ color: TOV.caption }}>→</Box>
+                  </>
+                )}
+                <PilulaConsentimento status={evento.status_novo} />
+              </Box>
+              <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 1 }}>
+                {formatarDataHora(evento.criado_em)} · origem {evento.origem || '—'}
+                {evento.usuario ? ` · por ${evento.usuario}` : ''}
+              </Typography>
+              {evento.detalhes && (
+                <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5, overflowWrap: 'anywhere' }}>
+                  {evento.detalhes}
+                </Typography>
+              )}
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Box>
   )
 }
 
@@ -340,8 +406,13 @@ export default function Leads() {
       />
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{leadEditando ? 'Editar lead' : 'Novo lead'}</DialogTitle>
-        <DialogContent>{form && <FormLead form={form} setForm={setForm} />}</DialogContent>
+        <TituloDialogo onFechar={salvando ? undefined : fecharForm}>
+          {leadEditando ? 'Editar lead' : 'Novo lead'}
+        </TituloDialogo>
+        <DialogContent>
+          {form && <FormLead form={form} setForm={setForm} />}
+          {leadEditando && <TrilhaConsentimento leadId={leadEditando.id} />}
+        </DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
           <Button variant="outlined" onClick={fecharForm} disabled={salvando}>Cancelar</Button>
           <Button variant="contained" onClick={salvar} disabled={salvando || !form?.nome.trim() || !form?.telefone.trim() || !emailValido(form?.e_mail)}>

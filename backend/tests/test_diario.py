@@ -21,6 +21,7 @@ from app.models import (
     Usuario,
 )
 from app.routers import presencas
+from tests import SEM_LOGIN
 
 
 class DiarioTest(unittest.TestCase):
@@ -101,7 +102,7 @@ class DiarioTest(unittest.TestCase):
 
     # Helpers ---------------------------------------------------------------
 
-    def diario(self, user=None):
+    def diario(self, user=SEM_LOGIN):
         # Chamado fora do FastAPI: os defaults de Query precisam vir explícitos.
         return presencas.obter_diario(
             self.turma.cod_tur,
@@ -109,10 +110,10 @@ class DiarioTest(unittest.TestCase):
             inicio=None,
             fim=None,
             db=self.db,
-            **({"user": user} if user is not None else {}),
+            user=user,
         )
 
-    def registrar(self, aula, aluno, presente, user=None):
+    def registrar(self, aula, aluno, presente, user=SEM_LOGIN):
         with (
             patch.object(presencas, "_hoje_local", return_value=self.hoje),
             patch.object(presencas, "_agora_utc", return_value=self.agora),
@@ -123,7 +124,7 @@ class DiarioTest(unittest.TestCase):
                 aluno.cod_alu,
                 presencas.RegistrarPresencaInput(presente=presente),
                 db=self.db,
-                **({"user": user} if user is not None else {}),
+                user=user,
             )
 
     def falta_registrada(self, cod_alu):
@@ -178,13 +179,16 @@ class DiarioTest(unittest.TestCase):
                 self.turma.cod_tur,
                 presencas.AbrirChamadaInput(aula_id=self.aula_hoje.id),
                 db=self.db,
+                user=SEM_LOGIN,
             )
             presencas.marcar_presenca(
                 chamada["token"],
                 presencas.MarcarPresencaInput(cod_alu=self.ana.cod_alu),
                 db=self.db,
             )
-            presencas.encerrar_chamada(self.turma.cod_tur, chamada["id"], db=self.db)
+            presencas.encerrar_chamada(
+                self.turma.cod_tur, chamada["id"], db=self.db, user=SEM_LOGIN
+            )
 
         diario = self.diario()
         por_nome = {aluno["nome"]: aluno for aluno in diario["alunos"]}
@@ -268,7 +272,9 @@ class DiarioTest(unittest.TestCase):
         self.db.commit()
         login = self.usuario_professor(self.professor, "docente")
 
-        todos = presencas.vinculos_do_diario(self.turma.cod_tur, db=self.db)
+        todos = presencas.vinculos_do_diario(
+            self.turma.cod_tur, db=self.db, user=SEM_LOGIN
+        )
         do_professor = presencas.vinculos_do_diario(
             self.turma.cod_tur, db=self.db, user=login
         )

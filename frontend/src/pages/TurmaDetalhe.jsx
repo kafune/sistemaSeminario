@@ -2,11 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, Autocomplete, Box, Button, Dialog, DialogActions, DialogContent,
-  DialogTitle, Grid, IconButton, MenuItem, Snackbar, Tab, Table, TableBody,
+  Grid, IconButton, MenuItem, Snackbar, Tab, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import DeleteIcon from '@mui/icons-material/Delete'
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import HowToRegRoundedIcon from '@mui/icons-material/HowToRegRounded'
 import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
@@ -14,7 +15,8 @@ import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
   CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao, Regua,
-  LinkVoltar, SkeletonCards, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  LinkVoltar, SkeletonCards, TituloDialogo, resetBotao, useDialogoTelaCheia,
+  useTelaDesktop,
 } from '../ui'
 
 function mesAno(iso) {
@@ -43,8 +45,13 @@ export default function TurmaDetalhe() {
   const [alunoSel, setAlunoSel] = useState(null)
   const [dlgMatricula, setDlgMatricula] = useState(false)
 
-  // diálogo de matéria
+  // diálogo da turma (editar/excluir)
+  const [formTurma, setFormTurma] = useState(null)
+  const [excluindoTurma, setExcluindoTurma] = useState(false)
+
+  // diálogo de matéria — o mesmo formulário cria e edita o vínculo
   const [dlgMateria, setDlgMateria] = useState(false)
+  const [materiaEditando, setMateriaEditando] = useState(null)
   const [todasMaterias, setTodasMaterias] = useState([])
   const [professores, setProfessores] = useState([])
   const [formMateria, setFormMateria] = useState({})
@@ -117,21 +124,77 @@ export default function TurmaDetalhe() {
     }
   }
 
-  async function abrirDlgMateria() {
+  async function salvarTurma() {
+    setSalvandoDlg(true)
+    try {
+      await api.put(`/turmas/${codTur}`, {
+        nome: formTurma.nome.trim(),
+        curso: formTurma.curso?.trim() || null,
+        horario: formTurma.horario?.trim() || null,
+        dat_ini: formTurma.dat_ini || null,
+      })
+      setFormTurma(null)
+      // O cache de GET já é descartado inteiro por qualquer PUT/POST/DELETE,
+      // então a lista de turmas volta com o nome novo.
+      carregar()
+      avisar('Turma atualizada.', false)
+    } catch (e) {
+      avisar(e.message)
+    } finally {
+      setSalvandoDlg(false)
+    }
+  }
+
+  async function excluirTurma() {
+    setSalvandoDlg(true)
+    try {
+      await api.del(`/turmas/${codTur}`)
+      navigate('/turmas')
+    } catch (e) {
+      setExcluindoTurma(false)
+      avisar(e.message)
+    } finally {
+      setSalvandoDlg(false)
+    }
+  }
+
+  function carregarOpcoesMateria() {
+    if (todasMaterias.length) return
+    api.getCached('/materias').then(setTodasMaterias).catch(() => {})
+    api.getCached('/professores').then(setProfessores).catch(() => {})
+  }
+
+  function abrirDlgMateria() {
+    setMateriaEditando(null)
     setFormMateria({ Ano: String(new Date().getFullYear()), semestre: '1' })
     setDlgMateria(true)
-    if (!todasMaterias.length) {
-      api.getCached('/materias').then(setTodasMaterias).catch(() => {})
-      api.getCached('/professores').then(setProfessores).catch(() => {})
-    }
+    carregarOpcoesMateria()
+  }
+
+  function abrirEdicaoMateria(vinculo) {
+    setMateriaEditando(vinculo)
+    setFormMateria({
+      cod_mat: vinculo.cod_mat,
+      cod_pro: vinculo.cod_pro ?? undefined,
+      Ano: vinculo.Ano ?? '',
+      semestre: vinculo.semestre ?? '1',
+    })
+    setDlgMateria(true)
+    carregarOpcoesMateria()
   }
 
   async function salvarMateria() {
     setSalvandoDlg(true)
     try {
-      await api.post(`/turmas/${codTur}/materias`, formMateria)
+      if (materiaEditando) {
+        await api.put(`/turmas/${codTur}/materias/${materiaEditando.id}`, formMateria)
+      } else {
+        await api.post(`/turmas/${codTur}/materias`, formMateria)
+      }
       setDlgMateria(false)
+      setMateriaEditando(null)
       carregar()
+      if (materiaEditando) avisar('Vínculo atualizado.', false)
     } catch (e) {
       avisar(e.message)
     } finally {
@@ -165,6 +228,15 @@ export default function TurmaDetalhe() {
           <Typography variant="h1" sx={{ fontSize: { xs: TOV.type.displaySm, md: TOV.type.display } }}>{turma.nome}</Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, '& > *': { flexGrow: { xs: 1, sm: 0 } } }}>
+          <Button variant="outlined" startIcon={<EditOutlinedIcon />}
+            onClick={() => setFormTurma({
+              nome: turma.nome || '',
+              curso: turma.curso || '',
+              horario: turma.horario || '',
+              dat_ini: turma.dat_ini || '',
+            })}>
+            Editar turma
+          </Button>
           <Button variant="outlined" startIcon={<HowToRegRoundedIcon />}
             onClick={() => navigate(`/turmas/${codTur}/presencas`)}>
             Fazer chamada
@@ -275,6 +347,10 @@ export default function TurmaDetalhe() {
                     </Box>
                   </Box>
                   <Box sx={{ display: 'flex', flexShrink: 0 }}>
+                    <IconButton size="small" title="Editar vínculo" aria-label={`Editar o vínculo de ${m.materia_nome?.trim()}`}
+                      onClick={() => abrirEdicaoMateria(m)}>
+                      <EditOutlinedIcon fontSize="small" />
+                    </IconButton>
                     <IconButton size="small" title="Diário de faltas" aria-label="Abrir diário de faltas"
                       onClick={() => navigate(`/turmas/${codTur}/diario?vinculo=${m.id}`)}>
                       <MenuBookOutlinedIcon fontSize="small" />
@@ -316,6 +392,10 @@ export default function TurmaDetalhe() {
                     <TableCell sx={{ color: TOV.graphite }}>{m.Ano || '—'}</TableCell>
                     <TableCell sx={{ color: TOV.graphite }}>{m.semestre ? `${m.semestre}º` : '—'}</TableCell>
                     <TableCell align="right">
+                      <IconButton size="small" title="Editar vínculo" aria-label={`Editar o vínculo de ${m.materia_nome?.trim()}`}
+                        onClick={() => abrirEdicaoMateria(m)}>
+                        <EditOutlinedIcon fontSize="small" />
+                      </IconButton>
                       <IconButton size="small" title="Diário de faltas" aria-label="Abrir diário de faltas"
                         onClick={() => navigate(`/turmas/${codTur}/diario?vinculo=${m.id}`)}>
                         <MenuBookOutlinedIcon fontSize="small" />
@@ -337,7 +417,7 @@ export default function TurmaDetalhe() {
       )}
 
       <Dialog open={dlgMatricula} onClose={() => setDlgMatricula(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Matricular aluno</DialogTitle>
+        <TituloDialogo onFechar={salvandoDlg ? undefined : () => setDlgMatricula(false)}>Matricular aluno</TituloDialogo>
         <DialogContent>
           {transferencia && (
             <Alert severity="warning" sx={{ mt: 1 }}>
@@ -365,9 +445,19 @@ export default function TurmaDetalhe() {
       </Dialog>
 
       <Dialog open={dlgMateria} onClose={() => setDlgMateria(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Adicionar matéria à turma</DialogTitle>
+        <TituloDialogo onFechar={salvandoDlg ? undefined : () => setDlgMateria(false)}>
+          {materiaEditando ? 'Editar matéria da turma' : 'Adicionar matéria à turma'}
+        </TituloDialogo>
         <DialogContent>
           <Grid container spacing={1.5} sx={{ mt: 0 }}>
+            {materiaEditando && (
+              <Grid item xs={12}>
+                <Alert severity="info">
+                  Trocar a matéria ou o período é recusado depois que há nota lançada neste
+                  vínculo. Professor, ano e semestre sem notas mudam livremente.
+                </Alert>
+              </Grid>
+            )}
             <Grid item xs={12}>
               {/* Controlados: ao reabrir o diálogo o campo volta vazio junto com o estado. */}
               <Autocomplete
@@ -405,10 +495,67 @@ export default function TurmaDetalhe() {
         <DialogActions sx={{ p: 3, pt: 1 }}>
           <Button onClick={() => setDlgMateria(false)} variant="outlined" disabled={salvandoDlg}>Cancelar</Button>
           <Button variant="contained" onClick={salvarMateria} disabled={!formMateria.cod_mat || salvandoDlg}>
-            {salvandoDlg ? 'Adicionando…' : 'Adicionar'}
+            {salvandoDlg ? 'Salvando…' : materiaEditando ? 'Salvar vínculo' : 'Adicionar'}
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog open={!!formTurma} onClose={salvandoDlg ? undefined : () => setFormTurma(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
+        <TituloDialogo onFechar={salvandoDlg ? undefined : () => setFormTurma(null)}>Editar turma</TituloDialogo>
+        <DialogContent>
+          {formTurma && (
+            <Grid container spacing={1.5} sx={{ mt: 0 }}>
+              <Grid item xs={12}>
+                <TextField size="small" fullWidth required label="Nome" value={formTurma.nome}
+                  onChange={(e) => setFormTurma({ ...formTurma, nome: e.target.value })} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField size="small" fullWidth label="Curso" value={formTurma.curso}
+                  onChange={(e) => setFormTurma({ ...formTurma, curso: e.target.value })} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField size="small" fullWidth label="Horário" placeholder="ex.: Sábado 19h"
+                  value={formTurma.horario}
+                  onChange={(e) => setFormTurma({ ...formTurma, horario: e.target.value })} />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField size="small" fullWidth label="Data de início" type="date"
+                  InputLabelProps={{ shrink: true }} value={formTurma.dat_ini}
+                  onChange={(e) => setFormTurma({ ...formTurma, dat_ini: e.target.value })} />
+              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ borderTop: `1px solid ${TOV.divider}`, pt: 2, mt: 1 }}>
+                  <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>Excluir a turma</Typography>
+                  <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>
+                    Só é possível com a turma vazia: sem alunos, notas, aulas no calendário,
+                    chamadas ou material. A API recusa e diz o que falta remover.
+                  </Typography>
+                  <Button size="small" color="error" variant="outlined" sx={{ mt: 2 }}
+                    disabled={salvandoDlg} onClick={() => setExcluindoTurma(true)}>
+                    Excluir turma
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 1 }}>
+          <Button onClick={() => setFormTurma(null)} variant="outlined" disabled={salvandoDlg}>Cancelar</Button>
+          <Button variant="contained" onClick={salvarTurma} disabled={!formTurma?.nome?.trim() || salvandoDlg}>
+            {salvandoDlg ? 'Salvando…' : 'Salvar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <DialogoConfirmacao
+        aberto={excluindoTurma}
+        titulo="Excluir esta turma?"
+        descricao={`A turma ${turma.nome} e os vínculos de matéria sem histórico serão apagados. Não há como desfazer.`}
+        rotuloConfirmar="Excluir turma"
+        processando={salvandoDlg}
+        onConfirmar={() => { setExcluindoTurma(false); excluirTurma() }}
+        onFechar={() => setExcluindoTurma(false)}
+      />
 
       <DialogoConfirmacao
         aberto={!!paraRemover}

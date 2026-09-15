@@ -17,9 +17,8 @@ from ..models import (
     ConviteProfessor,
     DocTurma,
     Materia,
-    MatProf,
     Professor,
-    TitProf,
+    Turma,
     Usuario,
 )
 from ..security import gerar_hash, usuario_atual
@@ -188,22 +187,39 @@ def criar_convite_acesso(cod_pro: int, db: Session = Depends(get_db)):
 
 @router.get("/{cod_pro}")
 def obter(cod_pro: int, db: Session = Depends(get_db)):
+    """Ficha do professor: o que ele leciona, turma a turma.
+
+    A lista vinha de ``matprof``, uma tabela que nenhuma tela alimentava
+    (AUDITORIA.md G2/G3). Agora sai dos vínculos reais de ``docturma`` — os
+    mesmos que a secretaria cria na turma e que geram diário e boletim.
+    """
     prof = db.get(Professor, cod_pro)
     if not prof:
         raise HTTPException(404, "Professor não encontrado")
     dados = row_to_dict(prof)
-    dados["materias"] = [
-        {"cod_mat": m.cod_mat, "nome": m.NOME}
-        for m in db.scalars(
-            select(Materia)
-            .join(MatProf, MatProf.cod_mat == Materia.cod_mat)
-            .where(MatProf.cod_pro == cod_pro)
-        )
+    vinculos = db.execute(
+        select(DocTurma, Materia.NOME, Turma.nome, Turma.curso)
+        .join(Materia, Materia.cod_mat == DocTurma.cod_mat, isouter=True)
+        .join(Turma, Turma.cod_tur == DocTurma.cod_tur, isouter=True)
+        .where(DocTurma.cod_pro == cod_pro)
+        .order_by(DocTurma.Ano.desc(), DocTurma.semestre.desc(), Materia.NOME)
+    ).all()
+    dados["vinculos"] = [
+        {
+            "docturma_id": vinculo.id,
+            "cod_tur": vinculo.cod_tur,
+            "cod_mat": vinculo.cod_mat,
+            "materia_nome": materia_nome.strip() if materia_nome else None,
+            "turma_nome": turma_nome,
+            "curso": curso,
+            "ano": vinculo.Ano,
+            "semestre": vinculo.semestre,
+        }
+        for vinculo, materia_nome, turma_nome, curso in vinculos
     ]
-    dados["titulos"] = [
-        row_to_dict(t)
-        for t in db.scalars(select(TitProf).where(TitProf.cod_pro == cod_pro))
-    ]
+    dados["notas_lancadas"] = db.scalar(
+        select(func.count()).select_from(AluNota).where(AluNota.cod_pro == cod_pro)
+    ) or 0
     return dados
 
 
@@ -259,34 +275,10 @@ def excluir(cod_pro: int, db: Session = Depends(get_db),
             + " e ".join(detalhes)
             + "; altere o status para inativo em vez de excluir.",
         )
-    db.execute(MatProf.__table__.delete().where(MatProf.cod_pro == cod_pro))
-    db.execute(TitProf.__table__.delete().where(TitProf.cod_pro == cod_pro))
     db.delete(prof)
     auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="professor", entidade_id=cod_pro, detalhes=str(prof.nome or ""))
     db.commit()
     return {"ok": True}
-
-
-@router.put("/{cod_pro}/materias")
-def definir_materias(cod_pro: int, cod_mats: list[int], db: Session = Depends(get_db)):
-    """Substitui o conjunto de matérias que o professor leciona."""
-    if not db.get(Professor, cod_pro):
-        raise HTTPException(404, "Professor não encontrado")
-    codigos = list(dict.fromkeys(cod_mats))
-    existentes = set(
-        db.scalars(select(Materia.cod_mat).where(Materia.cod_mat.in_(codigos)))
-    ) if codigos else set()
-    ausentes = sorted(set(codigos) - existentes)
-    if ausentes:
-        raise HTTPException(
-            404,
-            f"Matéria(s) não encontrada(s): {', '.join(map(str, ausentes))}",
-        )
-    db.execute(MatProf.__table__.delete().where(MatProf.cod_pro == cod_pro))
-    for i, cod_mat in enumerate(codigos, start=1):
-        db.add(MatProf(cod_mat=cod_mat, cod_pro=cod_pro, seq_mp=i))
-    db.commit()
-    return {"ok": True, "quantidade": len(codigos)}
 
 
 @public_router.get("/{token}")

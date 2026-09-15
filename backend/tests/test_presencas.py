@@ -20,6 +20,7 @@ from app.models import (
 )
 from app.routers import presencas
 from app.routers.notas import grade_por_vinculo
+from tests import SEM_LOGIN
 
 
 class PresencasTest(unittest.TestCase):
@@ -53,7 +54,7 @@ class PresencasTest(unittest.TestCase):
             patch.object(presencas, "_hoje_local", return_value=self.hoje),
             patch.object(presencas, "_agora_utc", return_value=self.agora),
         ):
-            return presencas.abrir_chamada(self.turma.cod_tur, db=self.db)
+            return presencas.abrir_chamada(self.turma.cod_tur, db=self.db, user=SEM_LOGIN)
 
     def test_abertura_cria_retrato_dos_matriculados(self):
         chamada = self.abrir()
@@ -90,7 +91,9 @@ class PresencasTest(unittest.TestCase):
     def test_chamada_encerrada_recusa_novas_presencas(self):
         chamada = self.abrir()
         with patch.object(presencas, "_agora_utc", return_value=self.agora):
-            presencas.encerrar_chamada(self.turma.cod_tur, chamada["id"], db=self.db)
+            presencas.encerrar_chamada(
+                self.turma.cod_tur, chamada["id"], db=self.db, user=SEM_LOGIN
+            )
 
         with (
             patch.object(presencas, "_hoje_local", return_value=self.hoje),
@@ -140,6 +143,7 @@ class PresencasTest(unittest.TestCase):
                 self.turma.cod_tur,
                 presencas.AbrirChamadaInput(aula_id=aula.id),
                 db=self.db,
+                user=SEM_LOGIN,
             )
             presencas.marcar_presenca(
                 chamada["token"],
@@ -150,9 +154,10 @@ class PresencasTest(unittest.TestCase):
                 self.turma.cod_tur,
                 chamada["id"],
                 db=self.db,
+                user=SEM_LOGIN,
             )
 
-        grade = grade_por_vinculo(vinculo.id, db=self.db)
+        grade = grade_por_vinculo(vinculo.id, db=self.db, user=SEM_LOGIN)
         faltas = {item["cod_alu"]: item["falta"] for item in grade["alunos"]}
         self.assertEqual(faltas[self.ana.cod_alu], 0)
         self.assertEqual(faltas[self.bruno.cod_alu], 1)

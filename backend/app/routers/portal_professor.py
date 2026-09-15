@@ -54,7 +54,7 @@ def _agora() -> datetime:
 
 
 def _professor_logado(db: Session, user: str) -> tuple[Usuario, Professor]:
-    usuario = db.get(Usuario, user) if isinstance(user, str) else None
+    usuario = db.get(Usuario, user)
     if (
         not usuario
         or (usuario.perfil or "").upper() != "PROFESSOR"

@@ -113,13 +113,14 @@ export default function AutocadastroProfessor() {
 
             <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>Áreas de atuação</Typography>
             <TextField
+              id="materias-atuacao"
               required fullWidth multiline minRows={4}
               label="Quais matérias ou áreas você está apto(a) a lecionar?"
               placeholder="Escreva livremente. Ex.: Teologia Sistemática, História da Igreja, Grego Bíblico…"
               value={form.materias_atuacao}
               onChange={(e) => alterar('materias_atuacao', e.target.value)}
               helperText="Esta indicação não cria vínculos automaticamente; a secretaria fará a atribuição oficial."
-              inputProps={{ maxLength: 1000 }}
+              inputProps={{ maxLength: 1000, 'aria-label': 'Quais matérias ou áreas você está apto(a) a lecionar?' }}
               sx={{ mb: 3 }}
             />
 

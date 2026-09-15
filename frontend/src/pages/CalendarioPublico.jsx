@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useParams, useSearchParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogContent, DialogTitle,
   MenuItem, TextField, Typography,
@@ -37,11 +37,9 @@ function textoData(data) {
 
 export default function CalendarioPublico() {
   const { token } = useParams()
-  const [searchParams] = useSearchParams()
-  const codTurmaLink = searchParams.get('turma') || ''
   const [mes, setMes] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [aulas, setAulas] = useState([])
-  const [filtros, setFiltros] = useState({ cod_tur: codTurmaLink, cod_mat: '', cod_pro: '' })
+  const [filtros, setFiltros] = useState({ cod_tur: '', cod_mat: '', cod_pro: '' })
   const [turmaCompartilhada, setTurmaCompartilhada] = useState(null)
   const [selecionada, setSelecionada] = useState(null)
   const [filtrosAbertos, setFiltrosAbertos] = useState(false)
@@ -54,14 +52,14 @@ export default function CalendarioPublico() {
     setCarregando(true)
     setErro('')
     const periodo = intervaloGrade(mes)
+    // A turma vem do próprio link: o servidor só devolve a agenda dela.
     const query = new URLSearchParams(periodo)
-    if (codTurmaLink) query.set('cod_tur', codTurmaLink)
     try {
       const resposta = await getPublico(`/calendario-publico/${token}?${query}`)
       setAulas(resposta.aulas)
       setTurmaCompartilhada(resposta.turma || null)
       setFiltros((atuais) => ({
-        cod_tur: codTurmaLink || (resposta.aulas.some((aula) => String(aula.cod_tur) === atuais.cod_tur) ? atuais.cod_tur : ''),
+        cod_tur: resposta.turma ? String(resposta.turma.cod_tur) : '',
         cod_mat: resposta.aulas.some((aula) => String(aula.cod_mat) === atuais.cod_mat) ? atuais.cod_mat : '',
         cod_pro: resposta.aulas.some((aula) => String(aula.cod_pro) === atuais.cod_pro) ? atuais.cod_pro : '',
       }))
@@ -72,7 +70,7 @@ export default function CalendarioPublico() {
     } finally {
       setCarregando(false)
     }
-  }, [codTurmaLink, mes, token])
+  }, [mes, token])
 
   useEffect(() => { carregar() }, [carregar])
 
@@ -145,7 +143,7 @@ export default function CalendarioPublico() {
                 >
                   {filtrosAbertos ? 'Ocultar filtros' : 'Filtrar agenda'}
                 </Button>
-                {!codTurmaLink && (
+                {!turmaCompartilhada && (
                   <TextField select size="small" label="Turma" value={filtros.cod_tur} onChange={(e) => setFiltros({ ...filtros, cod_tur: e.target.value })} sx={{ display: { xs: filtrosAbertos ? 'flex' : 'none', sm: 'flex' }, width: { xs: '100%', sm: 'auto' }, minWidth: 170 }}>
                     <MenuItem value="">Todas</MenuItem>
                     {turmas.map((item) => <MenuItem key={item.valor} value={item.valor}>{item.nome}</MenuItem>)}

@@ -1,12 +1,15 @@
 import re
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..services import auditoria
+from ..consultas import termo_like
+from ..tempo import agora_utc, hoje_local
 from ..database import get_db, row_to_dict
 from ..models import (
     AluNota,
@@ -19,8 +22,8 @@ from ..models import (
     TitProf,
     Usuario,
 )
-from ..security import gerar_hash
-from ..services.notificacoes import criar_para_todos, entregar_lista
+from ..security import gerar_hash, usuario_atual
+from ..services.notificacoes import agendar_entrega, criar_para_todos
 
 router = APIRouter(prefix="/professores", tags=["professores"])
 public_router = APIRouter(
@@ -102,7 +105,7 @@ def _convite_valido(
     convite = db.scalar(consulta)
     if not convite:
         raise HTTPException(404, "Convite inválido ou já utilizado")
-    if convite.expira_em < datetime.now():
+    if convite.expira_em < agora_utc():
         convite.ativo = "N"
         db.commit()
         raise HTTPException(410, "Este convite expirou")
@@ -121,7 +124,7 @@ def listar(busca: str = "", db: Session = Depends(get_db)):
         isouter=True,
     )
     if busca:
-        q = q.where(Professor.nome.like(f"%{busca}%"))
+        q = q.where(Professor.nome.like(termo_like(busca), escape="\\"))
     resposta = []
     for professor, usuario in db.execute(q.order_by(Professor.nome)):
         item = row_to_dict(professor)
@@ -132,7 +135,7 @@ def listar(busca: str = "", db: Session = Depends(get_db)):
 
 @router.post("/convites")
 def criar_convite(db: Session = Depends(get_db)):
-    agora = datetime.now()
+    agora = agora_utc()
     convite = ConviteProfessor(
         token=secrets.token_urlsafe(32),
         criado_em=agora,
@@ -157,7 +160,7 @@ def criar_convite_acesso(cod_pro: int, db: Session = Depends(get_db)):
     if acesso:
         raise HTTPException(409, f"Professor já possui o usuário {acesso.user}")
 
-    agora = datetime.now()
+    agora = agora_utc()
     for anterior in db.scalars(
         select(ConviteAcessoProfessor).where(
             ConviteAcessoProfessor.cod_pro == cod_pro,
@@ -208,7 +211,7 @@ def obter(cod_pro: int, db: Session = Depends(get_db)):
 def criar(dados: ProfessorInput, db: Session = Depends(get_db)):
     prof = Professor(**dados.model_dump())
     if not prof.dat_cad:
-        prof.dat_cad = date.today()
+        prof.dat_cad = hoje_local()
     db.add(prof)
     db.commit()
     db.refresh(prof)
@@ -227,7 +230,9 @@ def atualizar(cod_pro: int, dados: ProfessorInput, db: Session = Depends(get_db)
 
 
 @router.delete("/{cod_pro}")
-def excluir(cod_pro: int, db: Session = Depends(get_db)):
+def excluir(cod_pro: int, db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     prof = db.get(Professor, cod_pro)
     if not prof:
         raise HTTPException(404, "Professor não encontrado")
@@ -257,6 +262,7 @@ def excluir(cod_pro: int, db: Session = Depends(get_db)):
     db.execute(MatProf.__table__.delete().where(MatProf.cod_pro == cod_pro))
     db.execute(TitProf.__table__.delete().where(TitProf.cod_pro == cod_pro))
     db.delete(prof)
+    auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="professor", entidade_id=cod_pro, detalhes=str(prof.nome or ""))
     db.commit()
     return {"ok": True}
 
@@ -297,6 +303,7 @@ def autocadastrar_professor(
     token: str,
     dados: AutocadastroProfessorInput,
     db: Session = Depends(get_db),
+    tarefas: BackgroundTasks = None,
 ):
     convite = _convite_valido(db, token, bloquear=True)
     if "@" not in dados.e_mail or "." not in dados.e_mail.rsplit("@", 1)[-1]:
@@ -322,10 +329,10 @@ def autocadastrar_professor(
         chave: (valor if valor != "" else None)
         for chave, valor in dados.model_dump().items()
     }
-    agora = datetime.now()
+    agora = agora_utc()
     professor = Professor(
         **valores,
-        dat_cad=date.today(),
+        dat_cad=hoje_local(),
         status="A",
         origem_cadastro="AUTOCADASTRO",
         cadastro_recebido_em=agora,
@@ -345,7 +352,8 @@ def autocadastrar_professor(
         chave_evento=f"autocadastro-professor:{professor.cod_pro}",
     )
     db.commit()
-    entregar_lista(db, notificacoes)
+    # Web Push é HTTP síncrono para cada inscrição: fora da requisição.
+    agendar_entrega(tarefas, db, notificacoes)
     return {
         "ok": True,
         "mensagem": "Cadastro enviado com sucesso",
@@ -368,7 +376,7 @@ def _convite_acesso_valido(
     convite = db.scalar(consulta)
     if not convite:
         raise HTTPException(404, "Convite de acesso inválido ou já utilizado")
-    if convite.expira_em < datetime.now():
+    if convite.expira_em < agora_utc():
         convite.ativo = "N"
         db.commit()
         raise HTTPException(410, "Este convite de acesso expirou")
@@ -408,7 +416,7 @@ def concluir_acesso_professor(
         )
     if db.get(Usuario, user):
         raise HTTPException(409, "Este nome de usuário já está em uso")
-    agora = datetime.now()
+    agora = agora_utc()
     usuario = Usuario(
         user=user,
         senha_hash=gerar_hash(dados.senha),

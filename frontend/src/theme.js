@@ -63,6 +63,10 @@ export const TOV = {
   onDarkBorderStrong: 'rgba(255,255,255,.45)',
   focusOnDark: 'rgba(255,154,154,.42)',
   darkHairline: 'rgba(20,22,24,.14)',
+  // Sombras de "há mais conteúdo" em containers que rolam na horizontal.
+  scrollShade: 'rgba(20,22,24,.14)',
+  scrollShadeEnd: 'rgba(20,22,24,0)',
+  surfaceTransparent: 'rgba(255,254,252,0)',
   darkGradient: 'linear-gradient(115deg, rgba(20,22,24,.26), rgba(44,50,54,0) 58%)',
   glassSurface: 'rgba(255,255,255,.94)',
   glassSurfaceSoft: 'rgba(255,255,255,.55)',
@@ -86,7 +90,8 @@ export const TOV = {
 
   fontHead: "'Bricolage Grotesque', -apple-system, BlinkMacSystemFont, sans-serif",
   fontBody: "'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif",
-  fontMono: "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace",
+  // Só fontes do sistema: nenhuma mono é empacotada, então o nome não promete nada.
+  fontMono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
   type: {
     micro: 10,
     overline: 11,
@@ -170,8 +175,10 @@ export const tovTheme = createTheme(
         active: TOV.graphite,
         hover: alpha(TOV.graphite, 0.045),
         selected: TOV.coralTint,
-        disabled: alpha(TOV.caption, 0.6),
-        disabledBackground: alpha(TOV.caption, 0.1),
+        // Desabilitado ainda precisa ser lido: 0.6 de alpha dava 1,4:1 a 2,9:1
+        // e o botão parecia quebrado, não indisponível.
+        disabled: TOV.caption,
+        disabledBackground: alpha(TOV.caption, 0.12),
         focus: alpha(TOV.coral, 0.12),
       },
     },
@@ -198,7 +205,9 @@ export const tovTheme = createTheme(
       subtitle1: { fontWeight: 600, lineHeight: 1.45 },
       body1: { fontSize: TOV.type.body, lineHeight: 1.6 },
       body2: { fontSize: TOV.type.bodySm, lineHeight: 1.55 },
-      button: { textTransform: 'none', fontWeight: 700, letterSpacing: 0 },
+      // Em px como toda a escala `TOV.type`: senão só o botão cresce quando o
+      // navegador aumenta a fonte-raiz e a tela perde a proporção.
+      button: { textTransform: 'none', fontWeight: 700, letterSpacing: 0, fontSize: TOV.type.body },
       overline: {
         fontFamily: TOV.fontHead,
         fontWeight: 700,
@@ -225,7 +234,17 @@ export const tovTheme = createTheme(
       MuiCssBaseline: {
         styleOverrides: {
           ':root': { colorScheme: 'light' },
-          html: { minWidth: 320, backgroundColor: TOV.canvas },
+          html: { minWidth: 320, backgroundColor: TOV.canvas, scrollbarGutter: 'stable' },
+          // Impressão: sidebar grafite, filtros e botões de ação não vão para o papel.
+          '@media print': {
+            html: { backgroundColor: TOV.surface },
+            body: { backgroundColor: TOV.surface, minWidth: 0 },
+            '.nao-imprimir, .MuiSnackbar-root, .MuiDrawer-root': { display: 'none !important' },
+            'main#conteudo-principal': { padding: '0 !important', maxWidth: 'none !important' },
+            '.MuiTableContainer-root': { border: 0, backgroundImage: 'none !important', overflow: 'visible !important' },
+            '.MuiButton-root, .MuiIconButton-root, [role="group"]': { display: 'none !important' },
+            a: { textDecoration: 'none', color: 'inherit' },
+          },
           body: {
             minWidth: 320,
             backgroundColor: TOV.canvas,
@@ -275,6 +294,12 @@ export const tovTheme = createTheme(
             boxShadow: 'none',
             '&:focus-visible': focusRing,
             '&:active:not(.Mui-disabled)': { transform: 'translateY(1px)' },
+            // Um único tratamento de "indisponível", seja contido ou contornado.
+            '&.Mui-disabled': {
+              color: TOV.caption,
+              backgroundColor: TOV.surfaceMuted,
+              borderColor: TOV.border,
+            },
           },
           sizeSmall: { minHeight: TOV.controlHSm, paddingInline: 16 },
           containedPrimary: {
@@ -327,11 +352,16 @@ export const tovTheme = createTheme(
         },
       },
       MuiInputLabel: {
+        // Rótulo sempre no entalhe da borda, esteja o campo vazio ou não: o
+        // select de filtro com valor "" (todos) deixava de encolher o rótulo e
+        // convivia com o campo vizinho encolhido — dois vocabulários na mesma linha.
+        defaultProps: { shrink: true },
         styleOverrides: {
           root: { color: TOV.caption, '&.Mui-focused': { color: TOV.coral } },
         },
       },
       MuiOutlinedInput: {
+        defaultProps: { notched: true },
         styleOverrides: {
           root: {
             minHeight: TOV.controlH,
@@ -343,9 +373,15 @@ export const tovTheme = createTheme(
               boxShadow: `0 0 0 3px ${alpha(TOV.coral, 0.25)}`,
               '& .MuiOutlinedInput-notchedOutline': { borderColor: TOV.coral, borderWidth: 1.5 },
             },
+            // Erro difere do foco pela forma, não só pelo tom: borda dupla
+            // (2px) e, quando o campo em erro recebe foco, o anel é grafite.
             '&.Mui-error': {
               backgroundColor: alpha(TOV.danger, 0.025),
-              '& .MuiOutlinedInput-notchedOutline': { borderColor: TOV.danger },
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: TOV.danger, borderWidth: 2 },
+              '&.Mui-focused': {
+                boxShadow: `0 0 0 3px ${alpha(TOV.graphite, 0.22)}`,
+                '& .MuiOutlinedInput-notchedOutline': { borderColor: TOV.danger, borderWidth: 2 },
+              },
             },
             '&.Mui-disabled': { backgroundColor: alpha(TOV.caption, 0.07) },
           },
@@ -365,11 +401,24 @@ export const tovTheme = createTheme(
             border: `1px solid ${TOV.border}`,
             backgroundColor: TOV.surface,
             boxShadow: 'none',
+            // Sombras nas bordas que aparecem só quando há conteúdo escondido
+            // à direita ou à esquerda: a tabela rola, e agora a tela diz isso.
+            backgroundImage: [
+              `linear-gradient(to right, ${TOV.surface} 40%, ${alpha(TOV.surface, 0)})`,
+              `linear-gradient(to left, ${TOV.surface} 40%, ${alpha(TOV.surface, 0)})`,
+              `linear-gradient(to right, ${alpha(TOV.ink, 0.14)}, ${alpha(TOV.ink, 0)})`,
+              `linear-gradient(to left, ${alpha(TOV.ink, 0.14)}, ${alpha(TOV.ink, 0)})`,
+            ].join(', '),
+            backgroundPosition: 'left center, right center, left center, right center',
+            backgroundRepeat: 'no-repeat',
+            backgroundSize: '48px 100%, 48px 100%, 16px 100%, 16px 100%',
+            backgroundAttachment: 'local, local, scroll, scroll',
           },
         },
       },
       MuiTable: {
-        defaultProps: { stickyHeader: true },
+        // Sem `stickyHeader`: o container não tem altura máxima, quem rola é a
+        // página, e um cabeçalho "fixo" que nunca fixa só promete o que não faz.
         styleOverrides: { root: { borderCollapse: 'separate', borderSpacing: 0 } },
       },
       MuiTableCell: {
@@ -380,6 +429,8 @@ export const tovTheme = createTheme(
             borderBottom: `1px solid ${TOV.divider}`,
             fontSize: TOV.type.body,
             fontVariantNumeric: 'tabular-nums',
+            // E-mail ou URL sem espaço não pode empurrar as demais colunas para fora.
+            overflowWrap: 'anywhere',
             // Densidade compacta: aplicada pelo container da tabela.
             '[data-densidade="compacta"] &': { height: 40, paddingTop: 4, paddingBottom: 4 },
           },
@@ -408,7 +459,8 @@ export const tovTheme = createTheme(
         styleOverrides: {
           root: {
             transition: `background-color ${TOV.durationFast} ${TOV.ease}`,
-            '&.MuiTableRow-hover:hover': { backgroundColor: alpha(TOV.graphite, 0.035) },
+            // 3,5% era o retorno visual mais fraco do sistema, numa linha inteira clicável.
+            '&.MuiTableRow-hover:hover': { backgroundColor: alpha(TOV.graphite, 0.07) },
             '&:last-child td': { borderBottom: 0 },
           },
         },
@@ -472,9 +524,36 @@ export const tovTheme = createTheme(
           paper: { backgroundImage: 'none' },
         },
       },
+      MuiSnackbar: {
+        // Embaixo, no centro: o padrão do MUI (canto inferior esquerdo) caía
+        // exatamente sobre a sidebar. No celular sobe acima da barra inferior.
+        defaultProps: { anchorOrigin: { vertical: 'bottom', horizontal: 'center' } },
+        styleOverrides: {
+          root: ({ theme }) => ({
+            [theme.breakpoints.down('sm')]: {
+              bottom: 'calc(78px + env(safe-area-inset-bottom))',
+              left: 12,
+              right: 12,
+              maxWidth: 'calc(100% - 24px)',
+            },
+            [theme.breakpoints.up('sm')]: { maxWidth: 520 },
+          }),
+        },
+      },
       MuiAlert: {
         styleOverrides: {
-          root: { borderRadius: TOV.radiusSm, alignItems: 'center' },
+          root: {
+            borderRadius: TOV.radiusSm,
+            alignItems: 'center',
+            // Dentro de um Snackbar o alerta flutua sobre qualquer fundo: os
+            // tints translúcidos são para superfície clara, aqui o fundo é opaco.
+            '.MuiSnackbar-root &': {
+              width: '100%',
+              backgroundColor: TOV.surface,
+              border: `1px solid ${TOV.border}`,
+              boxShadow: TOV.shadowFloating,
+            },
+          },
           standardError: { backgroundColor: TOV.dangerTint, color: TOV.danger },
           standardWarning: { backgroundColor: TOV.warningTint, color: TOV.warning },
           standardInfo: { backgroundColor: TOV.infoTint, color: TOV.info },

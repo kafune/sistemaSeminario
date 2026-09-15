@@ -7,14 +7,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+from datetime import timedelta
 
 from pywebpush import WebPushException, webpush
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from ..config import settings
+from ..tempo import agora_local as _agora_local_tempo, agora_utc as _agora_utc_tempo
+from ..security import perfil_de
 from ..models import (
     Aula,
     DocTurma,
@@ -32,12 +33,9 @@ CAMPO_PREFERENCIA = {
 }
 
 
-def agora_utc() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
-
-
-def agora_local() -> datetime:
-    return datetime.now(ZoneInfo(settings.timezone))
+# Reexportados de ``app.tempo``: os testes e o ``main`` os patcheiam por aqui.
+agora_utc = _agora_utc_tempo
+agora_local = _agora_local_tempo
 
 
 def push_configurado() -> bool:
@@ -177,6 +175,39 @@ def entregar_push(db: Session, notificacao: Notificacao) -> int:
     return entregues
 
 
+def entregar_ids_em_segundo_plano(ids: list[int]) -> None:
+    """Entrega Web Push em sessão própria, fora da requisição que criou as notificações.
+
+    Cada ``webpush`` é uma chamada HTTP síncrona; dentro do request o usuário
+    esperava por todas elas, e ``entregar_lista`` commitava uma transação que
+    não era dele. Use com ``BackgroundTasks``.
+    """
+    if not ids:
+        return
+    from ..database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        notificacoes = list(
+            db.scalars(select(Notificacao).where(Notificacao.id.in_(ids)))
+        )
+        entregar_lista(db, notificacoes)
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
+def agendar_entrega(tarefas, db: Session, notificacoes: list[Notificacao]) -> None:
+    """Enfileira a entrega quando há ``BackgroundTasks``; senão entrega na hora."""
+    if not notificacoes:
+        return
+    if tarefas is None:
+        entregar_lista(db, notificacoes)
+        return
+    tarefas.add_task(entregar_ids_em_segundo_plano, [n.id for n in notificacoes])
+
+
 def entregar_lista(db: Session, notificacoes: list[Notificacao]) -> int:
     total = 0
     for notificacao in notificacoes:
@@ -210,7 +241,7 @@ def gerar_lembretes_aulas(db: Session) -> list[Notificacao]:
         return []
     criadas: list[Notificacao] = []
     for usuario in db.scalars(select(Usuario)):
-        perfil = (usuario.perfil or "ADMIN").upper()
+        perfil = perfil_de(usuario)
         if perfil == "PROFESSOR":
             if usuario.cod_pro is None:
                 continue

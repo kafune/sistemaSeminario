@@ -12,8 +12,8 @@ import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  BarraFiltros, CabecalhoPagina, EstadoVazio, GrupoSegmentado, SkeletonCards,
-  StatusBadge, Superficie, cardSx, resetBotao, useDialogoTelaCheia,
+  BarraFiltros, CabecalhoPagina, EstadoErro, EstadoVazio, GrupoSegmentado, SkeletonCards,
+  LinkVoltar, StatusBadge, Superficie, cardSx, useDialogoTelaCheia,
 } from '../ui'
 import { formatarDataBr, formatarMoeda } from '../formatters'
 import { SeloSituacao, hojeIso, numeroDoCampo } from './FinanceiroComum'
@@ -44,6 +44,8 @@ export default function FinanceiroConciliacao() {
   const [dados, setDados] = useState({ transacoes: [], pendentes: 0 })
   const [config, setConfig] = useState(null)
   const [carregando, setCarregando] = useState(true)
+  // Falha da própria fila: vira `EstadoErro` no corpo, não estado vazio.
+  const [erroCarga, setErroCarga] = useState('')
   const [salvandoConfig, setSalvandoConfig] = useState(false)
   const [processando, setProcessando] = useState(null)
   const [manualAberto, setManualAberto] = useState(false)
@@ -54,9 +56,13 @@ export default function FinanceiroConciliacao() {
 
   const carregar = useCallback(() => {
     setCarregando(true)
+    setErroCarga('')
     api.get(`/financeiro/conciliacao?status=${filtro}`)
       .then(setDados)
-      .catch((e) => avisar(e.message))
+      .catch((e) => {
+        setErroCarga(e.message)
+        setDados({ transacoes: [], pendentes: 0 })
+      })
       .finally(() => setCarregando(false))
   }, [filtro])
 
@@ -64,6 +70,16 @@ export default function FinanceiroConciliacao() {
 
   useEffect(() => {
     api.get('/financeiro/configuracao').then(setConfig).catch(() => setConfig(null))
+  }, [])
+
+  // O campo de instruções mede a própria altura ao montar. Se a fonte da
+  // interface chega depois, o texto reflui e a última linha fica escondida;
+  // remontar o campo quando as fontes ficam prontas refaz a medida.
+  const [fontesProntas, setFontesProntas] = useState(false)
+  useEffect(() => {
+    let ativo = true
+    document.fonts?.ready.then(() => { if (ativo) setFontesProntas(true) })
+    return () => { ativo = false }
   }, [])
 
   async function salvarConfiguracao() {
@@ -136,18 +152,13 @@ export default function FinanceiroConciliacao() {
 
   return (
     <Box>
-      <Box
-        component="button" type="button" onClick={() => navigate('/financeiro')}
-        sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: TOV.type.body, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}
-      >
-        ‹ Voltar para Financeiro
-      </Box>
+      <LinkVoltar para="/financeiro" rotulo="Voltar para Financeiro" />
 
       <CabecalhoPagina
         variante="operacional"
         titulo="Conciliação bancária"
         descricao="PIX e boletos que o banco informou. O que o sistema identifica sozinho já entra como pago; o resto espera alguém apontar o título."
-        metadados={carregando ? ' ' : `${dados.pendentes} aguardando conciliação`}
+        metadados={carregando || erroCarga ? ' ' : `${dados.pendentes} aguardando conciliação`}
         acoes={(
           <Button variant="contained" startIcon={<AddCardOutlinedIcon />} onClick={() => { setManual({ ...MANUAL_VAZIO }); setManualAberto(true) }}>
             Lançar recebimento
@@ -157,9 +168,8 @@ export default function FinanceiroConciliacao() {
 
       {config && !config.webhook_configurado && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          O banco ainda não está conectado. Defina <strong>TOV_BANCO_WEBHOOK_SECRET</strong> no servidor e aponte o
-          provedor para <strong>{config.webhook_url}</strong>. Até lá, use “Lançar recebimento” para trazer o que
-          aparecer no extrato.
+          A integração com o banco ainda não está configurada — peça ao administrador ou ao suporte técnico para
+          ativá-la. Até lá, use “Lançar recebimento” para trazer o que aparecer no extrato.
         </Alert>
       )}
 
@@ -183,7 +193,8 @@ export default function FinanceiroConciliacao() {
             />
           </Box>
           <TextField
-            fullWidth multiline minRows={2} label="Instruções para o aluno" value={config.instrucoes || ''}
+            key={fontesProntas ? 'instrucoes-medidas' : 'instrucoes'}
+            fullWidth multiline minRows={3} maxRows={8} label="Instruções para o aluno" value={config.instrucoes || ''}
             onChange={(e) => setConfig({ ...config, instrucoes: e.target.value })}
             inputProps={{ maxLength: 2000 }}
             sx={{ mt: 2 }}
@@ -221,13 +232,17 @@ export default function FinanceiroConciliacao() {
       <BarraFiltros>
         <GrupoSegmentado rotulo="Situação do recebimento" opcoes={FILTROS} valor={filtro} onChange={setFiltro} />
         <Typography sx={{ ml: { sm: 'auto' }, color: TOV.caption, fontSize: TOV.type.bodySm }}>
-          {transacoes.length} recebimento(s)
+          {carregando || erroCarga ? '' : transacoes.length === 1 ? '1 recebimento' : `${transacoes.length} recebimentos`}
         </Typography>
       </BarraFiltros>
 
       {carregando && transacoes.length === 0 && <SkeletonCards quantidade={3} altura={180} colunas="1fr" />}
 
-      {!carregando && transacoes.length === 0 && (
+      {!carregando && erroCarga && (
+        <EstadoErro titulo="Não foi possível carregar os recebimentos" descricao={erroCarga} onTentarNovamente={carregar} />
+      )}
+
+      {!carregando && !erroCarga && transacoes.length === 0 && (
         <Box sx={cardSx}>
           <EstadoVazio
             titulo={filtro === 'PENDENTE' ? 'Nada esperando conciliação' : 'Nenhum recebimento neste recorte'}

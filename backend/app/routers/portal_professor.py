@@ -1,14 +1,13 @@
 """Painel e espaço de trabalho do professor."""
 
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, load_only
 
-from ..config import settings
+from ..tempo import agora_utc
 from ..database import get_db
 from ..models import (
     Aluno,
@@ -50,7 +49,8 @@ class ComunicadoInput(BaseModel):
 
 
 def _agora() -> datetime:
-    return datetime.now(ZoneInfo(settings.timezone)).replace(tzinfo=None)
+    # Carimbos em UTC ingênuo, como o resto do sistema (ver ``app.tempo``).
+    return agora_utc()
 
 
 def _professor_logado(db: Session, user: str) -> tuple[Usuario, Professor]:

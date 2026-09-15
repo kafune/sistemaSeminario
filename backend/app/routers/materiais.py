@@ -1,6 +1,5 @@
 """Biblioteca de materiais das matérias e de aulas específicas."""
 
-from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
@@ -9,6 +8,7 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session, load_only
 
+from ..tempo import agora_utc
 from ..config import settings
 from ..database import get_db
 from ..models import (
@@ -20,7 +20,7 @@ from ..models import (
     Turma,
     Usuario,
 )
-from ..security import usuario_atual
+from ..security import perfil_de, usuario_atual
 
 router = APIRouter(prefix="/materiais", tags=["materiais didáticos"])
 
@@ -60,7 +60,7 @@ def _validar_acesso_vinculo(
     vinculo: DocTurma,
 ) -> None:
     usuario = _usuario_logado(db, user)
-    if usuario and (usuario.perfil or "ADMIN").upper() == "PROFESSOR":
+    if usuario and perfil_de(usuario) == "PROFESSOR":
         if usuario.cod_pro is None or vinculo.cod_pro != usuario.cod_pro:
             raise HTTPException(
                 403,
@@ -164,7 +164,7 @@ def opcoes_materiais(
         .join(Professor, Professor.cod_pro == DocTurma.cod_pro, isouter=True)
         .order_by(Turma.nome, Materia.NOME, DocTurma.Ano, DocTurma.semestre)
     )
-    if usuario and (usuario.perfil or "ADMIN").upper() == "PROFESSOR":
+    if usuario and perfil_de(usuario) == "PROFESSOR":
         if usuario.cod_pro is None:
             return {
                 "vinculos": [],
@@ -230,7 +230,7 @@ def listar_materiais(
         consulta = consulta.where(MaterialDidatico.docturma_id == docturma_id)
     if aula_id is not None:
         consulta = consulta.where(MaterialDidatico.aula_id == aula_id)
-    if usuario and (usuario.perfil or "ADMIN").upper() == "PROFESSOR":
+    if usuario and perfil_de(usuario) == "PROFESSOR":
         if usuario.cod_pro is None:
             return []
         consulta = consulta.where(DocTurma.cod_pro == usuario.cod_pro)
@@ -283,7 +283,7 @@ async def anexar_material(
         tamanho=len(conteudo),
         conteudo=conteudo,
         criado_por=user,
-        criado_em=datetime.now(),
+        criado_em=agora_utc(),
     )
     db.add(material)
     db.commit()

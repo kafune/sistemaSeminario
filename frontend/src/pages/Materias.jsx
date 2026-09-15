@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
-  InputAdornment, Paper, Snackbar, Table, TableBody, TableCell, TableContainer,
+  InputAdornment, Snackbar, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TextField,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
@@ -10,8 +10,8 @@ import { api } from '../api'
 import { TOV } from '../theme'
 import { useDirtyForm } from '../UnsavedChanges'
 import {
-  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, LinhaCartao,
-  LinhasSkeleton, SkeletonCards, resetBotao, useDialogoTelaCheia,
+  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao,
+  LinhasSkeleton, SkeletonCards, acaoTabelaSx, useDialogoTelaCheia,
   useTelaDesktop,
 } from '../ui'
 
@@ -29,6 +29,8 @@ export default function Materias() {
   const [materias, setMaterias] = useState([])
   const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(true)
+  // Falha da própria lista: vira `EstadoErro` no corpo, não estado vazio.
+  const [erroCarga, setErroCarga] = useState('')
   const [form, setForm] = useState(null)
   const [confirmarFecharForm, setConfirmarFecharForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -51,9 +53,13 @@ export default function Materias() {
 
   function carregar() {
     setCarregando(true)
+    setErroCarga('')
     api.get(`/materias?busca=${encodeURIComponent(busca)}`)
       .then(setMaterias)
-      .catch((e) => setMsg(e.message))
+      .catch((e) => {
+        setErroCarga(e.message)
+        setMaterias([])
+      })
       .finally(() => setCarregando(false))
   }
 
@@ -62,7 +68,7 @@ export default function Materias() {
   async function salvar() {
     setSalvando(true)
     try {
-      const dados = { ...form, area: form.area || null, APELIDO: form.APELIDO || null, observa: form.observa || null }
+      const dados = { ...form, NOME: (form.NOME || '').trim(), area: form.area?.trim() || null, APELIDO: form.APELIDO?.trim() || null, observa: form.observa || null }
       if (form.cod_mat) await api.put(`/materias/${form.cod_mat}`, dados)
       else await api.post('/materias', dados)
       setForm(null)
@@ -117,7 +123,7 @@ export default function Materias() {
       <CabecalhoPagina
         variante="operacional"
         titulo="Matérias"
-        metadados={carregando ? ' ' : `${materias.length} ${materias.length === 1 ? 'matéria' : 'matérias'} · ${areas} ${areas === 1 ? 'área' : 'áreas'}`}
+        metadados={carregando || erroCarga ? ' ' : `${materias.length} ${materias.length === 1 ? 'matéria' : 'matérias'} · ${areas} ${areas === 1 ? 'área' : 'áreas'}`}
         acoes={acoes}
       />
 
@@ -126,7 +132,10 @@ export default function Materias() {
         {carregando && materias.length === 0 && (
           <SkeletonCards quantidade={4} altura={112} colunas="1fr" />
         )}
-        {!carregando && materias.length === 0 && (
+        {!carregando && erroCarga && (
+          <EstadoErro titulo="Não foi possível carregar as matérias" descricao={erroCarga} onTentarNovamente={carregar} />
+        )}
+        {!carregando && !erroCarga && materias.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhuma matéria encontrada" descricao="Revise a busca ou cadastre uma nova matéria." /></CartaoLista>
         )}
         {materias.map((m) => (
@@ -163,7 +172,10 @@ export default function Materias() {
             {carregando && materias.length === 0 && (
               <LinhasSkeleton colunas={5} />
             )}
-            {!carregando && materias.length === 0 && (
+            {!carregando && erroCarga && (
+              <TableRow><TableCell colSpan={5} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar as matérias" descricao={erroCarga} onTentarNovamente={carregar} /></TableCell></TableRow>
+            )}
+            {!carregando && !erroCarga && materias.length === 0 && (
               <TableRow><TableCell colSpan={5} sx={{ p: 0 }}><EstadoVazio titulo="Nenhuma matéria encontrada" descricao="Revise a busca ou cadastre uma nova matéria." /></TableCell></TableRow>
             )}
             {materias.map((m) => (
@@ -175,12 +187,12 @@ export default function Materias() {
                 <TableCell align="right">
                   <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption }}>
                     <Box component="button" type="button" onClick={() => abrirForm(m)}
-                      sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
+                      sx={acaoTabelaSx}>
                       Editar
                     </Box>
-                    <Box component="span" sx={{ color: TOV.border }}>·</Box>
+                    <Box component="span" aria-hidden="true" sx={{ color: TOV.caption }}>·</Box>
                     <Box component="button" type="button" onClick={() => setParaExcluir(m)}
-                      sx={{ ...resetBotao, '&:hover': { color: TOV.danger } }}>
+                      sx={{ ...acaoTabelaSx, '&:hover': { color: TOV.danger, textDecorationStyle: 'solid' } }}>
                       Excluir
                     </Box>
                   </Box>
@@ -197,11 +209,11 @@ export default function Materias() {
           {form && (
             <Grid container spacing={1.5} sx={{ mt: 0 }}>
               <Grid item xs={12}>
-                <TextField fullWidth required label="Nome" value={form.NOME?.trim() ?? ''}
+                <TextField fullWidth required label="Nome" value={form.NOME ?? ''}
                   onChange={(e) => setForm({ ...form, NOME: e.target.value })} />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField fullWidth label="Apelido" value={form.APELIDO?.trim() ?? ''}
+                <TextField fullWidth label="Apelido" value={form.APELIDO ?? ''}
                   onChange={(e) => setForm({ ...form, APELIDO: e.target.value })} />
               </Grid>
               <Grid item xs={12} sm={6}>

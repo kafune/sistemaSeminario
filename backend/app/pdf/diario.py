@@ -62,7 +62,7 @@ def gerar_diario(
     ]
     pdf.tabela_cabecalho(colunas)
     larguras = [c[1] for c in colunas]
-    for i, (cod_alu, nome) in enumerate(alunos, start=1):
+    for i, (_cod_alu, nome) in enumerate(alunos, start=1):
         pdf.tabela_linha([i, nome] + [""] * N_COLUNAS_AULA, larguras, altura=8)
     pdf.tabela_fim(larguras)
     return bytes(pdf.output())

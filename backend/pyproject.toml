@@ -1,0 +1,28 @@
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["tests/fixtures"]
+
+[tool.ruff.lint]
+# Erros reais e imports: o que um linter pega sem virar uma reforma de estilo.
+select = ["E4", "E7", "E9", "F", "B", "I"]
+ignore = [
+  # `raise ... from` em cada HTTPException dentro de except: ruído sem ganho aqui.
+  "B904",
+  # A ordem dos routers em main.py e dos modelos em models/__init__ é deliberada.
+  "I001",
+  # zip() de listas do mesmo tamanho construídas no local; strict= só polui.
+  "B905",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"app/models/__init__.py" = ["F401"]
+"app/routers/__init__.py" = ["F401"]
+"app/services/__init__.py" = ["F401"]
+"app/pdf/__init__.py" = ["F401"]
+"app/xlsx/__init__.py" = ["F401"]
+
+[tool.ruff.lint.flake8-bugbear]
+# `Depends()`, `Header()`, `Query()` e `File()` como default são a assinatura
+# do FastAPI, não chamada de função em default de verdade.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query", "fastapi.File", "fastapi.Body"]

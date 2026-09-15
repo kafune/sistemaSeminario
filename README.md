@@ -71,8 +71,13 @@ frontend, PDFs com **fpdf2**.
 
    ```bash
    cd backend
-   python criar_usuario.py ADMIN
+   python criar_usuario.py ADMIN ADMIN
    ```
+
+   O primeiro argumento é o nome de login e o segundo o perfil (`ADMIN`,
+   `SECRETARIA`, `MARKETING` ou `FINANCEIRO`). Sem o segundo argumento o
+   usuário nasce como `SECRETARIA`; só o primeiro administrador precisa do
+   `ADMIN` explícito.
 
 5. Suba o frontend:
 
@@ -129,8 +134,11 @@ checkout:
 backend e rodam pela rede do compose, porque o MySQL não publica porta no host:
 
 ```bash
-docker compose --env-file .env run --rm backend python criar_usuario.py SECRETARIA
+docker compose --env-file .env run --rm backend python criar_usuario.py MARIA SECRETARIA
 ```
+
+O primeiro argumento é o **nome de login**, o segundo o **perfil** (opcional,
+padrão `SECRETARIA`). Um administrador é criado com `... criar_usuario.py NOME ADMIN`.
 
 Para o importador da planilha, monte o arquivo no container — veja
 [docs/financeiro.md](docs/financeiro.md).
@@ -155,12 +163,60 @@ VPS.
 
 ```
 backend/     FastAPI: app/models (tabelas), app/routers (API), app/pdf (relatórios)
-             criar_usuario.py (cria/redefine usuário de acesso)
+             criar_usuario.py NOME [PERFIL] (cria/redefine usuário de acesso)
 frontend/    React + MUI: src/pages (telas), src/api.js (cliente HTTP)
 ```
 
-Credenciais ficam **só** no `backend/.env` (que está no .gitignore).
-Troca de senha disponível na API via `POST /auth/trocar-senha`.
+Credenciais ficam **só** no `backend/.env` (que está no .gitignore). O
+`backend/.env.example` lista todas as variáveis, inclusive Web Push, fuso e
+chaves separadas para JWT e criptografia.
+
+### Segurança e operação
+
+- **Perfis.** `ADMIN` administra; `SECRETARIA` opera o acadêmico; `MARKETING`
+  cuida de leads e WhatsApp; `FINANCEIRO` só vê a tesouraria; `PROFESSOR` só
+  vê as próprias turmas. O módulo WhatsApp é de `ADMIN`, `SECRETARIA` e
+  `MARKETING`; a base de leads, de `ADMIN` e `MARKETING`. Sem perfil na
+  linha do usuário, o sistema assume `SECRETARIA`, nunca `ADMIN`.
+- **Senhas** têm ao menos 8 caracteres. Cada usuário troca a própria senha
+  clicando no próprio nome, no rodapé do menu. O `nginx` do frontend limita
+  tentativas de login por IP (`limit_req`).
+- **Sessão.** O perfil é reconciliado com `GET /auth/me` a cada abertura do
+  app; mudanças feitas pelo administrador valem sem novo login.
+- **Links públicos da agenda** são por turma: o token já carrega a turma e
+  não aceita filtro por URL. Links antigos (sem turma) deixaram de valer —
+  gere um novo em Calendário › Compartilhar.
+- **Conciliação bancária.** O código `TOVnnnnnn-XX` das cobranças novas tem
+  um sufixo aleatório; um PIX só fecha o título sozinho quando o código
+  completo **e** o valor exato do saldo batem. Qualquer outra combinação vai
+  para a fila manual, e uma baixa nunca ultrapassa o saldo do título (o
+  excedente fica registrado no motivo da transação).
+- **Reparo de integridade** (vínculos órfãos, duplicatas) não roda mais a cada
+  boot. Rode deliberadamente:
+
+  ```bash
+  cd backend
+  python -m app.reparar            # só relata
+  python -m app.reparar --aplicar  # executa
+  ```
+
+  `TOV_REPARO_INTEGRIDADE_NO_BOOT=1` restaura o comportamento antigo.
+- **Exclusão de aula** é recusada quando já existe chamada registrada:
+  marque a aula como cancelada, e as faltas continuam no histórico.
+- **Trilha de auditoria.** Criação, exclusão, perfil e senha de usuários,
+  exclusão de cadastros e de aulas, estorno, cancelamento/isenção e plano
+  financeiro ficam em `auditoria` (`GET /usuarios/auditoria`, só ADMIN) e na
+  tela de Usuários.
+- **Webhook do banco.** Além do header `X-Webhook-Secret`, o PSP pode assinar
+  o corpo: `X-Webhook-Signature: sha256=<HMAC-SHA256("<timestamp>.<corpo>")>`
+  com `X-Webhook-Timestamp` (epoch, janela de 5 minutos). Ver
+  [docs/financeiro.md](docs/financeiro.md).
+- **Testes, lint e CI.** Backend: `cd backend && ruff check . && python -m
+  unittest discover -s tests -t .` (inclui a matriz de perfis pela camada
+  HTTP). Frontend: `npm run lint`, `npm test` (vitest) e `npm run build`
+  (com `check:design` e o orçamento do bundle). `.github/workflows/ci.yml`
+  roda tudo isso a cada push.
+Cada usuário troca a própria senha pelo menu do avatar (`POST /auth/trocar-senha`).
 
 ### WhatsApp / UazAPI
 
@@ -177,8 +233,10 @@ TOV_PUBLIC_API_URL=https://seu-dominio.com/api
 
 O token administrativo é usado apenas pelo backend para criar uma única
 instância. O token dessa instância é criptografado no banco com uma chave
-derivada de `TOV_SECRET_KEY`; portanto, não altere essa chave sem antes
-reconfigurar a integração.
+derivada de `TOV_ENCRYPTION_KEY` (ou de `TOV_SECRET_KEY`, quando a primeira
+está vazia). Defina `TOV_ENCRYPTION_KEY` para poder rotacionar o segredo do
+JWT sem reconfigurar a integração; não altere a chave usada sem antes
+reconfigurar a instância. A URL da UazAPI precisa ser `https://`.
 
 Os arquivos usados nas mensagens ficam armazenados no banco e são entregues à
 UazAPI por uma URL pública com token imprevisível. `TOV_PUBLIC_API_URL` deve
@@ -206,6 +264,10 @@ TOV_VAPID_PRIVATE_KEY=chave-privada-base64url
 TOV_VAPID_SUBJECT=mailto:secretaria@seu-dominio.com
 TOV_TIMEZONE=America/Sao_Paulo
 ```
+
+`TOV_TIMEZONE` decide o "hoje" de vencimentos e chamadas; todo carimbo de
+data/hora é gravado em UTC e convertido na tela. O frontend usa o mesmo fuso
+via `VITE_TIMEZONE` no build (padrão `America/Sao_Paulo`).
 
 Sem essas chaves, a central interna continua disponível e o aplicativo informa
 que o push está indisponível. A permissão é sempre iniciada pelo botão “Ativar

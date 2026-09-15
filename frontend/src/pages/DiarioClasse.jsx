@@ -4,15 +4,15 @@ import {
   Alert, Box, Button, MenuItem, Snackbar, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
-import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import CloudDownloadOutlinedIcon from '@mui/icons-material/CloudDownloadOutlined'
 import HowToRegOutlinedIcon from '@mui/icons-material/HowToRegOutlined'
 import { api, baixarArquivo, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
   BarraFiltros, CabecalhoPagina, CardMetrica, EstadoErro, EstadoVazio,
-  SkeletonTabela, cardSx, resetBotao,
+  LinkVoltar, SkeletonTabela, cardSx, resetBotao,
 } from '../ui'
+import { FUSO_INSTITUICAO } from '../formatters'
 
 const TODO_O_PERIODO = 'tudo'
 
@@ -34,7 +34,7 @@ function mesLongo(mes) {
 
 function hojeLocal() {
   const partes = new Intl.DateTimeFormat('pt-BR', {
-    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: FUSO_INSTITUICAO,
   }).formatToParts(new Date())
   const valor = (tipo) => partes.find((parte) => parte.type === tipo)?.value
   return `${valor('year')}-${valor('month')}-${valor('day')}`
@@ -202,14 +202,7 @@ export default function DiarioClasse() {
 
   return (
     <Box>
-      <Box
-        component="button"
-        type="button"
-        onClick={voltar}
-        sx={{ ...resetBotao, px: 0.5, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TOV.type.body, color: TOV.caption, fontWeight: 700, mb: 1.5, '&:hover': { color: TOV.coral } }}
-      >
-        <ArrowBackRoundedIcon sx={{ fontSize: TOV.type.section }} /> Voltar para a turma
-      </Box>
+      <LinkVoltar rotulo="Voltar para a turma" onClick={voltar} />
 
       <CabecalhoPagina
         eyebrow="Diário de classe"

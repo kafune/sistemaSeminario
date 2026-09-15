@@ -4,6 +4,7 @@ import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
   Snackbar, TextField, Typography,
 } from '@mui/material'
+import AddIcon from '@mui/icons-material/Add'
 import { api } from '../api'
 import { TOV, focusRing } from '../theme'
 import {
@@ -111,7 +112,7 @@ export default function Turmas() {
         variante="operacional"
         titulo="Turmas"
         metadados={turmas ? `${turmas.length} ${turmas.length === 1 ? 'turma' : 'turmas'} · ${cursos} ${cursos === 1 ? 'curso' : 'cursos'}` : ' '}
-        acoes={<Button variant="contained" onClick={abrirForm}>+ Nova turma</Button>}
+        acoes={<Button variant="contained" startIcon={<AddIcon />} onClick={abrirForm}>Nova turma</Button>}
       />
 
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2,1fr)', lg: 'repeat(3,1fr)' }, gap: 2.5 }}>

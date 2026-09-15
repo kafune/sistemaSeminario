@@ -3,9 +3,13 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
+from ..security import usuario_atual
+from ..services import auditoria
+from ..consultas import termo_like
+from ..tempo import hoje_local
 from ..database import get_db, row_to_dict
 from ..models import Aluno, AluNota, AluTurma, Turma
 from ..services.matriculas import sincronizar_matricula
@@ -62,10 +66,10 @@ def listar(
     por_pagina = min(100, max(1, por_pagina))
     q = select(Aluno)
     if busca:
-        if busca.isdigit():
-            q = q.where(Aluno.cod_alu == int(busca))
-        else:
-            q = q.where(Aluno.nome.like(f"%{busca}%"))
+        # Número procura pela matrícula **e** pelo nome: um nome que começa
+        # com dígito ou um trecho de telefone não deve devolver nada.
+        por_nome = Aluno.nome.like(termo_like(busca), escape="\\")
+        q = q.where(or_(Aluno.cod_alu == int(busca), por_nome) if busca.isdigit() else por_nome)
     if cod_tur:
         q = q.where(Aluno.cod_tur == cod_tur)
     if status:
@@ -95,10 +99,26 @@ def listar(
         .offset((pagina - 1) * por_pagina)
         .limit(por_pagina)
     )
+    itens = [row_to_dict(a) for a in db.scalars(q)]
+    # O nome da turma atual acompanha cada aluno: quem matricula precisa ver
+    # de onde o aluno está saindo antes de confirmar uma transferência.
+    codigos = {item["cod_tur"] for item in itens if item.get("cod_tur")}
+    nomes = (
+        {
+            cod_tur: nome
+            for cod_tur, nome in db.execute(
+                select(Turma.cod_tur, Turma.nome).where(Turma.cod_tur.in_(codigos))
+            )
+        }
+        if codigos
+        else {}
+    )
+    for item in itens:
+        item["turma_nome"] = nomes.get(item.get("cod_tur"))
     return {
         "total": total,
         "pagina": pagina,
-        "itens": [row_to_dict(a) for a in db.scalars(q)],
+        "itens": itens,
     }
 
 
@@ -120,7 +140,7 @@ def criar(dados: AlunoInput, db: Session = Depends(get_db)):
     cod_tur = valores.pop("cod_tur")
     aluno = Aluno(**valores)
     if not aluno.dat_cad:
-        aluno.dat_cad = date.today()
+        aluno.dat_cad = hoje_local()
     aluno.origem_cadastro = "MANUAL"
     db.add(aluno)
     db.flush()
@@ -145,7 +165,9 @@ def atualizar(cod_alu: int, dados: AlunoInput, db: Session = Depends(get_db)):
 
 
 @router.delete("/{cod_alu}")
-def excluir(cod_alu: int, db: Session = Depends(get_db)):
+def excluir(cod_alu: int, db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     aluno = db.get(Aluno, cod_alu)
     if not aluno:
         raise HTTPException(404, "Aluno não encontrado")
@@ -160,5 +182,6 @@ def excluir(cod_alu: int, db: Session = Depends(get_db)):
         )
     sincronizar_matricula(db, aluno, None)
     db.delete(aluno)
+    auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="aluno", entidade_id=cod_alu, detalhes=str(aluno.nome or ""))
     db.commit()
     return {"ok": True}

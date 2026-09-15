@@ -14,6 +14,8 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..consultas import termo_like
+from ..tempo import agora_utc
 from ..config import settings
 from ..database import SessionLocal, get_db
 from ..models import (
@@ -30,7 +32,7 @@ from ..models import (
     WhatsappDisparo,
     WhatsappTemplate,
 )
-from ..security import exigir_perfis, perfil_atual, usuario_atual
+from ..security import exigir_perfis, perfil_atual, perfil_de, usuario_atual
 from ..services.uazapi import (
     UazApiClient,
     UazApiError,
@@ -62,7 +64,7 @@ MIMES_PERMITIDOS = {
 
 
 def _agora() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return agora_utc()
 
 
 def _segredo_webhook() -> str:
@@ -408,11 +410,18 @@ def _aplicar_optout(conteudo: dict) -> dict:
 
 def _perfil_usuario(db: Session, usuario: str) -> str:
     registro = db.get(Usuario, usuario)
-    return (registro.perfil if registro else "ADMIN") or "ADMIN"
+    if registro is None:
+        # Sem linha de usuário não há perfil a conceder: falha fechada.
+        raise HTTPException(401, "Usuário não encontrado")
+    return perfil_de(registro)
 
 
 def _validar_acesso_publico(db: Session, usuario: str, publico: PublicoInput) -> None:
     perfil = _perfil_usuario(db, usuario).upper()
+    if perfil not in {"ADMIN", "SECRETARIA", "MARKETING"}:
+        # Regra explícita, além da lista de perfis do router: a política por
+        # omissão aqui é negar, não permitir.
+        raise HTTPException(403, "Seu perfil não dispara mensagens pelo WhatsApp.")
     if perfil == "MARKETING" and publico.tipo != "leads":
         raise HTTPException(403, "O perfil Marketing acessa somente a base de leads.")
     if perfil == "SECRETARIA" and publico.tipo == "leads":
@@ -524,7 +533,7 @@ def _leads_publico(
         elif segmento == "tag":
             if not publico.tag:
                 raise HTTPException(400, "Selecione uma tag.")
-            consulta = consulta.where(Lead.tags.like(f"%{publico.tag}%"))
+            consulta = consulta.where(Lead.tags.like(termo_like(publico.tag), escape="\\"))
             descricao = f"Leads com a tag {publico.tag}"
         elif segmento == "status_funil":
             if not publico.status_funil:
@@ -744,7 +753,12 @@ def obter_midia_publica(token_publico: str, db: Session = Depends(get_db)):
     return Response(
         content=arquivo.conteudo,
         media_type=arquivo.mime_type,
-        headers={"Content-Disposition": f'{disposicao}; filename="{nome_seguro}"'},
+        headers={
+            "Content-Disposition": f'{disposicao}; filename="{nome_seguro}"',
+            # O tipo vem do cliente no upload: o navegador não pode "adivinhar"
+            # outro e executar o que deveria ser só imagem ou áudio.
+            "X-Content-Type-Options": "nosniff",
+        },
     )
 
 
@@ -2167,6 +2181,12 @@ def reenviar_falhos(
         raise HTTPException(
             409,
             "Não há destinatários elegíveis com falha para reenviar.",
+        )
+    limite_massa = max(1, settings.whatsapp_mass_max_recipients)
+    if len(falhos) > limite_massa:
+        raise HTTPException(
+            400,
+            f"O reenvio alcançaria {len(falhos)} destinatários; o limite é {limite_massa}.",
         )
     conteudo = json.loads(original.conteudo_json)
     agora = _agora()

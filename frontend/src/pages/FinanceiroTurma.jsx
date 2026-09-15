@@ -16,9 +16,9 @@ import { TOV } from '../theme'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
   GrupoSegmentado, LinhasSkeleton, Metadado, SkeletonCards, StatusBadge,
-  Superficie, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  LinkVoltar, Superficie, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
-import { formatarDataBr, formatarMoeda } from '../formatters'
+import { formatarDataBr, formatarDataDoCarimbo, formatarMoeda } from '../formatters'
 import { SeloSituacao, numeroDoCampo, textoDoValor, textoPercentual } from './FinanceiroComum'
 
 const PLANO_VAZIO = {
@@ -70,13 +70,15 @@ function condicaoParaFormulario(condicao) {
   }
 }
 
+const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`
+
 /** Frase do ajuste: o que a condição mexeu nas cobranças já existentes. */
 function resumoDoAjuste(ajuste) {
   const partes = []
-  if (ajuste.criadas) partes.push(`${ajuste.criadas} criada(s)`)
-  if (ajuste.atualizadas) partes.push(`${ajuste.atualizadas} atualizada(s)`)
-  if (ajuste.removidas) partes.push(`${ajuste.removidas} removida(s)`)
-  if (ajuste.preservadas) partes.push(`${ajuste.preservadas} preservada(s) por já ter pagamento`)
+  if (ajuste.criadas) partes.push(plural(ajuste.criadas, 'criada', 'criadas'))
+  if (ajuste.atualizadas) partes.push(plural(ajuste.atualizadas, 'atualizada', 'atualizadas'))
+  if (ajuste.removidas) partes.push(plural(ajuste.removidas, 'removida', 'removidas'))
+  if (ajuste.preservadas) partes.push(`${plural(ajuste.preservadas, 'preservada', 'preservadas')} por já ter pagamento`)
   return partes.length ? `Cobranças: ${partes.join(', ')}.` : 'Nenhuma cobrança precisou mudar.'
 }
 
@@ -147,7 +149,7 @@ export default function FinanceiroTurma() {
       setConfirmarGeracao(false)
       avisar(
         resultado.criadas
-          ? `${resultado.criadas} cobrança(s) criada(s) para ${resultado.alunos} aluno(s).`
+          ? `${plural(resultado.criadas, 'cobrança criada', 'cobranças criadas')} para ${plural(resultado.alunos, 'aluno', 'alunos')}.`
           : 'Nenhuma cobrança nova: todos os alunos já tinham as parcelas do plano.',
         false,
       )
@@ -199,7 +201,7 @@ export default function FinanceiroTurma() {
   if (erroCarga && !dados) {
     return (
       <Box>
-        <Box component="button" type="button" onClick={() => navigate('/financeiro')} sx={{ ...resetBotao, px: 0.5, color: TOV.caption, fontWeight: 600, mb: 1.5 }}>‹ Voltar para Financeiro</Box>
+        <LinkVoltar para="/financeiro" rotulo="Voltar para Financeiro" />
         <EstadoErro titulo="Não foi possível abrir esta turma" descricao={erroCarga} onTentarNovamente={carregar} />
       </Box>
     )
@@ -213,18 +215,13 @@ export default function FinanceiroTurma() {
 
   return (
     <Box>
-      <Box
-        component="button" type="button" onClick={() => navigate('/financeiro')}
-        sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: TOV.type.body, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}
-      >
-        ‹ Voltar para Financeiro
-      </Box>
+      <LinkVoltar para="/financeiro" rotulo="Voltar para Financeiro" />
 
       <CabecalhoPagina
         eyebrow="Plano financeiro da turma"
         titulo={dados.turma.nome}
         descricao="A matrícula inicial e as mensalidades desta turma. Ao gerar, cada aluno matriculado recebe as parcelas que ainda não tem — quem veio de transferência recebe as dele."
-        metadados={`${dados.matriculados} aluno(s) matriculado(s)${dados.transferencias ? ` · ${dados.transferencias} de transferência` : ''}`}
+        metadados={`${plural(dados.matriculados, 'aluno matriculado', 'alunos matriculados')}${dados.transferencias ? ` · ${dados.transferencias} de transferência` : ''}`}
         acoes={(
           <Button
             variant="contained"
@@ -304,7 +301,7 @@ export default function FinanceiroTurma() {
           {dados.plano?.atualizado_em && (
             <Metadado
               rotulo="Última alteração"
-              valor={new Date(dados.plano.atualizado_em).toLocaleDateString('pt-BR')}
+              valor={formatarDataDoCarimbo(dados.plano.atualizado_em)}
               nota={dados.plano.atualizado_por ? `por ${dados.plano.atualizado_por}` : undefined}
             />
           )}
@@ -322,7 +319,7 @@ export default function FinanceiroTurma() {
 
       <Typography component="h2" variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 0.5 }}>
         Situação de cada aluno
-        <Box component="span" sx={{ color: TOV.caption, fontSize: TOV.type.body, fontWeight: 600 }}> · {alunos.length} matriculado(s)</Box>
+        <Box component="span" sx={{ color: TOV.caption, fontSize: TOV.type.body, fontWeight: 600 }}> · {plural(alunos.length, 'matriculado', 'matriculados')}</Box>
       </Typography>
       <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mb: 1.5, maxWidth: '72ch' }}>
         Quem entrou com o curso andando e vai cursar só alguns módulos recebe uma condição própria: paga menos meses
@@ -414,7 +411,7 @@ export default function FinanceiroTurma() {
                     >
                       {aluno.nome}
                     </Box>
-                    <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{aluno.cobrancas} cobrança(s)</Box>
+                    <Box sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{plural(aluno.cobrancas, 'cobrança', 'cobranças')}</Box>
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -480,7 +477,7 @@ export default function FinanceiroTurma() {
 
           {formCondicao.tipo === 'REGULAR' ? (
             <Alert severity="info">
-              O aluno paga a matrícula e as {dados.plano?.parcelas || 0} mensalidade(s) da turma, como todo mundo.
+              O aluno paga a matrícula e {dados.plano?.parcelas === 1 ? 'a 1 mensalidade' : `as ${dados.plano?.parcelas || 0} mensalidades`} da turma, como todo mundo.
               {alunoCondicao?.condicao && ' Salvar devolve as parcelas que tinham sido cortadas.'}
             </Alert>
           ) : (

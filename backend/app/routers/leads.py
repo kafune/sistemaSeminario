@@ -1,7 +1,7 @@
 import json
 import re
 import unicodedata
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from io import BytesIO
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -12,6 +12,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..consultas import termo_like
+from ..tempo import agora_utc, hoje_local
 from ..database import get_db, row_to_dict
 from ..models import (
     Lead,
@@ -42,7 +44,7 @@ CONSENTIMENTOS_VALIDOS = {"PENDENTE", "CONFIRMADO", "RECUSADO", "REVOGADO"}
 
 
 def _agora() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return agora_utc()
 
 
 def _texto(valor) -> str | None:
@@ -206,7 +208,7 @@ def listar(
     if campanha:
         consulta = consulta.where(Lead.campanha == campanha)
     if tag:
-        consulta = consulta.where(Lead.tags.like(f"%{tag}%"))
+        consulta = consulta.where(Lead.tags.like(termo_like(tag), escape="\\"))
     if status_funil:
         consulta = consulta.where(Lead.status_funil == status_funil.upper())
     if consentimento:
@@ -337,7 +339,7 @@ def criar(
         e_mail=_texto(dados.e_mail),
         origem=_texto(dados.origem),
         campanha=_texto(dados.campanha),
-        captado_em=dados.captado_em or date.today(),
+        captado_em=dados.captado_em or hoje_local(),
         tags=_tags(dados.tags),
         status=dados.status.upper(),
         status_funil=dados.status_funil.upper(),
@@ -420,11 +422,18 @@ def atualizar(
         "status_funil": dados.status_funil.upper(),
     }.items():
         setattr(lead, campo, valor)
+    # O formulário devolve a origem antiga junto com o resto do cadastro; a
+    # trilha de consentimento precisa dizer que **esta** mudança foi manual.
+    origem_informada = _texto(dados.consentimento_origem)
     _registrar_consentimento(
         db,
         lead,
         novo_consentimento,
-        origem=_texto(dados.consentimento_origem) or "EDICAO_MANUAL",
+        origem=(
+            origem_informada
+            if origem_informada and origem_informada != lead.consentimento_origem
+            else "EDICAO_MANUAL"
+        ),
         usuario=usuario,
         detalhes="Alteração manual",
     )
@@ -647,7 +656,7 @@ def confirmar_importacao(
                 campanha=dados.get("campanha"),
                 captado_em=date.fromisoformat(dados["captado_em"])
                 if dados.get("captado_em")
-                else date.today(),
+                else hoje_local(),
                 tags=dados.get("tags"),
                 status="INATIVO" if consentimento == "RECUSADO" else "ATIVO",
                 status_funil=dados.get("status_funil") or "NOVO",

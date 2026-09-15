@@ -1,24 +1,46 @@
 import { useEffect, useState } from 'react'
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
-  Paper, Snackbar, Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, TextField, MenuItem, Chip,
+  Snackbar, Table, TableBody, TableCell, TableContainer, TableHead,
+  TableRow, TextField, MenuItem, Chip, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
 import { TOV } from '../theme'
+import { formatarDataHora } from '../formatters'
 import {
-  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio,
-  LinhasSkeleton, SkeletonCards, iniciais, resetBotao, useDialogoTelaCheia,
+  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
+  LinhasSkeleton, SkeletonCards, acaoTabelaSx, iniciais, useDialogoTelaCheia,
   useTelaDesktop,
 } from '../ui'
 import { useDirtyForm } from '../UnsavedChanges'
 
 const SENHA_MINIMA = 6
 
+const ROTULO_ACAO = {
+  CRIAR: 'Criou', EXCLUIR: 'Excluiu', ALTERAR_PERFIL: 'Alterou perfil', REDEFINIR_SENHA: 'Redefiniu senha',
+  ESTORNAR: 'Estornou', ALTERAR_STATUS: 'Alterou situação', SALVAR_PLANO: 'Salvou plano',
+}
+const ROTULO_ENTIDADE = {
+  usuario: 'usuário', aluno: 'aluno', professor: 'professor', materia: 'matéria', turma: 'turma',
+  aula: 'aula', cobranca: 'cobrança', pagamento: 'pagamento',
+}
+
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
+  // Trilha de auditoria administrativa: quem criou, excluiu, mudou perfil ou senha.
+  const [auditoria, setAuditoria] = useState({ total: 0, itens: [] })
+  const [erroAuditoria, setErroAuditoria] = useState('')
+  const carregarAuditoria = () => {
+    setErroAuditoria('')
+    api.get('/usuarios/auditoria?por_pagina=30')
+      .then(setAuditoria)
+      .catch((e) => setErroAuditoria(e.message))
+  }
+  useEffect(() => { carregarAuditoria() }, [])
   const [carregando, setCarregando] = useState(true)
+  // Falha da própria lista: vira `EstadoErro` no corpo, não estado vazio.
+  const [erroCarga, setErroCarga] = useState('')
   const [form, setForm] = useState(null) // null = fechado; { user, senha, confirmar, novo }
   const [confirmarFecharForm, setConfirmarFecharForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -38,9 +60,13 @@ export default function Usuarios() {
 
   function carregar() {
     setCarregando(true)
+    setErroCarga('')
     api.get('/usuarios')
       .then(setUsuarios)
-      .catch((e) => setMsg(e.message))
+      .catch((e) => {
+        setErroCarga(e.message)
+        setUsuarios([])
+      })
       .finally(() => setCarregando(false))
   }
 
@@ -112,7 +138,7 @@ export default function Usuarios() {
       <CabecalhoPagina
         variante="operacional"
         titulo="Usuários"
-        metadados={carregando ? ' ' : `${usuarios.length} ${usuarios.length === 1 ? 'usuário com acesso' : 'usuários com acesso'} ao sistema`}
+        metadados={carregando || erroCarga ? ' ' : `${usuarios.length} ${usuarios.length === 1 ? 'usuário com acesso' : 'usuários com acesso'} ao sistema`}
         acoes={acoes}
       />
 
@@ -121,7 +147,10 @@ export default function Usuarios() {
         {carregando && usuarios.length === 0 && (
           <SkeletonCards quantidade={4} altura={112} colunas="1fr" />
         )}
-        {!carregando && usuarios.length === 0 && (
+        {!carregando && erroCarga && (
+          <EstadoErro titulo="Não foi possível carregar os usuários" descricao={erroCarga} onTentarNovamente={carregar} />
+        )}
+        {!carregando && !erroCarga && usuarios.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhum usuário cadastrado" descricao="Crie um acesso para começar." /></CartaoLista>
         )}
         {usuarios.map((u) => {
@@ -164,15 +193,20 @@ export default function Usuarios() {
           <TableHead>
             <TableRow>
               <TableCell>Usuário</TableCell>
+              <TableCell sx={{ width: 160 }}>Perfil</TableCell>
+              <TableCell>Professor vinculado</TableCell>
               <TableCell align="right" sx={{ width: 220 }}>Ações</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {carregando && usuarios.length === 0 && (
-              <LinhasSkeleton colunas={2} />
+              <LinhasSkeleton colunas={4} />
             )}
-            {!carregando && usuarios.length === 0 && (
-              <TableRow><TableCell colSpan={2} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum usuário cadastrado" descricao="Crie um acesso para começar." /></TableCell></TableRow>
+            {!carregando && erroCarga && (
+              <TableRow><TableCell colSpan={4} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar os usuários" descricao={erroCarga} onTentarNovamente={carregar} /></TableCell></TableRow>
+            )}
+            {!carregando && !erroCarga && usuarios.length === 0 && (
+              <TableRow><TableCell colSpan={4} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum usuário cadastrado" descricao="Crie um acesso para começar." /></TableCell></TableRow>
             )}
             {usuarios.map((u) => {
               const euMesmo = u.user === atual
@@ -188,7 +222,6 @@ export default function Usuarios() {
                         {iniciais(u.user)}
                       </Box>
                       <Box component="span" sx={{ fontWeight: 700 }}>{u.user}</Box>
-                      <Chip size="small" variant="outlined" label={u.perfil || 'ADMIN'} />
                       {euMesmo && (
                         <Box component="span" sx={{
                           px: 1.5, py: 0.5, borderRadius: TOV.radiusFull, bgcolor: TOV.graphiteTint,
@@ -199,24 +232,23 @@ export default function Usuarios() {
                       )}
                     </Box>
                   </TableCell>
+                  <TableCell><Chip size="small" variant="outlined" label={u.perfil || 'ADMIN'} /></TableCell>
+                  <TableCell sx={{ color: TOV.graphite }}>{u.professor_nome || '—'}</TableCell>
                   <TableCell align="right">
                     <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption }}>
-                      <Box component="button" type="button" onClick={() => redefinir(u)}
-                        sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
+                      <Box component="button" type="button" onClick={() => redefinir(u)} sx={acaoTabelaSx}>
                         Gerenciar acesso
                       </Box>
-                      <Box component="span" sx={{ color: TOV.border }}>·</Box>
-                      {euMesmo ? (
-                        <Box component="span" title="Não é possível excluir o próprio usuário"
-                          sx={{ color: TOV.border, cursor: 'not-allowed' }}>
-                          Excluir
-                        </Box>
-                      ) : (
-                        <Box component="button" type="button" onClick={() => setParaExcluir(u)}
-                          sx={{ ...resetBotao, '&:hover': { color: TOV.danger } }}>
-                          Excluir
-                        </Box>
-                      )}
+                      <Box component="span" aria-hidden="true" sx={{ color: TOV.caption }}>·</Box>
+                      <Box
+                        component="button" type="button"
+                        disabled={euMesmo}
+                        title={euMesmo ? 'Não é possível excluir o próprio usuário' : undefined}
+                        onClick={() => setParaExcluir(u)}
+                        sx={{ ...acaoTabelaSx, '&:hover': { color: TOV.danger, textDecorationStyle: 'solid' } }}
+                      >
+                        Excluir
+                      </Box>
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -225,6 +257,43 @@ export default function Usuarios() {
           </TableBody>
         </Table>
       </TableContainer>}
+
+      <Box component="section" aria-labelledby="titulo-auditoria" sx={{ mt: 4 }}>
+        <Typography id="titulo-auditoria" variant="h2" sx={{ fontSize: TOV.type.titleSm, mb: 0.5 }}>Registro de atividades</Typography>
+        <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mb: 1.5 }}>
+          Quem criou, excluiu ou alterou usuários, cadastros, aulas e lançamentos financeiros — os 30 registros mais recentes.
+        </Typography>
+        {erroAuditoria ? (
+          <EstadoErro titulo="Não foi possível carregar o registro" descricao={erroAuditoria} onTentarNovamente={carregarAuditoria} />
+        ) : auditoria.itens.length === 0 ? (
+          <EstadoVazio compacto titulo="Nenhuma atividade registrada" descricao="As operações administrativas passam a aparecer aqui." />
+        ) : (
+          <TableContainer component={Box} sx={{ overflowX: 'auto' }}>
+            <Table size="small" aria-label="Registro de atividades">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Quando</TableCell>
+                  <TableCell>Quem</TableCell>
+                  <TableCell>Ação</TableCell>
+                  <TableCell>Registro</TableCell>
+                  <TableCell>Detalhes</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {auditoria.itens.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatarDataHora(item.criado_em)}</TableCell>
+                    <TableCell>{item.usuario || '—'}</TableCell>
+                    <TableCell>{ROTULO_ACAO[item.acao] || item.acao}</TableCell>
+                    <TableCell>{ROTULO_ENTIDADE[item.entidade] || item.entidade}{item.entidade_id ? ` ${item.entidade_id}` : ''}</TableCell>
+                    <TableCell sx={{ color: TOV.caption }}>{item.detalhes || '—'}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Box>
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="xs" fullWidth fullScreen={telaCheia}>
         <DialogTitle>{form?.novo ? 'Novo usuário' : `Gerenciar acesso — ${form?.user}`}</DialogTitle>

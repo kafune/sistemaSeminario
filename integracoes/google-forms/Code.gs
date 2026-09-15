@@ -1,5 +1,68 @@
-const API_BASE = 'https://centro-tov.kafune.xyz/api/integracoes/google-forms';
+// URL padrão de produção. Para apontar para homologação sem editar o script,
+// defina a propriedade de script TOV_API_BASE (Configurações do projeto).
+const API_BASE_PADRAO = 'https://centro-tov.kafune.xyz/api/integracoes/google-forms';
+const PROPRIEDADE_API_BASE = 'TOV_API_BASE';
 const PROPRIEDADE_SEGREDO = 'TOV_WEBHOOK_SECRET';
+
+/**
+ * Cabeçalhos das perguntas do Forms. Cada campo aceita mais de um texto,
+ * comparados sem acento, sem pontuação e sem caixa — renomear a pergunta
+ * deixa de zerar o campo em silêncio, e `montarPayload` avisa quando algum
+ * cabeçalho obrigatório não foi encontrado.
+ */
+const CABECALHOS = {
+  nome: ['Nome', 'Nome completo'],
+  turma_interesse: ['Qual a turma de interesse?', 'Turma de interesse'],
+  telefone: ['Telefone:', 'Telefone', 'Celular', 'WhatsApp'],
+  e_mail: ['E-mail', 'Email', 'E-mail:'],
+  rg: ['RG'],
+  cpf: ['CPF'],
+  escolaridade: ['Escolaridade'],
+  igreja: ['Igreja da qual é membro?', 'Igreja'],
+  endereco_igreja: ['Endereço Completo da igreja - Incluindo Bairro e Cidade', 'Endereço da igreja'],
+  nome_pastor: ['Nome do Pastor', 'Pastor'],
+  cur_teologicos: ['Você já fez algum curso anterior de Teologia? Se sim, onde?', 'Cursos de teologia'],
+  nome_conjuge: [
+    'Seu cônjuge participará junto? (50% de desconto na mensalidade do cônjuge). Se sim, deixe aqui o nome dele(a).',
+    'Nome do cônjuge',
+  ],
+  carimbo: ['Carimbo de data/hora', 'Timestamp'],
+};
+const OBRIGATORIOS = ['nome', 'telefone', 'e_mail'];
+
+function normalizarCabecalho(texto) {
+  return String(texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/** Lê a resposta de uma pergunta aceitando qualquer um dos cabeçalhos conhecidos. */
+function lerCampo(valores, campo) {
+  const alvos = (CABECALHOS[campo] || []).map(normalizarCabecalho);
+  const chaves = Object.keys(valores || {});
+  for (const chave of chaves) {
+    if (alvos.includes(normalizarCabecalho(chave))) {
+      const resposta = valores[chave];
+      return resposta && resposta.length ? String(resposta[0]).trim() : '';
+    }
+  }
+  return '';
+}
+
+function cabecalhosAusentes(valores) {
+  return OBRIGATORIOS.filter((campo) => {
+    const alvos = CABECALHOS[campo].map(normalizarCabecalho);
+    return !Object.keys(valores || {}).some((chave) => alvos.includes(normalizarCabecalho(chave)));
+  });
+}
+
+function apiBase() {
+  const configurada = PropertiesService.getScriptProperties().getProperty(PROPRIEDADE_API_BASE);
+  return (configurada || API_BASE_PADRAO).replace(/\/+$/, '');
+}
 const PROPRIEDADE_PLANILHA = 'TOV_SPREADSHEET_ID';
 const PROPRIEDADE_ABA = 'TOV_SHEET_ID';
 
@@ -37,7 +100,7 @@ function instalarGatilho() {
   if (!temImportacao) {
     ScriptApp.newTrigger('processarImportacoesPendentes')
       .timeBased()
-      .everyMinutes(1)
+      .everyMinutes(5)
       .create();
   }
 }
@@ -160,46 +223,44 @@ function valoresNomeados(cabecalhos, linha) {
 }
 
 function montarPayload(valores, origem) {
-  const valor = (cabecalho) => {
-    const resposta = valores[cabecalho];
-    return resposta && resposta.length ? String(resposta[0]).trim() : '';
-  };
-
+  const ausentes = cabecalhosAusentes(valores);
+  if (ausentes.length) {
+    throw new Error(
+      `Cabeçalhos não encontrados na planilha: ${ausentes.join(', ')}. ` +
+        'Confira os nomes das perguntas no Forms ou ajuste CABECALHOS no script.',
+    );
+  }
+  const valor = (campo) => lerCampo(valores, campo);
   return {
     inscricao_id: sha256(origem),
-    nome: valor('Nome'),
-    turma_interesse: valor('Qual a turma de interesse?'),
-    telefone: valor('Telefone:'),
-    e_mail: valor('E-mail'),
-    rg: valor('RG'),
-    cpf: valor('CPF'),
-    escolaridade: valor('Escolaridade'),
-    igreja: valor('Igreja da qual é membro?'),
-    endereco_igreja: valor(
-      'Endereço Completo da igreja - Incluindo Bairro e Cidade',
-    ),
-    nome_pastor: valor('Nome do Pastor'),
-    cur_teologicos: valor(
-      'Você já fez algum curso anterior de Teologia? Se sim, onde?',
-    ),
-    nome_conjuge: valor(
-      'Seu cônjuge participará junto? (50% de desconto na mensalidade do cônjuge). Se sim, deixe aqui o nome dele(a).',
-    ),
+    nome: valor('nome'),
+    turma_interesse: valor('turma_interesse'),
+    telefone: valor('telefone'),
+    e_mail: valor('e_mail'),
+    rg: valor('rg'),
+    cpf: valor('cpf'),
+    escolaridade: valor('escolaridade'),
+    igreja: valor('igreja'),
+    endereco_igreja: valor('endereco_igreja'),
+    nome_pastor: valor('nome_pastor'),
+    cur_teologicos: valor('cur_teologicos'),
+    nome_conjuge: valor('nome_conjuge'),
   };
 }
 
+/**
+ * Identidade estável da resposta: planilha, aba, carimbo, e-mail e CPF.
+ * O número da linha ficou de fora de propósito — inserir ou excluir uma linha
+ * mudava o `inscricao_id` de todas as linhas abaixo e a reimportação criava
+ * pré-cadastros duplicados.
+ */
 function identidadeLinha(planilhaId, abaId, numeroLinha, valores) {
-  const valor = (cabecalho) => {
-    const resposta = valores[cabecalho];
-    return resposta && resposta.length ? String(resposta[0]).trim() : '';
-  };
   return [
     planilhaId,
     abaId,
-    numeroLinha,
-    valor('Carimbo de data/hora'),
-    valor('E-mail'),
-    valor('CPF'),
+    lerCampo(valores, 'carimbo'),
+    lerCampo(valores, 'e_mail'),
+    lerCampo(valores, 'cpf'),
   ].join('|');
 }
 
@@ -217,7 +278,7 @@ function segredoWebhook() {
 
 function opcoesRequisicao(caminho, payload) {
   return {
-    url: `${API_BASE}${caminho}`,
+    url: `${apiBase()}${caminho}`,
     method: 'post',
     contentType: 'application/json',
     headers: { 'X-Webhook-Secret': segredoWebhook() },

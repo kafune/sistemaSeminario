@@ -5,7 +5,7 @@ import {
 } from '@mui/material'
 import { api, abrirArquivo, enviarArquivoEBaixar } from '../api'
 import { TOV, focusRing, focusRingOnDark } from '../theme'
-import { CabecalhoPagina, Eyebrow, Superficie, cardSx, resetBotao } from '../ui'
+import { CabecalhoPagina, EstadoErro, Eyebrow, Superficie, cardSx, resetBotao } from '../ui'
 
 /** Botão-pílula usado nas ações dos cards (fundo off-white ou escuro). */
 function PillAcao({ children, escuro, disabled, carregando, onClick }) {
@@ -58,9 +58,14 @@ export default function Relatorios() {
   const [arrastando, setArrastando] = useState(false)
   const inputArquivo = useRef(null)
 
-  useEffect(() => {
-    api.getCached('/turmas').then(setTurmas).catch(() => {})
-  }, [])
+  // Falha ao trazer as turmas: `EstadoErro` no lugar do seletor, não um select vazio.
+  const [erroCarga, setErroCarga] = useState('')
+  function carregarTurmas() {
+    setErroCarga('')
+    api.getCached('/turmas').then(setTurmas).catch((e) => setErroCarga(e.message))
+  }
+
+  useEffect(carregarTurmas, [])
 
   useEffect(() => {
     if (buscaAluno.length < 2) return
@@ -149,12 +154,16 @@ export default function Relatorios() {
             <IconeCard letra="T" cor={TOV.graphite} bg={TOV.graphiteTint} />
             <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>Por turma</Typography>
           </Box>
-          <TextField select fullWidth size="small" label="Turma" value={codTur}
-            onChange={(e) => setCodTur(e.target.value)} sx={{ mb: 2.5 }}>
-            {turmas.map((t) => (
-              <MenuItem key={t.cod_tur} value={t.cod_tur}>{t.nome} ({t.qtd_alunos} alunos)</MenuItem>
-            ))}
-          </TextField>
+          {erroCarga ? (
+            <EstadoErro titulo="Não foi possível carregar as turmas" descricao={erroCarga} onTentarNovamente={carregarTurmas} sx={{ mb: 2.5 }} />
+          ) : (
+            <TextField select fullWidth size="small" label="Turma" value={codTur}
+              onChange={(e) => setCodTur(e.target.value)} sx={{ mb: 2.5 }}>
+              {turmas.map((t) => (
+                <MenuItem key={t.cod_tur} value={t.cod_tur}>{t.nome} ({t.qtd_alunos} alunos)</MenuItem>
+              ))}
+            </TextField>
+          )}
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
             <PillAcao disabled={!codTur || !!abrindo} carregando={abrindo === `/relatorios/lista-turma/${codTur}`} onClick={() => abrir(`/relatorios/lista-turma/${codTur}`)}>Lista de alunos</PillAcao>
             <PillAcao disabled={!codTur || !!abrindo} carregando={abrindo === `/relatorios/diario/${codTur}`} onClick={() => abrir(`/relatorios/diario/${codTur}`)}>Diário de classe</PillAcao>

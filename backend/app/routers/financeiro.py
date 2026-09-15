@@ -10,17 +10,21 @@ Três públicos usam este router:
   segredo compartilhado.
 """
 
+import hashlib
 import hmac
 import json
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
+from ..services import auditoria
+from ..consultas import termo_like
+from ..tempo import agora_utc, hoje_local
 from ..config import settings
 from ..database import get_db
 from ..models import (
@@ -41,7 +45,6 @@ router = APIRouter(prefix="/financeiro", tags=["financeiro"])
 public_router = APIRouter(prefix="/financeiro-aluno", tags=["financeiro do aluno"])
 webhook_router = APIRouter(prefix="/integracoes/banco", tags=["integração bancária"])
 
-LIMITE_LISTA = 500
 
 
 # ---- entradas --------------------------------------------------------------
@@ -242,7 +245,7 @@ def resumo(db: Session = Depends(get_db)):
     Tudo sai de uma agregação por turma no banco — a tela nunca carrega a
     carteira inteira para somar em Python.
     """
-    hoje = date.today()
+    hoje = hoje_local()
     limite_proximo = hoje + timedelta(days=7)
     inicio_mes = date(hoje.year, hoje.month, 1)
 
@@ -368,7 +371,7 @@ def opcoes_alunos(
     """Alunos para os seletores, filtrados no banco e limitados."""
     consulta = select(Aluno.cod_alu, Aluno.nome, Aluno.cod_tur, Aluno.status)
     if busca and busca.strip():
-        consulta = consulta.where(Aluno.nome.ilike(f"%{busca.strip()}%"))
+        consulta = consulta.where(Aluno.nome.ilike(termo_like(busca), escape="\\"))
     if cod_tur is not None:
         consulta = consulta.where(Aluno.cod_tur == cod_tur)
     return [
@@ -400,7 +403,7 @@ def listar_cobrancas(
     Busca, recorte e situação são resolvidos em SQL: a tela traz uma página de
     cada vez, e não a carteira inteira para filtrar no navegador.
     """
-    hoje = date.today()
+    hoje = hoje_local()
     # Página fora da faixa é apertada, não recusada: um filtro que devolve
     # menos resultados não deve virar erro na cara de quem está buscando.
     pagina = max(int(pagina or 1), 1)
@@ -423,8 +426,8 @@ def listar_cobrancas(
     if vencimento_ate:
         filtros.append(Cobranca.vencimento <= vencimento_ate)
     if busca and busca.strip():
-        termo = f"%{busca.strip()}%"
-        filtros.append(or_(Aluno.nome.ilike(termo), Cobranca.referencia.ilike(termo)))
+        termo = termo_like(busca)
+        filtros.append(or_(Aluno.nome.ilike(termo, escape="\\"), Cobranca.referencia.ilike(termo, escape="\\")))
 
     # Vencida e parcial não existem como coluna: são a data e o valor pago.
     escolhida = (situacao or "").upper()
@@ -518,7 +521,7 @@ def criar_cobranca(
         criado_por=usuario,
     )
     db.commit()
-    return servico.cobranca_dict(cobranca, servico.ZERO, date.today())
+    return servico.cobranca_dict(cobranca, servico.ZERO, hoje_local())
 
 
 @router.put("/cobrancas/{cobranca_id}")
@@ -541,7 +544,7 @@ def atualizar_cobranca(
     cobranca.observacao = dados.observacao
     servico.sincronizar_status(db, cobranca)
     db.commit()
-    return servico.cobranca_dict(cobranca, pago, date.today())
+    return servico.cobranca_dict(cobranca, pago, hoje_local())
 
 
 @router.put("/cobrancas/{cobranca_id}/status")
@@ -549,6 +552,7 @@ def alterar_status(
     cobranca_id: int,
     dados: StatusInput,
     db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
 ):
     """Cancela, isenta ou reabre um título — pagar é sempre pelo pagamento."""
     novo = (dados.status or "").upper()
@@ -563,12 +567,17 @@ def alterar_status(
         )
     cobranca.status = novo
     servico.sincronizar_status(db, cobranca)
+    auditoria.registrar(db, usuario=usuario, acao="ALTERAR_STATUS", entidade="cobranca", entidade_id=cobranca_id, detalhes=f"-> {novo}")
     db.commit()
-    return servico.cobranca_dict(cobranca, pago, date.today())
+    return servico.cobranca_dict(cobranca, pago, hoje_local())
 
 
 @router.delete("/cobrancas/{cobranca_id}")
-def excluir_cobranca(cobranca_id: int, db: Session = Depends(get_db)):
+def excluir_cobranca(
+    cobranca_id: int,
+    db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     cobranca = _cobranca_ou_404(db, cobranca_id)
     if servico.total_pago(db, cobranca.id) > servico.ZERO:
         raise HTTPException(
@@ -583,6 +592,7 @@ def excluir_cobranca(cobranca_id: int, db: Session = Depends(get_db)):
     if vinculadas:
         raise HTTPException(400, "Há recebimento bancário conciliado com esta cobrança.")
     db.delete(cobranca)
+    auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="cobranca", entidade_id=cobranca_id, detalhes=f"{cobranca.descricao} R$ {cobranca.valor}")
     db.commit()
     return {"ok": True}
 
@@ -606,7 +616,7 @@ def lancar_pagamento(
     valor = servico.dinheiro(dados.valor) if dados.valor is not None else saldo
     if valor > saldo:
         raise HTTPException(400, f"O valor excede o saldo de R$ {saldo} desta cobrança.")
-    if dados.data_pagamento and dados.data_pagamento > date.today():
+    if dados.data_pagamento and dados.data_pagamento > hoje_local():
         raise HTTPException(400, "A data do pagamento não pode ser futura.")
     pagamento = servico.registrar_pagamento(
         db,
@@ -620,7 +630,7 @@ def lancar_pagamento(
     db.commit()
     return {
         "pagamento_id": pagamento.id,
-        "cobranca": servico.cobranca_dict(cobranca, pago + valor, date.today()),
+        "cobranca": servico.cobranca_dict(cobranca, pago + valor, hoje_local()),
     }
 
 
@@ -632,7 +642,7 @@ def lancar_pagamentos_em_lote(
 ):
     """Marca vários títulos como pagos de uma vez — o "OK" da lista da turma."""
     forma = _validar_forma(dados.forma)
-    if dados.data_pagamento and dados.data_pagamento > date.today():
+    if dados.data_pagamento and dados.data_pagamento > hoje_local():
         raise HTTPException(400, "A data do pagamento não pode ser futura.")
     quitadas = 0
     ignoradas = 0
@@ -684,7 +694,11 @@ def listar_pagamentos(cobranca_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/pagamentos/{pagamento_id}")
-def estornar_pagamento(pagamento_id: int, db: Session = Depends(get_db)):
+def estornar_pagamento(
+    pagamento_id: int,
+    db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     pagamento = db.get(Pagamento, pagamento_id)
     if not pagamento:
         raise HTTPException(404, "Pagamento não encontrado")
@@ -703,6 +717,7 @@ def estornar_pagamento(pagamento_id: int, db: Session = Depends(get_db)):
     db.flush()
     if cobranca:
         servico.sincronizar_status(db, cobranca)
+    auditoria.registrar(db, usuario=usuario, acao="ESTORNAR", entidade="pagamento", entidade_id=pagamento_id, detalhes=f"cobranca {pagamento.cobranca_id} R$ {pagamento.valor}")
     db.commit()
     return {"ok": True}
 
@@ -715,7 +730,7 @@ def situacao_da_turma(cod_tur: int, db: Session = Depends(get_db)):
     turma = db.get(Turma, cod_tur)
     if not turma:
         raise HTTPException(404, "Turma não encontrada")
-    hoje = date.today()
+    hoje = hoje_local()
     plano = db.scalar(select(PlanoFinanceiro).where(PlanoFinanceiro.cod_tur == cod_tur))
 
     matriculados = {
@@ -829,8 +844,9 @@ def salvar_plano(
     plano.primeira_mensalidade = dados.primeira_mensalidade
     plano.vencimento_matricula = dados.vencimento_matricula
     plano.observacao = dados.observacao
-    plano.atualizado_em = datetime.now()
+    plano.atualizado_em = agora_utc()
     plano.atualizado_por = usuario
+    auditoria.registrar(db, usuario=usuario, acao="SALVAR_PLANO", entidade="turma", entidade_id=cod_tur, detalhes=f"matricula {dados.valor_matricula} mensalidade {dados.valor_mensalidade} x{dados.parcelas}")
     db.commit()
     db.refresh(plano)
     return _plano_dict(plano)
@@ -965,7 +981,7 @@ def salvar_condicao(
         condicao = CondicaoFinanceiraAluno(
             cod_alu=cod_alu,
             cod_tur=cod_tur,
-            criado_em=datetime.now(),
+            criado_em=agora_utc(),
         )
         db.add(condicao)
     condicao.tipo = tipo
@@ -983,7 +999,7 @@ def salvar_condicao(
         else None
     )
     condicao.observacao = dados.observacao
-    condicao.atualizado_em = datetime.now()
+    condicao.atualizado_em = agora_utc()
     condicao.atualizado_por = usuario
     db.flush()
 
@@ -1022,7 +1038,7 @@ def remover_condicao(
         condicao.valor_mensalidade = None
         condicao.valor_matricula = None
         condicao.cobra_matricula = "S"
-        condicao.atualizado_em = datetime.now()
+        condicao.atualizado_em = agora_utc()
         condicao.atualizado_por = usuario
     else:
         db.delete(condicao)
@@ -1083,13 +1099,13 @@ def salvar_desconto(
             cod_alu=cod_alu,
             cod_tur=cod_tur,
             tipo="REGULAR",
-            criado_em=datetime.now(),
+            criado_em=agora_utc(),
         )
         db.add(condicao)
     condicao.desconto_percentual = percentual if percentual > servico.ZERO else None
     condicao.desconto_motivo = motivo if percentual > servico.ZERO else None
     condicao.desconto_na_matricula = "S" if dados.na_matricula else "N"
-    condicao.atualizado_em = datetime.now()
+    condicao.atualizado_em = agora_utc()
     condicao.atualizado_por = usuario
     db.flush()
 
@@ -1143,14 +1159,16 @@ def gerar_acesso_do_aluno(cod_alu: int, db: Session = Depends(get_db)):
     acesso = db.scalar(
         select(AcessoFinanceiroAluno).where(AcessoFinanceiroAluno.cod_alu == cod_alu)
     )
+    substituiu_anterior = acesso is not None and acesso.ativo == "S" and bool(acesso.token)
     if acesso is None:
-        acesso = AcessoFinanceiroAluno(cod_alu=cod_alu, criado_em=datetime.now())
+        acesso = AcessoFinanceiroAluno(cod_alu=cod_alu, criado_em=agora_utc())
         db.add(acesso)
     acesso.token = secrets.token_urlsafe(32)
     acesso.ativo = "S"
-    acesso.criado_em = datetime.now()
+    acesso.criado_em = agora_utc()
     db.commit()
-    return {"token": acesso.token}
+    # Regerar derruba o link já enviado ao aluno: a tela precisa avisar.
+    return {"token": acesso.token, "substituiu_anterior": substituiu_anterior}
 
 
 @router.delete("/alunos/{cod_alu}/acesso")
@@ -1173,7 +1191,7 @@ def listar_conciliacao(
     db: Session = Depends(get_db),
 ):
     """Recebimentos do banco e as cobranças que cada um pode quitar."""
-    hoje = date.today()
+    hoje = hoje_local()
     consulta = select(TransacaoBancaria).order_by(
         TransacaoBancaria.data.desc(), TransacaoBancaria.id.desc()
     )
@@ -1294,7 +1312,7 @@ def ignorar_recebimento(
         raise HTTPException(400, "Estorne a baixa antes de ignorar este recebimento.")
     transacao.status = "IGNORADA"
     transacao.motivo = f"Marcado como não pertinente por {usuario}"[:120]
-    transacao.conciliada_em = datetime.now()
+    transacao.conciliada_em = agora_utc()
     transacao.conciliada_por = usuario
     db.commit()
     return {"ok": True}
@@ -1367,7 +1385,7 @@ def salvar_configuracao(
     config.instrucoes = dados.instrucoes
     config.conciliacao_automatica = "S" if dados.conciliacao_automatica else "N"
     config.tolerancia_dias = dados.tolerancia_dias
-    config.atualizado_em = datetime.now()
+    config.atualizado_em = agora_utc()
     config.atualizado_por = usuario
     db.commit()
     return obter_configuracao(db)
@@ -1388,7 +1406,7 @@ def extrato_publico(token: str, db: Session = Depends(get_db)):
     extrato = servico.extrato_aluno(db, acesso.cod_alu)
     if not extrato:
         raise HTTPException(404, "Aluno não encontrado")
-    acesso.ultimo_acesso_em = datetime.now()
+    acesso.ultimo_acesso_em = agora_utc()
     db.commit()
     # A consulta do aluno mostra a própria situação, nunca quem lançou a baixa.
     for cobranca in extrato["cobrancas"]:
@@ -1398,7 +1416,36 @@ def extrato_publico(token: str, db: Session = Depends(get_db)):
 
 # ---- webhook do banco ------------------------------------------------------
 
-def _validar_segredo_banco(x_webhook_secret: str | None = Header(default=None)) -> None:
+# Janela aceita para o carimbo que acompanha a assinatura do corpo.
+TOLERANCIA_ASSINATURA_SEGUNDOS = 300
+
+
+def validar_assinatura_banco(
+    corpo: bytes,
+    assinatura: str | None,
+    carimbo: str | None,
+    *,
+    segredo: str,
+    agora: int | None = None,
+) -> None:
+    """HMAC-SHA256 de ``"{carimbo}.{corpo}"`` com o segredo, dentro da janela."""
+    try:
+        emitido_em = int(carimbo or "")
+    except ValueError:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Carimbo da assinatura ausente")
+    agora = int(datetime.now(tz=timezone.utc).timestamp()) if agora is None else agora
+    if abs(agora - emitido_em) > TOLERANCIA_ASSINATURA_SEGUNDOS:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Assinatura expirada")
+    esperado = hmac.new(
+        segredo.encode(), f"{emitido_em}.".encode() + corpo, hashlib.sha256
+    ).hexdigest()
+    recebido = (assinatura or "").split("=", 1)[-1].strip().lower()
+    if not hmac.compare_digest(recebido, esperado):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Assinatura inválida")
+
+
+def validar_segredo_banco(x_webhook_secret: str | None) -> str:
+    """Segredo compartilhado simples; devolve o segredo configurado."""
     segredo = settings.banco_webhook_secret
     if not segredo:
         raise HTTPException(
@@ -1407,6 +1454,33 @@ def _validar_segredo_banco(x_webhook_secret: str | None = Header(default=None)) 
         )
     if not x_webhook_secret or not hmac.compare_digest(x_webhook_secret, segredo):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Segredo inválido")
+    return segredo
+
+
+async def _validar_segredo_banco(
+    request: Request,
+    x_webhook_secret: str | None = Header(default=None),
+    x_webhook_signature: str | None = Header(default=None),
+    x_webhook_timestamp: str | None = Header(default=None),
+) -> None:
+    """Aceita o segredo compartilhado ou, melhor, uma assinatura do corpo.
+
+    Com ``X-Webhook-Signature: sha256=<hmac>`` e ``X-Webhook-Timestamp``, quem
+    capturar uma requisição não consegue forjar outra nem repetir esta fora
+    da janela. O header simples continua valendo para PSPs que não assinam.
+    """
+    segredo = settings.banco_webhook_secret
+    if not segredo:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "Integração bancária não configurada",
+        )
+    if x_webhook_signature:
+        validar_assinatura_banco(
+            await request.body(), x_webhook_signature, x_webhook_timestamp, segredo=segredo
+        )
+        return
+    validar_segredo_banco(x_webhook_secret)
 
 
 def _registrar_transacao(
@@ -1435,7 +1509,7 @@ def _registrar_transacao(
         identificador=dados.identificador,
         meio=meio,
         valor=valor,
-        data=dados.data or date.today(),
+        data=dados.data or hoje_local(),
         pagador_nome=dados.pagador_nome,
         pagador_documento=dados.pagador_documento,
         referencia=(dados.referencia or "").upper() or None,
@@ -1444,7 +1518,7 @@ def _registrar_transacao(
         payload_json=json.dumps(
             dados.model_dump(mode="json"), ensure_ascii=False
         )[:60000],
-        recebida_em=datetime.now(),
+        recebida_em=agora_utc(),
     )
     db.add(transacao)
     db.flush()

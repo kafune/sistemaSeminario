@@ -16,7 +16,7 @@ import {
   CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, SkeletonCards,
   StatusBadge, Superficie, cardSx, resetBotao, useTelaDesktop,
 } from '../ui'
-import { formatarDataBr, formatarMoeda } from '../formatters'
+import { formatarDataBr, formatarDataHora, formatarMoeda } from '../formatters'
 import { DialogoPagamento, SeloSituacao, numeroDoCampo, rotuloForma, textoPercentual } from './FinanceiroComum'
 
 function CardResumo({ rotulo, valor, nota }) {
@@ -43,6 +43,8 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
   const [erroCarga, setErroCarga] = useState('')
   const [cobrancaPagando, setCobrancaPagando] = useState(null)
   const [pagamentoEstornar, setPagamentoEstornar] = useState(null)
+  const [confirmarNovoLink, setConfirmarNovoLink] = useState(false)
+  const [avisoLink, setAvisoLink] = useState('')
   const [processando, setProcessando] = useState(false)
   const [percentual, setPercentual] = useState('')
   const [motivo, setMotivo] = useState('')
@@ -82,10 +84,11 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
 
   function resumoDoAjuste(ajuste) {
     const partes = []
-    if (ajuste.atualizadas) partes.push(`${ajuste.atualizadas} mensalidade(s) atualizada(s)`)
-    if (ajuste.criadas) partes.push(`${ajuste.criadas} criada(s)`)
-    if (ajuste.removidas) partes.push(`${ajuste.removidas} removida(s)`)
-    if (ajuste.preservadas) partes.push(`${ajuste.preservadas} preservada(s) por já ter pagamento`)
+    const plural = (n, uma, varias) => `${n} ${n === 1 ? uma : varias}`
+    if (ajuste.atualizadas) partes.push(plural(ajuste.atualizadas, 'mensalidade atualizada', 'mensalidades atualizadas'))
+    if (ajuste.criadas) partes.push(plural(ajuste.criadas, 'criada', 'criadas'))
+    if (ajuste.removidas) partes.push(plural(ajuste.removidas, 'removida', 'removidas'))
+    if (ajuste.preservadas) partes.push(`${plural(ajuste.preservadas, 'preservada', 'preservadas')} por já ter pagamento`)
     return partes.length ? ` ${partes.join(', ')}.` : ' Nenhuma cobrança precisou mudar.'
   }
 
@@ -138,10 +141,19 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
     }
   }
 
-  async function gerarLink() {
+  async function gerarLink(confirmado = false) {
+    // Regerar derruba o link que o aluno já recebeu: com link ativo, pede confirmação.
+    if (token && !confirmado) {
+      setConfirmarNovoLink(true)
+      return
+    }
+    setConfirmarNovoLink(false)
     setProcessando(true)
     try {
       const resposta = await api.post(`/financeiro/alunos/${codAlu}/acesso`)
+      setAvisoLink(resposta.substituiu_anterior
+        ? 'O link anterior enviado ao aluno deixou de funcionar. Envie a ele o novo endereço.'
+        : '')
       try {
         await navigator.clipboard.writeText(`${window.location.origin}/minhas-financas/${resposta.token}`)
         avisar('Link gerado e copiado para a área de transferência.', false)
@@ -169,6 +181,7 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
     setProcessando(true)
     try {
       await api.del(`/financeiro/alunos/${codAlu}/acesso`)
+      setAvisoLink('')
       avisar('Link desativado.', false)
       carregar()
     } catch (e) {
@@ -301,13 +314,16 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
           )}
           {extrato.acesso?.ultimo_acesso_em && (
             <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 1 }}>
-              Último acesso do aluno em {new Date(extrato.acesso.ultimo_acesso_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+              Último acesso do aluno em {formatarDataHora(extrato.acesso.ultimo_acesso_em)}
             </Typography>
+          )}
+          {avisoLink && (
+            <Alert severity="warning" onClose={() => setAvisoLink('')} sx={{ mt: 1.5 }}>{avisoLink}</Alert>
           )}
         </Box>
         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           {token && <Button variant="outlined" startIcon={<ContentCopyIcon />} onClick={copiarLink}>Copiar link</Button>}
-          <Button variant={token ? 'outlined' : 'contained'} disabled={processando} onClick={gerarLink}>
+          <Button variant={token ? 'outlined' : 'contained'} disabled={processando} onClick={() => gerarLink()}>
             {token ? 'Gerar novo link' : 'Gerar link'}
           </Button>
           {token && <Button color="error" startIcon={<LinkOffIcon />} disabled={processando} onClick={revogarLink}>Desativar</Button>}
@@ -391,7 +407,7 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
                         <Box
                           component="button" type="button"
                           onClick={() => setPagamentoEstornar(pagamento)}
-                          sx={{ ...resetBotao, minHeight: 0, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TOV.type.caption, fontWeight: 600, '&:hover': { color: TOV.danger } }}
+                          sx={{ ...resetBotao, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TOV.type.caption, fontWeight: 600, '&:hover': { color: TOV.danger } }}
                         >
                           <UndoIcon sx={{ fontSize: TOV.type.caption }} /> estornar
                         </Box>
@@ -428,6 +444,16 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
         processando={processando}
         onConfirmar={lancarPagamento}
         onFechar={() => !processando && setCobrancaPagando(null)}
+      />
+
+      <DialogoConfirmacao
+        aberto={confirmarNovoLink}
+        titulo="Gerar novo link?"
+        descricao="O link atual deixa de funcionar na hora, inclusive o que já foi enviado ao aluno. Depois de gerar, envie a ele o novo endereço."
+        rotuloConfirmar="Gerar novo link"
+        processando={processando}
+        onConfirmar={() => gerarLink(true)}
+        onFechar={() => !processando && setConfirmarNovoLink(false)}
       />
 
       <DialogoConfirmacao

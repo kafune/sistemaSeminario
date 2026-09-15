@@ -20,7 +20,7 @@ from ..models import (
     Turma,
     Usuario,
 )
-from ..security import usuario_atual
+from ..security import perfil_de, usuario_atual
 from ..services.faltas import faltas_do_vinculo, subconsulta_faltas
 
 router = APIRouter(prefix="/notas", tags=["notas"])
@@ -84,7 +84,7 @@ def _usuario_logado(db: Session, user) -> Usuario | None:
 
 def _validar_acesso_vinculo(db: Session, user, vinculo: DocTurma) -> None:
     usuario = _usuario_logado(db, user)
-    if usuario and (usuario.perfil or "ADMIN").upper() == "PROFESSOR":
+    if usuario and perfil_de(usuario) == "PROFESSOR":
         if usuario.cod_pro is None or vinculo.cod_pro != usuario.cod_pro:
             raise HTTPException(403, "Você não possui acesso a esta turma e matéria")
 
@@ -245,7 +245,7 @@ def opcoes_lancamento(
         .join(Professor, Professor.cod_pro == DocTurma.cod_pro, isouter=True)
         .order_by(Turma.nome, Materia.NOME, DocTurma.Ano, DocTurma.semestre)
     )
-    if usuario and (usuario.perfil or "ADMIN").upper() == "PROFESSOR":
+    if usuario and perfil_de(usuario) == "PROFESSOR":
         if usuario.cod_pro is None:
             return {"turmas": [], "vinculos": []}
         consulta = consulta.where(DocTurma.cod_pro == usuario.cod_pro)
@@ -475,6 +475,12 @@ def lancar(
                 mensagem="A nota final deve ficar entre 0 e 10",
             )
         if lanc.notas_atividades is None:
+            if atividades_por_id and lanc.nota is not None:
+                raise HTTPException(
+                    400,
+                    "Esta matéria tem atividades avaliativas: lance a nota por atividade, "
+                    "não a nota final.",
+                )
             continue
         ids_lancados = [item.atividade_id for item in lanc.notas_atividades]
         if len(ids_lancados) != len(set(ids_lancados)):
@@ -539,7 +545,10 @@ def lancar(
         registro.cod_tur = vinculo.cod_tur
         registro.cod_mat = vinculo.cod_mat
         registro.falta = faltas.get(lanc.cod_alu, 0)
-        registro.dispensa = lanc.dispensa
+        # A grade não tem controle de dispensa: só sobrescreve quando o
+        # lançamento diz algo, senão o valor gravado antes seria apagado.
+        if lanc.dispensa is not None:
+            registro.dispensa = lanc.dispensa
         registro.cursou = lanc.cursou
         registro.cod_pro = vinculo.cod_pro
         registro.ano = vinculo.Ano
@@ -560,7 +569,7 @@ def notas_do_aluno(
     if not aluno:
         raise HTTPException(404, "Aluno não encontrado")
     usuario = _usuario_logado(db, user)
-    if usuario and (usuario.perfil or "ADMIN").upper() == "PROFESSOR":
+    if usuario and perfil_de(usuario) == "PROFESSOR":
         matriculado_em_turma_do_professor = db.scalar(
             select(func.count())
             .select_from(AluTurma)
@@ -591,7 +600,7 @@ def notas_do_aluno(
         .where(AluNota.cod_alu == cod_alu)
         .order_by(AluNota.ano, AluNota.semestre, Materia.NOME)
     )
-    if usuario and (usuario.perfil or "ADMIN").upper() == "PROFESSOR":
+    if usuario and perfil_de(usuario) == "PROFESSOR":
         q = q.where(
             AluNota.docturma_id.in_(
                 select(DocTurma.id).where(DocTurma.cod_pro == usuario.cod_pro)

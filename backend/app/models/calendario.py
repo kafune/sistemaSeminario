@@ -22,9 +22,19 @@ class Aula(Base):
 
 
 class CalendarioPublico(Base):
+    """Link público da agenda de **uma** turma.
+
+    A turma faz parte do token: o link enviado ao grupo de WhatsApp só sabe
+    devolver as aulas daquela turma. Um filtro por parâmetro de URL seria
+    ilusão de recorte — bastava apagá-lo para ver a agenda da escola inteira.
+    Linhas antigas sem ``cod_tur`` são links globais aposentados.
+    """
+
     __tablename__ = "calendario_publico"
+    __table_args__ = (Index("ix_calendario_publico_turma", "cod_tur", "ativo"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     token: Mapped[str] = mapped_column(String(64), unique=True)
+    cod_tur: Mapped[int | None] = mapped_column(Integer)
     ativo: Mapped[str] = mapped_column(String(1), default="S")
     criado_em: Mapped[datetime] = mapped_column(DateTime)

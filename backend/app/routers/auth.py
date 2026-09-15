@@ -4,9 +4,11 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Usuario
-from ..security import criar_token, gerar_hash, usuario_atual, verificar_senha
+from ..security import criar_token, gerar_hash, perfil_de, usuario_atual, verificar_senha
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+SENHA_MINIMA = 8
 
 
 class LoginInput(BaseModel):
@@ -27,7 +29,7 @@ def login(dados: LoginInput, db: Session = Depends(get_db)):
     return {
         "token": criar_token(usuario.user),
         "user": usuario.user,
-        "perfil": usuario.perfil or "ADMIN",
+        "perfil": perfil_de(usuario),
         "cod_pro": usuario.cod_pro,
     }
 
@@ -42,7 +44,7 @@ def obter_sessao(
         raise HTTPException(404, "Usuário não encontrado")
     return {
         "user": usuario.user,
-        "perfil": usuario.perfil or "ADMIN",
+        "perfil": perfil_de(usuario),
         "cod_pro": usuario.cod_pro,
     }
 
@@ -56,8 +58,10 @@ def trocar_senha(
     usuario = db.get(Usuario, user)
     if not usuario or not verificar_senha(dados.senha_atual, usuario.senha_hash):
         raise HTTPException(400, "Senha atual incorreta")
-    if len(dados.senha_nova) < 6:
-        raise HTTPException(400, "A senha nova deve ter pelo menos 6 caracteres")
+    if len(dados.senha_nova) < SENHA_MINIMA:
+        raise HTTPException(400, f"A senha nova deve ter pelo menos {SENHA_MINIMA} caracteres")
+    if dados.senha_nova == dados.senha_atual:
+        raise HTTPException(400, "A senha nova deve ser diferente da atual")
     usuario.senha_hash = gerar_hash(dados.senha_nova)
     db.commit()
     return {"ok": True}

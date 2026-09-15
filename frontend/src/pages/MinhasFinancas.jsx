@@ -6,7 +6,7 @@ import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined'
 import { getPublico } from '../api'
 import { TOV } from '../theme'
 import { EstadoVazio, StatusBadge, cardSx } from '../ui'
-import { formatarDataBr, formatarMoeda } from '../formatters'
+import { formatarDataBr, formatarDataHora, formatarMoeda } from '../formatters'
 import { SeloSituacao, rotuloForma } from './FinanceiroComum'
 
 function Resumo({ rotulo, valor, nota, destaque }) {
@@ -197,7 +197,7 @@ export default function MinhasFinancas() {
             )}
 
             <Typography sx={{ fontSize: TOV.type.caption, color: TOV.caption, mt: 3, textAlign: 'center' }}>
-              Consulta gerada em {new Date(extrato.atualizado_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}.
+              Consulta gerada em {formatarDataHora(extrato.atualizado_em)}.
               Dúvidas sobre valores devem ser tratadas com a secretaria.
             </Typography>
           </>

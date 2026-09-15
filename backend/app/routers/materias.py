@@ -3,6 +3,9 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..security import usuario_atual
+from ..services import auditoria
+from ..consultas import termo_like
 from ..database import get_db, row_to_dict
 from ..models import AluNota, DocTurma, Materia, MatProf
 
@@ -20,7 +23,7 @@ class MateriaInput(BaseModel):
 def listar(busca: str = "", db: Session = Depends(get_db)):
     q = select(Materia)
     if busca:
-        q = q.where(Materia.NOME.like(f"%{busca}%"))
+        q = q.where(Materia.NOME.like(termo_like(busca), escape="\\"))
     return [row_to_dict(m) for m in db.scalars(q.order_by(Materia.NOME))]
 
 
@@ -45,7 +48,9 @@ def atualizar(cod_mat: int, dados: MateriaInput, db: Session = Depends(get_db)):
 
 
 @router.delete("/{cod_mat}")
-def excluir(cod_mat: int, db: Session = Depends(get_db)):
+def excluir(cod_mat: int, db: Session = Depends(get_db),
+    usuario: str = Depends(usuario_atual),
+):
     mat = db.get(Materia, cod_mat)
     if not mat:
         raise HTTPException(404, "Matéria não encontrada")
@@ -67,5 +72,6 @@ def excluir(cod_mat: int, db: Session = Depends(get_db)):
         )
     db.execute(MatProf.__table__.delete().where(MatProf.cod_mat == cod_mat))
     db.delete(mat)
+    auditoria.registrar(db, usuario=usuario, acao="EXCLUIR", entidade="materia", entidade_id=cod_mat, detalhes=str(mat.NOME or ""))
     db.commit()
     return {"ok": True}

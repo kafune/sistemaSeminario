@@ -4,7 +4,6 @@ import {
   Alert, Box, Button, CircularProgress, IconButton, MenuItem, Snackbar, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
-import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded'
@@ -16,9 +15,10 @@ import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined'
 import { api, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
-  CabecalhoPagina, CardMetrica, CartaoLista, DialogoConfirmacao, EstadoVazio,
-  LinhaCartao, SkeletonCards, StatusBadge, cardSx, resetBotao, useTelaDesktop,
+  CabecalhoPagina, CardMetrica, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
+  LinhaCartao, LinkVoltar, SkeletonCards, StatusBadge, cardSx, resetBotao, useTelaDesktop,
 } from '../ui'
+import { FUSO_INSTITUICAO } from '../formatters'
 
 function dataLonga(data) {
   if (!data) return '—'
@@ -38,13 +38,13 @@ function dataCurta(data) {
 function hora(dataHora) {
   if (!dataHora) return '—'
   return new Intl.DateTimeFormat('pt-BR', {
-    hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
+    hour: '2-digit', minute: '2-digit', timeZone: FUSO_INSTITUICAO,
   }).format(new Date(dataHora))
 }
 
 function hojeLocal() {
   const partes = new Intl.DateTimeFormat('pt-BR', {
-    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: FUSO_INSTITUICAO,
   }).formatToParts(new Date())
   const valor = (tipo) => partes.find((parte) => parte.type === tipo)?.value
   return `${valor('year')}-${valor('month')}-${valor('day')}`
@@ -67,6 +67,9 @@ export default function PresencasTurma() {
   const [processando, setProcessando] = useState(false)
   const [confirmarEncerramento, setConfirmarEncerramento] = useState(false)
   const [erro, setErro] = useState('')
+  // Falha da carga inicial: vira `EstadoErro` no corpo, não um alerta sobre página vazia.
+  const [erroCarga, setErroCarga] = useState('')
+  const [versaoCarga, setVersaoCarga] = useState(0)
   const [mensagem, setMensagem] = useState('')
 
   const carregarLista = useCallback(async () => {
@@ -87,6 +90,8 @@ export default function PresencasTurma() {
 
   useEffect(() => {
     let ativo = true
+    setCarregando(true)
+    setErroCarga('')
     const requisicaoTurma = ehProfessor
       ? (vinculoId
           ? api.get(`/portal-professor/turmas/${vinculoId}`).then((resposta) => ({ ...resposta.vinculo, nome: resposta.vinculo.turma_nome }))
@@ -111,10 +116,10 @@ export default function PresencasTurma() {
         if (aulasVisiveis.length === 1) setAulaSelecionada(String(aulasVisiveis[0].aula_id))
         setSelecionadaId(chamadasVisiveis[0]?.id || null)
       })
-      .catch((e) => { if (ativo) setErro(e.message) })
+      .catch((e) => { if (ativo) setErroCarga(e.message) })
       .finally(() => { if (ativo) setCarregando(false) })
     return () => { ativo = false }
-  }, [codTur, ehProfessor, vinculoId])
+  }, [codTur, ehProfessor, vinculoId, versaoCarga])
 
   const carregarDetalhe = useCallback(async (silencioso = false) => {
     if (!selecionadaId) {
@@ -188,11 +193,25 @@ export default function PresencasTurma() {
 
   if (carregando) return <SkeletonCards quantidade={3} altura={170} />
 
+  const botaoVoltar = (
+    <LinkVoltar
+      para={ehProfessor && vinculoId ? `/professor/turmas/${vinculoId}?aba=aulas` : `/turmas/${codTur}`}
+      rotulo="Voltar para a turma"
+    />
+  )
+
+  if (erroCarga) {
+    return (
+      <Box>
+        {botaoVoltar}
+        <EstadoErro titulo="Não foi possível carregar as chamadas" descricao={erroCarga} onTentarNovamente={() => setVersaoCarga((versao) => versao + 1)} />
+      </Box>
+    )
+  }
+
   return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate(ehProfessor && vinculoId ? `/professor/turmas/${vinculoId}?aba=aulas` : `/turmas/${codTur}`)} sx={{ ...resetBotao, px: 0.5, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TOV.type.body, color: TOV.caption, fontWeight: 700, mb: 1.5, '&:hover': { color: TOV.coral } }}>
-        <ArrowBackRoundedIcon sx={{ fontSize: TOV.type.section }} /> Voltar para a turma
-      </Box>
+      {botaoVoltar}
 
       <CabecalhoPagina
         eyebrow="Chamada digital"

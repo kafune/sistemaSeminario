@@ -79,8 +79,11 @@ Todos são exportados por `ui.jsx`.
    sombras `TOV.shadow*` quando uma camada realmente flutuar.
 4. Garantir texto para todo estado; cor nunca é o único indicador.
 5. Preservar alvos interativos de pelo menos 44px.
-6. Tabelas usam cabeçalho fixo e divisores sutis. Tabela é conteúdo, não camada
-   flutuante: filete e superfície vêm do tema, sombra nunca.
+6. Tabelas rolam com a página e usam divisores sutis; quando são mais largas
+   que a tela, rolam na horizontal dentro do container, que sombreia as bordas
+   para dizer isso. Tabela é conteúdo, não camada flutuante: filete e superfície
+   vêm do tema, sombra nunca. (Cabeçalho fixo exigiria um container com altura
+   máxima — decisão deliberada de não ter.)
 7. Uma marcação por estado. "Linha alterada" é o filete âmbar à esquerda — não
    também fundo tingido, borda de campo e selo por linha.
 8. Número no painel só entra se abrir a lista correspondente. O painel mostra

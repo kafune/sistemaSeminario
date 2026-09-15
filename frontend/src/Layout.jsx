@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useBlocker, useLocation, useNavigate } from 'react-router-dom'
 import {
-  AppBar, BottomNavigation, BottomNavigationAction, Box, Drawer,
-  ListItemIcon, ListItemText, Menu, MenuItem, Paper, Toolbar, Typography,
+  Alert, AppBar, BottomNavigation, BottomNavigationAction, Box, Button, Dialog,
+  DialogActions, DialogContent, DialogTitle, Drawer, ListItemIcon, ListItemText,
+  Menu, MenuItem, Paper, TextField, Toolbar, Typography,
 } from '@mui/material'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import SpaceDashboardIcon from '@mui/icons-material/SpaceDashboard'
@@ -22,9 +23,9 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import CheckIcon from '@mui/icons-material/Check'
 import HistoryEduIcon from '@mui/icons-material/HistoryEdu'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
-import { api, clearSession, getPerfil, getUser } from './api'
+import { api, clearSession, getPerfil, getToken, getUser, setSession } from './api'
 import { TOV, focusRingOnDark } from './theme'
-import { DialogoConfirmacao, iniciais, resetBotao } from './ui'
+import { DialogoConfirmacao, iniciais, resetBotao, useDialogoTelaCheia } from './ui'
 import NotificationCenter, { BotaoInstalarPwa, BotaoNotificacoes, useNotificacoes } from './NotificationCenter'
 import { UnsavedChangesContext } from './UnsavedChanges'
 
@@ -75,8 +76,8 @@ function ItemTrilha({ icone: Icone, rotulo, ativo, onClick, rotuloAcessivel }) {
         bgcolor: ativo ? TOV.surface : 'transparent',
         transition: `background-color ${TOV.durationFast} ${TOV.ease}, color ${TOV.durationFast} ${TOV.ease}`,
         '&::before': ativo ? {
-          content: '""', position: 'absolute', left: -8, top: 8, bottom: 8,
-          width: 4, borderRadius: `0 ${TOV.radiusXs} ${TOV.radiusXs} 0`, bgcolor: TOV.coral,
+          content: '""', position: 'absolute', left: 0, top: 8, bottom: 8,
+          width: 4, borderRadius: TOV.radiusXs, bgcolor: TOV.coral,
         } : undefined,
         '&:hover': ativo ? {} : { bgcolor: TOV.onDarkSurface, color: TOV.onDark },
         '&:focus-visible': focusRingOnDark,
@@ -109,8 +110,8 @@ function ItemNav({ item, ativo, onClick }) {
         position: 'relative',
         transition: `background-color ${TOV.durationFast} ${TOV.ease}, color ${TOV.durationFast} ${TOV.ease}`,
         '&::before': ativo ? {
-          content: '""', position: 'absolute', left: 0, top: 10, bottom: 10,
-          width: 4, borderRadius: `0 ${TOV.radiusXs} ${TOV.radiusXs} 0`, bgcolor: TOV.coral,
+          content: '""', position: 'absolute', left: 4, top: 10, bottom: 10,
+          width: 4, borderRadius: TOV.radiusXs, bgcolor: TOV.coral,
         } : undefined,
         '&:hover': ativo ? {} : { bgcolor: TOV.onDarkSurface, color: TOV.onDark },
         '&:focus-visible': focusRingOnDark,
@@ -224,16 +225,94 @@ function useTituloForaDaTela(caminho) {
   return fora
 }
 
+/**
+ * Troca de senha pelo próprio usuário. A API existia (`POST /auth/trocar-senha`)
+ * e não tinha tela: só o administrador redefinia a senha dos outros.
+ */
+function DialogoTrocarSenha({ aberto, onFechar }) {
+  const telaCheia = useDialogoTelaCheia()
+  const [atual, setAtual] = useState('')
+  const [nova, setNova] = useState('')
+  const [confirmacao, setConfirmacao] = useState('')
+  const [erro, setErro] = useState('')
+  const [sucesso, setSucesso] = useState(false)
+  const [salvando, setSalvando] = useState(false)
+
+  useEffect(() => {
+    if (!aberto) return
+    setAtual('')
+    setNova('')
+    setConfirmacao('')
+    setErro('')
+    setSucesso(false)
+  }, [aberto])
+
+  const curta = nova.length > 0 && nova.length < 8
+  const diferente = confirmacao.length > 0 && confirmacao !== nova
+  const podeSalvar = atual && nova.length >= 8 && confirmacao === nova && !salvando
+
+  async function salvar() {
+    setSalvando(true)
+    setErro('')
+    try {
+      await api.post('/auth/trocar-senha', { senha_atual: atual, senha_nova: nova })
+      setSucesso(true)
+    } catch (e) {
+      setErro(e.message)
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  return (
+    <Dialog open={aberto} onClose={salvando ? undefined : onFechar} maxWidth="xs" fullWidth fullScreen={telaCheia}>
+      <DialogTitle>Alterar minha senha</DialogTitle>
+      <DialogContent sx={{ display: 'grid', gap: 2, pt: '8px !important' }}>
+        {sucesso ? (
+          <Alert severity="success">Senha alterada. Use a nova senha no próximo acesso.</Alert>
+        ) : (
+          <>
+            {erro && <Alert severity="error">{erro}</Alert>}
+            <TextField label="Senha atual" type="password" autoComplete="current-password" value={atual} onChange={(e) => setAtual(e.target.value)} autoFocus />
+            <TextField label="Nova senha" type="password" autoComplete="new-password" value={nova} onChange={(e) => setNova(e.target.value)} error={curta} helperText={curta ? 'Use ao menos 8 caracteres.' : 'Ao menos 8 caracteres.'} />
+            <TextField label="Confirmar nova senha" type="password" autoComplete="new-password" value={confirmacao} onChange={(e) => setConfirmacao(e.target.value)} error={diferente} helperText={diferente ? 'As senhas não conferem.' : ' '} />
+          </>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ p: 3, pt: 1 }}>
+        <Button variant="outlined" onClick={onFechar} disabled={salvando}>{sucesso ? 'Fechar' : 'Cancelar'}</Button>
+        {!sucesso && <Button variant="contained" onClick={salvar} disabled={!podeSalvar}>{salvando ? 'Salvando…' : 'Salvar nova senha'}</Button>}
+      </DialogActions>
+    </Dialog>
+  )
+}
+
 export default function Layout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const usuario = getUser() || 'Usuário'
   const perfil = getPerfil()
+  // O perfil guardado no login pode ter mudado (o administrador rebaixou ou
+  // promoveu a conta). O backend é a autoridade; a tela só reconcilia.
+  useEffect(() => {
+    let ativo = true
+    api.get('/auth/me')
+      .then((sessao) => {
+        if (!ativo || !sessao?.perfil) return
+        if (sessao.perfil !== getPerfil() || sessao.user !== getUser()) {
+          setSession(getToken(), sessao.user, sessao.perfil)
+          window.location.reload()
+        }
+      })
+      .catch(() => {})
+    return () => { ativo = false }
+  }, [])
   const menuVisivel = MENU.filter((item) => !item.perfis || item.perfis.includes(perfil))
   const itensTrilha = (TRILHA[perfil] || TRILHA.padrao)
     .map((rota) => menuVisivel.find((item) => item.rota === rota))
     .filter(Boolean)
   const [menuAberto, setMenuAberto] = useState(false)
+  const [trocarSenhaAberto, setTrocarSenhaAberto] = useState(false)
   const [notificacoesAbertas, setNotificacoesAbertas] = useState(false)
   const [alteracoesPendentes, setAlteracoesPendentes] = useState(null)
   const alteracoesPendentesRef = useRef(null)
@@ -336,7 +415,27 @@ export default function Layout({ children }) {
 
   const tituloAtual = menuVisivel.find(estaAtivo)?.rotulo || 'TOV'
   const tituloForaDaTela = useTituloForaDaTela(location.pathname)
-  const valorNavegacao = location.pathname === '/'
+  const acoesInferiores = (
+    perfil === 'PROFESSOR' ? [
+      <BottomNavigationAction key="/professor" label="Início" value="/professor" icon={<SpaceDashboardIcon />} />,
+      <BottomNavigationAction key="/professor/turmas" label="Turmas" value="/professor/turmas" icon={<SchoolIcon />} />,
+      <BottomNavigationAction key="/notas" label="Notas" value="/notas" icon={<EditNoteIcon />} />,
+      <BottomNavigationAction key="/materiais" label="Materiais" value="/materiais" icon={<FolderCopyOutlinedIcon />} />,
+    ] : perfil === 'FINANCEIRO' ? [
+      <BottomNavigationAction key="/financeiro" label="Financeiro" value="/financeiro" icon={<PaidOutlinedIcon />} />,
+    ] : perfil === 'MARKETING' ? [
+      <BottomNavigationAction key="/leads" label="Leads" value="/leads" icon={<CampaignIcon />} />,
+      <BottomNavigationAction key="/whatsapp" label="WhatsApp" value="/whatsapp" icon={<WhatsAppIcon />} />,
+    ] : [
+      <BottomNavigationAction key="/" label="Início" value="/" icon={<SpaceDashboardIcon />} />,
+      <BottomNavigationAction key="/alunos" label="Alunos" value="/alunos" icon={<SchoolIcon />} />,
+      <BottomNavigationAction key="/turmas" label="Turmas" value="/turmas" icon={<GroupsIcon />} />,
+    ]
+  )
+
+  // Rota atual reduzida ao item da barra que a representa. Só valores que a
+  // barra deste perfil realmente exibe; qualquer outra rota vive em "Mais".
+  const rotaResumida = location.pathname === '/'
     ? '/'
     : location.pathname === '/professor'
       ? '/professor'
@@ -354,7 +453,11 @@ export default function Layout({ children }) {
           ? '/turmas'
           : location.pathname.startsWith('/leads')
             ? '/leads'
+            : location.pathname.startsWith('/whatsapp')
+              ? '/whatsapp'
           : 'mais'
+  const valoresDaBarra = acoesInferiores.map((acao) => acao.props.value)
+  const valorNavegacao = valoresDaBarra.includes(rotaResumida) ? rotaResumida : 'mais'
 
   // Título da aba acompanha a seção e o scroll volta ao topo a cada rota.
   useEffect(() => {
@@ -368,6 +471,10 @@ export default function Layout({ children }) {
 
   const conteudoMenu = (
     <>
+      {/* Só esta região rola. O rodapé (sino, usuário, sair) fica sempre à
+          vista: num painel mais alto que a janela, `mt: 'auto'` não empurrava
+          o rodapé para a base visível — só para depois do conteúdo, fora da tela. */}
+      <Box sx={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 0.5, mx: -0.5, px: 0.5 }}>
       <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, px: 1, mb: 2 }}>
         <Typography component="span" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleLg, letterSpacing: '-.035em' }}>
           TOV
@@ -390,13 +497,14 @@ export default function Layout({ children }) {
         ))}
       </Box>
 
-      <Box sx={{ mt: 1, px: 1 }}>
+      <Box sx={{ mt: 1, px: 1, pb: 1 }}>
         <BotaoInstalarPwa sx={{ color: TOV.onDarkBody, borderColor: TOV.onDarkBorder, bgcolor: 'transparent', '&:hover': { color: TOV.onDark, borderColor: TOV.onDarkBorderHover, bgcolor: TOV.onDarkSurface } }} />
+      </Box>
       </Box>
 
       <Box
         sx={{
-          mt: 'auto', display: 'grid', gridTemplateColumns: '44px 36px minmax(0,1fr) 44px',
+          flex: '0 0 auto', display: 'grid', gridTemplateColumns: '44px 36px minmax(0,1fr) 44px',
           alignItems: 'center', gap: 1, pt: 2, px: 0.5,
           borderTop: `1px solid ${TOV.onDarkBorder}`,
         }}
@@ -405,7 +513,14 @@ export default function Layout({ children }) {
         <Box sx={{ width: 36, height: 36, borderRadius: TOV.radiusSm, bgcolor: TOV.onDarkSurface, border: `1px solid ${TOV.onDarkBorder}`, color: TOV.onDark, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: TOV.type.bodySm, flexShrink: 0 }}>
           {iniciais(usuario)}
         </Box>
-        <Box sx={{ lineHeight: 1.2, overflow: 'hidden' }}>
+        <Box
+          component="button"
+          type="button"
+          onClick={() => { setMenuAberto(false); setTrocarSenhaAberto(true) }}
+          title="Alterar minha senha"
+          aria-label={`${usuario}: alterar minha senha`}
+          sx={{ ...resetBotao, lineHeight: 1.2, overflow: 'hidden', textAlign: 'left', minHeight: 44, px: 0.5, mx: -0.5, borderRadius: TOV.radiusSm, color: 'inherit', '&:hover': { bgcolor: TOV.onDarkSurface }, '&:focus-visible': focusRingOnDark }}
+        >
           <Box sx={{ fontWeight: 700, fontSize: TOV.type.body, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{usuario}</Box>
           <Box sx={{ fontSize: TOV.type.overline, color: TOV.onDarkMuted }}>
             {perfil === 'ADMIN' ? 'Administrador'
@@ -432,7 +547,7 @@ export default function Layout({ children }) {
   const estiloPainel = {
     bgcolor: TOV.graphite, color: TOV.onDark, p: '24px 16px',
     borderRight: `1px solid ${TOV.darkHairline}`,
-    display: 'flex', flexDirection: 'column', gap: 0.5, overflowY: 'auto',
+    display: 'flex', flexDirection: 'column', gap: 0.5, overflow: 'hidden',
   }
 
   return (
@@ -456,7 +571,7 @@ export default function Layout({ children }) {
         position="fixed"
         elevation={0}
         sx={{
-          display: { xs: 'flex', md: 'none' }, bgcolor: TOV.surface,
+          display: { xs: 'flex', lg: 'none' }, bgcolor: TOV.surface,
           color: TOV.ink, borderBottom: `1px solid ${TOV.border}`,
           pt: 'env(safe-area-inset-top)',
           left: { xs: 0, sm: `${TOV.railW}px` },
@@ -488,9 +603,9 @@ export default function Layout({ children }) {
           onTransitionExited: concluirFechamentoMenu,
         }}
         sx={{
-          display: { xs: 'block', md: 'none' },
+          display: { xs: 'block', lg: 'none' },
           '& .MuiDrawer-paper': {
-            ...estiloPainel, width: 292, maxWidth: '88vw', border: 0,
+            ...estiloPainel, width: 292, maxWidth: '88vw', border: 0, height: '100%',
             pt: 'calc(24px + env(safe-area-inset-top))',
             pb: 'calc(32px + env(safe-area-inset-bottom))',
           },
@@ -499,39 +614,56 @@ export default function Layout({ children }) {
         {conteudoMenu}
       </Drawer>
 
-      {/* Trilha de navegação — tablet (600–900px) */}
+      {/* Trilha de navegação — tablet e notebook pequeno (600–1200px).
+          A sidebar completa só entra em lg: em md ela tomava 272px de uma
+          janela de 900px e a tabela cabia menos do que em 899px. */}
       <Box
         component="nav"
         aria-label="Navegação principal"
         sx={{
-          display: { xs: 'none', sm: 'flex', md: 'none' },
-          flexDirection: 'column', alignItems: 'center', gap: 0.5,
+          display: { xs: 'none', sm: 'flex', lg: 'none' },
+          flexDirection: 'column', alignItems: 'center',
           width: TOV.railW, flex: `0 0 ${TOV.railW}px`,
           position: 'sticky', top: 0, height: '100vh', alignSelf: 'flex-start',
           bgcolor: TOV.graphite, color: TOV.onDark,
           borderRight: `1px solid ${TOV.darkHairline}`,
-          pt: 'calc(76px + env(safe-area-inset-top))',
-          pb: 'calc(16px + env(safe-area-inset-bottom))',
-          overflowY: 'auto',
+          pt: 'calc(68px + env(safe-area-inset-top))',
+          pb: 'calc(8px + env(safe-area-inset-bottom))',
+          overflow: 'hidden',
         }}
       >
-        {itensTrilha.map((item) => (
+        {/* Os itens rolam; "Mais" fica preso na base — é a única porta para o
+            resto do produto e sumia em celular na horizontal. */}
+        <Box sx={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, width: '100%' }}>
+          {itensTrilha.map((item) => (
+            <ItemTrilha
+              key={item.rota}
+              icone={item.icone}
+              rotulo={item.curto || item.rotulo}
+              rotuloAcessivel={item.rotulo}
+              ativo={estaAtivo(item)}
+              onClick={() => irPara(item.rota)}
+            />
+          ))}
+        </Box>
+        <Box sx={{ flex: '0 0 auto', pt: 0.5, borderTop: `1px solid ${TOV.onDarkBorder}`, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
           <ItemTrilha
-            key={item.rota}
-            icone={item.icone}
-            rotulo={item.curto || item.rotulo}
-            rotuloAcessivel={item.rotulo}
-            ativo={estaAtivo(item)}
-            onClick={() => irPara(item.rota)}
+            icone={MoreHorizIcon}
+            rotulo="Mais"
+            rotuloAcessivel="Abrir menu completo"
+            ativo={false}
+            onClick={() => setMenuAberto(true)}
           />
-        ))}
-        <ItemTrilha
-          icone={MoreHorizIcon}
-          rotulo="Mais"
-          rotuloAcessivel="Abrir menu completo"
-          ativo={false}
-          onClick={() => setMenuAberto(true)}
-        />
+          {/* Sair direto da trilha: no tablet, antes, exigia descobrir que
+              "Mais" abre um menu que tem um rodapé que rola. */}
+          <ItemTrilha
+            icone={LogoutIcon}
+            rotulo="Sair"
+            rotuloAcessivel={`Sair do sistema (${usuario})`}
+            ativo={false}
+            onClick={sair}
+          />
+        </Box>
       </Box>
 
       {/* Sidebar fixa — desktop */}
@@ -540,7 +672,7 @@ export default function Layout({ children }) {
         aria-label="Navegação lateral"
         sx={{
           ...estiloPainel,
-          display: { xs: 'none', md: 'flex' },
+          display: { xs: 'none', lg: 'flex' },
           width: TOV.sidebarW, flex: `0 0 ${TOV.sidebarW}px`,
           position: 'sticky', top: 0, height: '100vh', alignSelf: 'flex-start',
         }}
@@ -555,9 +687,9 @@ export default function Layout({ children }) {
         ref={conteudoPrincipalRef}
         sx={{
           flexGrow: 1, minWidth: 0, bgcolor: TOV.canvas,
-          pt: { xs: 'calc(84px + env(safe-area-inset-top))', sm: 'calc(88px + env(safe-area-inset-top))', md: '40px' },
-          px: { xs: '16px', sm: '28px', md: 'clamp(36px,4vw,64px)' },
-          pb: { xs: 'calc(96px + env(safe-area-inset-bottom))', sm: '44px', md: '52px' },
+          pt: { xs: 'calc(84px + env(safe-area-inset-top))', sm: 'calc(88px + env(safe-area-inset-top))', lg: '40px' },
+          px: { xs: '16px', sm: '28px', lg: 'clamp(36px,4vw,64px)' },
+          pb: { xs: 'calc(96px + env(safe-area-inset-bottom))', sm: '44px', lg: '52px' },
           '& > *': { width: '100%', maxWidth: 1500, mx: 'auto' },
           '&:focus': { outline: 'none' },
         }}
@@ -599,32 +731,15 @@ export default function Layout({ children }) {
             '& .MuiBottomNavigationAction-label': { fontSize: TOV.type.overline, fontWeight: 700 },
           }}
         >
-          {perfil === 'PROFESSOR' ? (
-            <>
-              <BottomNavigationAction label="Início" value="/professor" icon={<SpaceDashboardIcon />} />
-              <BottomNavigationAction label="Turmas" value="/professor/turmas" icon={<SchoolIcon />} />
-              <BottomNavigationAction label="Notas" value="/notas" icon={<EditNoteIcon />} />
-              <BottomNavigationAction label="Materiais" value="/materiais" icon={<FolderCopyOutlinedIcon />} />
-            </>
-          ) : perfil === 'FINANCEIRO' ? (
-            <BottomNavigationAction label="Financeiro" value="/financeiro" icon={<PaidOutlinedIcon />} />
-          ) : <>
-            {perfil === 'MARKETING' ? (
-              <BottomNavigationAction label="Leads" value="/leads" icon={<CampaignIcon />} />
-            ) : (
-              <BottomNavigationAction label="Início" value="/" icon={<SpaceDashboardIcon />} />
-            )}
-            {perfil === 'MARKETING' ? (
-              <BottomNavigationAction label="WhatsApp" value="/whatsapp" icon={<WhatsAppIcon />} />
-            ) : (
-              <BottomNavigationAction label="Alunos" value="/alunos" icon={<SchoolIcon />} />
-            )}
-            {perfil !== 'MARKETING' && <BottomNavigationAction label="Turmas" value="/turmas" icon={<GroupsIcon />} />}
-          </>}
+          {/* Filhos diretos, sem fragmento: o BottomNavigation distribui
+              `showLabel`, `selected` e `value` só sobre os filhos imediatos —
+              dentro de <>…</> as ações nunca recebiam rótulo nem estado ativo. */}
+          {acoesInferiores}
           <BottomNavigationAction label="Mais" value="mais" icon={<MoreHorizIcon />} />
         </BottomNavigation>
       </Paper>
     </Box>
+    <DialogoTrocarSenha aberto={trocarSenhaAberto} onFechar={() => setTrocarSenhaAberto(false)} />
     <DialogoConfirmacao
       aberto={!!destinoPendente}
       titulo="Descartar alterações?"

@@ -11,9 +11,10 @@ import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
-  AvatarIniciais, CartaoLista, DialogoConfirmacao, LinhaCartao, PilulaStatus,
+  AvatarIniciais, CartaoLista, DialogoConfirmacao, LinhaCartao, LinkVoltar, PilulaStatus,
   EstadoErro, Regua, SkeletonCards, Superficie, cardSx, resetBotao, useTelaDesktop,
 } from '../ui'
+import { formatarCpfInput, formatarDataBr } from '../formatters'
 import AlunoForm from './AlunoForm'
 import FinanceiroAlunoPainel from './FinanceiroAlunoPainel'
 
@@ -27,10 +28,19 @@ function Campo({ rotulo, valor }) {
 }
 
 function CardResumo({ rotulo, valor, escuro, offwhite, corValor }) {
+  // Sem valor, o travessão vai em corpo de texto e cor de legenda: em 44px
+  // ele vira uma barra preta que lê como tarja, não como "sem informação".
+  const vazio = valor == null || valor === '' || valor === '—'
   return (
-    <Superficie variante={escuro ? 'inverse' : 'base'} sx={{ bgcolor: offwhite ? TOV.canvas : undefined, p: '24px' }}>
+    // `bgcolor: undefined` no sx apagaria o grafite da variante `inverse`
+    // (o espalhamento de objeto não ignora chaves indefinidas).
+    <Superficie variante={escuro ? 'inverse' : 'base'} sx={{ ...(offwhite ? { bgcolor: TOV.canvas } : null), p: '24px' }}>
       <Box sx={{ fontSize: TOV.type.overline, textTransform: 'uppercase', letterSpacing: '.2em', color: escuro ? TOV.onDarkMuted : TOV.caption, fontFamily: TOV.fontHead, fontWeight: 600 }}>{rotulo}</Box>
-      <Box sx={{ fontFamily: escuro ? TOV.fontHead : TOV.fontBody, fontWeight: 700, fontSize: escuro ? 44 : 17, mt: 1, color: corValor }}>{valor}</Box>
+      {vazio ? (
+        <Box sx={{ fontSize: TOV.type.body, mt: 1, color: escuro ? TOV.onDarkMuted : TOV.caption }}>Sem registro</Box>
+      ) : (
+        <Box sx={{ fontFamily: escuro ? TOV.fontHead : TOV.fontBody, fontWeight: 700, fontSize: escuro ? 44 : 17, mt: 1, color: corValor, overflowWrap: 'anywhere' }}>{valor}</Box>
+      )}
     </Superficie>
   )
 }
@@ -48,6 +58,14 @@ function formatarTelefone(valor) {
   return valor
 }
 
+// Tela de balcão: só o miolo do CPF fica à vista; o número inteiro aparece
+// sob clique, para reduzir a exposição por ombro.
+function mascararCpf(cpf) {
+  const digitos = String(cpf || '').replace(/\D/g, '')
+  if (digitos.length !== 11) return '***.***.***-**'
+  return `***.${digitos.slice(3, 6)}.${digitos.slice(6, 9)}-**`
+}
+
 export default function AlunoDetalhe() {
   const { codAlu } = useParams()
   const [aluno, setAluno] = useState(null)
@@ -57,6 +75,7 @@ export default function AlunoDetalhe() {
   const [confirmarExclusao, setConfirmarExclusao] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
   const [documentosAnchor, setDocumentosAnchor] = useState(null)
+  const [mostrarCpf, setMostrarCpf] = useState(false)
   const [msg, setMsg] = useState('')
   const [erroCarga, setErroCarga] = useState('')
   const [carregando, setCarregando] = useState(true)
@@ -101,7 +120,7 @@ export default function AlunoDetalhe() {
   if (carregando && !aluno) return <SkeletonCards quantidade={3} altura={150} />
   if (erroCarga && !aluno) return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate('/alunos')} sx={{ ...resetBotao, px: 0.5, color: TOV.caption, fontWeight: 600, mb: 1.5 }}>‹ Voltar para Alunos</Box>
+      <LinkVoltar para="/alunos" rotulo="Voltar para Alunos" />
       <EstadoErro titulo="Não foi possível abrir este aluno" descricao={erroCarga} onTentarNovamente={carregar} />
     </Box>
   )
@@ -115,9 +134,7 @@ export default function AlunoDetalhe() {
 
   return (
     <Box>
-      <Box component="button" type="button" onClick={() => navigate('/alunos')} sx={{ ...resetBotao, minHeight: 44, px: 0.5, display: 'inline-flex', alignItems: 'center', fontSize: TOV.type.body, color: TOV.caption, fontWeight: 600, mb: 1.5, '&:hover': { color: TOV.coral } }}>
-        ‹ Voltar para Alunos
-      </Box>
+      <LinkVoltar para="/alunos" rotulo="Voltar para Alunos" />
 
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 3.5 }}>
         <Box sx={{ display: 'flex', gap: { xs: 2, md: 3 }, alignItems: 'center', minWidth: 0 }}>
@@ -194,12 +211,37 @@ export default function AlunoDetalhe() {
       {aba === 1 && <FinanceiroAlunoPainel codAlu={codAlu} />}
 
       {aba === 0 && (<>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 300px' }, gap: 2.5, mb: 2.5 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 300px' }, gap: 2.5, mb: 2.5 }}>
       <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 32px' } }}>
           <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 3 }}>Dados cadastrais</Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)' }, gap: { xs: '16px', md: '24px' } }}>
-            <Campo rotulo="Nascimento" valor={aluno.dat_nas} />
-            <Campo rotulo="CPF" valor={aluno.cpf} />
+            <Campo rotulo="Nascimento" valor={aluno.dat_nas ? formatarDataBr(aluno.dat_nas) : ''} />
+            <Campo
+              rotulo="CPF"
+              valor={aluno.cpf ? (
+                <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Box component="span" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                    {mostrarCpf ? formatarCpfInput(aluno.cpf) : mascararCpf(aluno.cpf)}
+                  </Box>
+                  <Box
+                    component="button" type="button"
+                    aria-pressed={mostrarCpf}
+                    aria-label={mostrarCpf ? 'Ocultar CPF completo' : 'Mostrar CPF completo'}
+                    onClick={() => setMostrarCpf((valor) => !valor)}
+                    sx={{
+                      ...resetBotao, minHeight: 44, px: 0.5, mx: -0.5, my: -1.5,
+                      display: 'inline-flex', alignItems: 'center',
+                      fontSize: TOV.type.caption, fontWeight: 700, color: TOV.graphite,
+                      textDecoration: 'underline', textDecorationStyle: 'dotted', textUnderlineOffset: 3,
+                      borderRadius: TOV.radiusXs,
+                      '&:hover': { color: TOV.coral, textDecorationStyle: 'solid' },
+                    }}
+                  >
+                    {mostrarCpf ? 'Ocultar' : 'Mostrar'}
+                  </Box>
+                </Box>
+              ) : ''}
+            />
             <Campo rotulo="RG" valor={aluno.rg} />
             <Campo rotulo="E-mail" valor={aluno.e_mail} />
             <Campo rotulo="Celular" valor={formatarTelefone(aluno.celular)} />
@@ -303,7 +345,7 @@ export default function AlunoDetalhe() {
       <DialogoConfirmacao
         aberto={confirmarExclusao}
         titulo="Excluir aluno"
-        descricao={`Excluir o aluno ${aluno.nome}? Todas as notas e matrículas dele serão perdidas. Esta ação não pode ser desfeita.`}
+        descricao={`Excluir o cadastro de ${aluno.nome}? A matrícula em turma será removida. Alunos com notas lançadas não podem ser excluídos: nesse caso, altere o status para inativo. Esta ação não pode ser desfeita.`}
         processando={excluindo}
         onConfirmar={excluir}
         onFechar={() => setConfirmarExclusao(false)}

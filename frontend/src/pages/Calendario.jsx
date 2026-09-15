@@ -15,7 +15,7 @@ import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined'
 import { api, baixarArquivo } from '../api'
 import { TOV, focusRing } from '../theme'
-import { CabecalhoPagina, DialogoConfirmacao, cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
+import { CabecalhoPagina, DialogoConfirmacao, EstadoErro, cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
 import CalendarioGrade, { CalendarioAgenda, intervaloGrade, isoLocal } from './CalendarioGrade'
 import { useDirtyForm } from '../UnsavedChanges'
 
@@ -108,17 +108,33 @@ export default function Calendario() {
     else setDialogo(false)
   }
 
+  // Falha ao carregar o mês vira `EstadoErro` no lugar da grade — uma grade
+  // vazia com um aviso passageiro lê como "não há aulas".
+  const [erroAulas, setErroAulas] = useState('')
   const carregar = useCallback(() => {
     const periodo = intervaloGrade(mes)
     const query = new URLSearchParams(periodo)
     Object.entries(filtros).forEach(([chave, valor]) => { if (valor) query.set(chave, valor) })
-    api.get(`/calendario?${query}`).then(setAulas).catch((e) => { setEhErro(true); setMensagem(e.message) })
+    setErroAulas('')
+    api.get(`/calendario?${query}`).then(setAulas).catch((e) => { setErroAulas(e.message); setAulas([]) })
   }, [mes, filtros])
 
   useEffect(() => {
     api.getCached('/calendario/opcoes').then((r) => setVinculos(r.vinculos)).catch(() => {})
-    api.get('/calendario/compartilhamento').then((r) => setTokenPublico(r.token)).catch(() => {})
   }, [])
+
+  // O token é da turma, não da instituição: cada turma tem o seu link.
+  useEffect(() => {
+    if (!compartilharAberto || !turmaCompartilhamento) return
+    let cancelado = false
+    setTokenPublico(null)
+    setPreparandoLink(true)
+    api.post('/calendario/compartilhamento', { cod_tur: Number(turmaCompartilhamento.valor) })
+      .then((r) => { if (!cancelado) setTokenPublico(r.token) })
+      .catch((e) => { if (!cancelado) { setEhErro(true); setMensagem(e.message) } })
+      .finally(() => { if (!cancelado) setPreparandoLink(false) })
+    return () => { cancelado = true }
+  }, [compartilharAberto, turmaCompartilhamento])
   useEffect(() => { carregar() }, [carregar])
 
   const turmas = useMemo(() => unicos(vinculos, 'cod_tur', 'turma_nome'), [vinculos])
@@ -157,7 +173,7 @@ export default function Calendario() {
       else await api.post('/calendario', corpo)
       setDialogo(false)
       carregar()
-      setMensagem(editando ? 'Aula atualizada.' : 'Aula(s) adicionada(s) ao calendário.')
+      setMensagem(editando ? 'Aula atualizada.' : 'Aulas adicionadas ao calendário.')
     } catch (e) {
       setEhErro(true)
       setMensagem(e.message)
@@ -180,13 +196,17 @@ export default function Calendario() {
   }
 
   async function garantirLink(renovar = false) {
+    if (!turmaCompartilhamento) return null
     setPreparandoLink(true)
     try {
-      const resposta = await api.post(`/calendario/compartilhamento${renovar ? '/renovar' : ''}`, {})
+      const resposta = await api.post(
+        `/calendario/compartilhamento${renovar ? '/renovar' : ''}`,
+        { cod_tur: Number(turmaCompartilhamento.valor) },
+      )
       setTokenPublico(resposta.token)
       if (renovar) {
         setEhErro(false)
-        setMensagem('Novo acesso criado. Os links enviados anteriormente não funcionam mais.')
+        setMensagem(`Novo link criado para ${turmaCompartilhamento.nome}. O link anterior desta turma não funciona mais.`)
       }
       return resposta.token
     } catch (e) {
@@ -202,14 +222,12 @@ export default function Calendario() {
     const turmaDoFiltro = turmasCompartilhamento.find((turma) => turma.valor === String(filtros.cod_tur))
     setTurmaCompartilhamento(turmaDoFiltro || (turmasCompartilhamento.length === 1 ? turmasCompartilhamento[0] : null))
     setCompartilharAberto(true)
-    if (!tokenPublico) garantirLink()
   }
 
   function montarLinkTurma(token, turma) {
     if (!token || !turma) return ''
-    const url = new URL(`/agenda/${token}`, window.location.origin)
-    url.searchParams.set('turma', turma.valor)
-    return url.toString()
+    // A turma já está amarrada ao token no servidor; nada vai na URL.
+    return new URL(`/agenda/${token}`, window.location.origin).toString()
   }
 
   async function copiarLinkTurma() {
@@ -307,10 +325,13 @@ export default function Calendario() {
         </Box>
       </Box>
 
-      {!telaDesktop && <Box sx={{ mb: 2.5 }}>
+      {erroAulas && (
+        <EstadoErro titulo="Não foi possível carregar as aulas do mês" descricao={erroAulas} onTentarNovamente={carregar} sx={{ mb: 2.5 }} />
+      )}
+      {!erroAulas && !telaDesktop && <Box sx={{ mb: 2.5 }}>
         <CalendarioAgenda mes={mes} aulas={aulas} onSelecionar={abrirEdicao} onNovo={abrirNovo} />
       </Box>}
-      {telaDesktop && <Box sx={{ ...cardSx, overflowX: 'auto', mb: 2.5 }}>
+      {!erroAulas && telaDesktop && <Box sx={{ ...cardSx, overflowX: 'auto', mb: 2.5 }}>
         <CalendarioGrade mes={mes} aulas={aulas} onSelecionar={abrirEdicao} onNovo={abrirNovo} />
       </Box>}
       {telaDesktop && <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mb: 3 }}>
@@ -355,7 +376,7 @@ export default function Calendario() {
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2 }}>Escolha uma turma e envie ao grupo um link que abre somente as aulas dela.</Typography>
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
             <Button variant="contained" startIcon={<ShareOutlinedIcon />} onClick={abrirCompartilhamento}>Escolher turma</Button>
-            <Button variant="text" onClick={() => setConfirmarRenovacao(true)} disabled={preparandoLink || !tokenPublico}>Renovar acesso</Button>
+            <Button variant="text" onClick={() => { abrirCompartilhamento(); setConfirmarRenovacao(true) }} disabled={preparandoLink}>Renovar acesso</Button>
           </Box>
         </Box>
       </Box>
@@ -503,10 +524,10 @@ export default function Calendario() {
 
       <DialogoConfirmacao aberto={!!excluir} titulo="Excluir aula" descricao="Excluir esta aula do calendário?" processando={false} onConfirmar={confirmarExclusao} onFechar={() => setExcluir(null)} />
       <DialogoConfirmacao
-        aberto={confirmarRenovacao}
-        titulo="Renovar acesso público"
-        descricao="Todos os links de turmas enviados anteriormente deixarão de funcionar. Depois, será preciso compartilhar os novos links. Deseja continuar?"
-        rotuloConfirmar="Renovar acesso"
+        aberto={confirmarRenovacao && !!turmaCompartilhamento}
+        titulo="Renovar link da turma"
+        descricao={`O link da turma ${turmaCompartilhamento?.nome ?? ''} enviado anteriormente deixará de funcionar. Depois, será preciso compartilhar o novo link com o grupo. Deseja continuar?`}
+        rotuloConfirmar="Renovar link"
         processando={preparandoLink}
         onConfirmar={async () => { await garantirLink(true); setConfirmarRenovacao(false) }}
         onFechar={() => setConfirmarRenovacao(false)}

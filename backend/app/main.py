@@ -145,10 +145,23 @@ operacional = [
     Depends(usuario_atual),
     Depends(exigir_perfis("ADMIN", "SECRETARIA", "MARKETING", "PROFESSOR")),
 ]
+# Disparo em massa, base de leads e modelos de mensagem: só quem comunica em
+# nome da escola. O professor não tem por que alcançar todos os alunos nem a
+# base de marketing com o próprio token — o frontend já escondia a tela dele.
+comunicacao = [
+    Depends(usuario_atual),
+    Depends(exigir_perfis("ADMIN", "SECRETARIA", "MARKETING")),
+]
+# A base de leads é dado de marketing (e de LGPD): só quem trabalha com ela.
+# O frontend já limitava a tela a estes dois perfis; a API agora diz o mesmo.
+marketing = [
+    Depends(usuario_atual),
+    Depends(exigir_perfis("ADMIN", "MARKETING")),
+]
 app.include_router(alunos.router, dependencies=academico)
 app.include_router(calendario.router, dependencies=academico)
 app.include_router(importacoes.router, dependencies=academico)
-app.include_router(leads.router, dependencies=operacional)
+app.include_router(leads.router, dependencies=marketing)
 app.include_router(professores.router, dependencies=academico)
 app.include_router(materias.router, dependencies=academico)
 app.include_router(turmas.router, dependencies=academico)
@@ -160,7 +173,7 @@ app.include_router(relatorios.router, dependencies=academico)
 app.include_router(dashboard.router, dependencies=academico)
 app.include_router(financeiro.router, dependencies=tesouraria)
 app.include_router(usuarios.router, dependencies=administracao)
-app.include_router(whatsapp.router, dependencies=operacional)
+app.include_router(whatsapp.router, dependencies=comunicacao)
 app.include_router(notificacoes.router, dependencies=protegido)
 
 

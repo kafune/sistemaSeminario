@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
-  InputAdornment, MenuItem, Paper, Snackbar, Table, TableBody, TableCell,
+  InputAdornment, MenuItem, Snackbar, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
@@ -10,11 +10,11 @@ import LinkIcon from '@mui/icons-material/Link'
 import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
-import { emailValido, formatarCepInput, formatarCpfInput, formatarTelefoneInput } from '../formatters'
+import { emailValido, formatarCepInput, formatarCpfInput, formatarDataHora, formatarTelefoneInput } from '../formatters'
 import { useDirtyForm } from '../UnsavedChanges'
 import {
-  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio, LinhaCartao,
-  LinhasSkeleton, PilulaStatus, SkeletonCards, resetBotao,
+  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao,
+  LinhasSkeleton, PilulaStatus, SkeletonCards, acaoTabelaSx,
   useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 
@@ -27,6 +27,8 @@ export default function Professores() {
   const [professores, setProfessores] = useState([])
   const [busca, setBusca] = useState('')
   const [carregando, setCarregando] = useState(true)
+  // Falha da própria lista: vira `EstadoErro` no corpo, não estado vazio.
+  const [erroCarga, setErroCarga] = useState('')
   const [form, setForm] = useState(null)
   const [confirmarFecharForm, setConfirmarFecharForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -53,9 +55,13 @@ export default function Professores() {
 
   function carregar() {
     setCarregando(true)
+    setErroCarga('')
     api.get(`/professores?busca=${encodeURIComponent(busca)}`)
       .then(setProfessores)
-      .catch((e) => { setMsgTipo('error'); setMsg(e.message) })
+      .catch((e) => {
+        setErroCarga(e.message)
+        setProfessores([])
+      })
       .finally(() => setCarregando(false))
   }
 
@@ -175,7 +181,7 @@ export default function Professores() {
       <CabecalhoPagina
         variante="operacional"
         titulo="Professores"
-        metadados={carregando ? ' ' : `${professores.length} ${professores.length === 1 ? 'professor' : 'professores'} · ${ativos} ativos`}
+        metadados={carregando || erroCarga ? ' ' : `${professores.length} ${professores.length === 1 ? 'professor' : 'professores'} · ${ativos} ativos`}
         acoes={acoes}
       />
 
@@ -184,7 +190,10 @@ export default function Professores() {
         {carregando && professores.length === 0 && (
           <SkeletonCards quantidade={4} altura={112} colunas="1fr" />
         )}
-        {!carregando && professores.length === 0 && (
+        {!carregando && erroCarga && (
+          <EstadoErro titulo="Não foi possível carregar os professores" descricao={erroCarga} onTentarNovamente={carregar} />
+        )}
+        {!carregando && !erroCarga && professores.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></CartaoLista>
         )}
         {professores.map((p) => (
@@ -231,7 +240,10 @@ export default function Professores() {
             {carregando && professores.length === 0 && (
               <LinhasSkeleton colunas={9} />
             )}
-            {!carregando && professores.length === 0 && (
+            {!carregando && erroCarga && (
+              <TableRow><TableCell colSpan={9} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar os professores" descricao={erroCarga} onTentarNovamente={carregar} /></TableCell></TableRow>
+            )}
+            {!carregando && !erroCarga && professores.length === 0 && (
               <TableRow><TableCell colSpan={9} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum professor encontrado" descricao="Revise a busca ou cadastre um novo professor." /></TableCell></TableRow>
             )}
             {professores.map((p) => (
@@ -252,18 +264,18 @@ export default function Professores() {
                   <Box sx={{ display: 'inline-flex', gap: 1.5, alignItems: 'center', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption }}>
                     {!p.usuario_acesso && <>
                       <Box component="button" type="button" onClick={() => criarConviteAcesso(p)} disabled={criandoConvite}
-                        sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
+                        sx={acaoTabelaSx}>
                         Criar acesso
                       </Box>
-                      <Box component="span" sx={{ color: TOV.border }}>·</Box>
+                      <Box component="span" aria-hidden="true" sx={{ color: TOV.caption }}>·</Box>
                     </>}
                     <Box component="button" type="button" onClick={() => abrirForm(p)}
-                      sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
+                      sx={acaoTabelaSx}>
                       Editar
                     </Box>
-                    <Box component="span" sx={{ color: TOV.border }}>·</Box>
+                    <Box component="span" aria-hidden="true" sx={{ color: TOV.caption }}>·</Box>
                     <Box component="button" type="button" onClick={() => setParaExcluir(p)}
-                      sx={{ ...resetBotao, '&:hover': { color: TOV.danger } }}>
+                      sx={{ ...acaoTabelaSx, '&:hover': { color: TOV.danger, textDecorationStyle: 'solid' } }}>
                       Excluir
                     </Box>
                   </Box>
@@ -400,7 +412,7 @@ export default function Professores() {
           <TextField
             fullWidth value={convite?.url || ''}
             InputProps={{ readOnly: true }}
-            helperText={convite?.expira_em ? `Válido até ${new Date(convite.expira_em).toLocaleDateString('pt-BR')}` : ''}
+            helperText={convite?.expira_em ? `Válido até ${formatarDataHora(convite.expira_em)}` : ''}
             onFocus={(e) => e.target.select()}
           />
         </DialogContent>

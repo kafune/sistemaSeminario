@@ -10,8 +10,8 @@ import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  AvatarIniciais, BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio,
-  DialogoConfirmacao, LinhaCartao, StatusBadge, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  AvatarIniciais, BarraFiltros, CabecalhoPagina, CartaoLista, EstadoErro, EstadoVazio,
+  DialogoConfirmacao, LinhaCartao, StatusBadge, acaoTabelaSx, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import ImportarLeadsDialog from './ImportarLeadsDialog'
 import { emailValido, formatarTelefoneInput } from '../formatters'
@@ -46,6 +46,10 @@ const FORM_INICIAL = {
   consentimento_status: 'PENDENTE',
   consentimento_origem: '',
 }
+
+// Select de filtro cujo vazio significa "Todos": rótulo sempre no entalhe e o
+// item vazio visível na caixa, como os campos vizinhos que têm valor.
+const SELECT_FILTRO = { InputLabelProps: { shrink: true }, SelectProps: { displayEmpty: true } }
 
 function PilulaConsentimento({ status }) {
   const [rotulo, tom] = CONSENTIMENTO[status] || [status, 'muted']
@@ -117,6 +121,8 @@ export default function Leads() {
   const [leadEditando, setLeadEditando] = useState(null)
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState('')
+  // Falha da própria lista: vira `EstadoErro` no corpo, não estado vazio.
+  const [erroCarga, setErroCarga] = useState('')
   const [ok, setOk] = useState('')
   const telaCheia = useDialogoTelaCheia()
   const telaDesktop = useTelaDesktop()
@@ -130,6 +136,7 @@ export default function Leads() {
 
   const carregar = useCallback((signal) => {
     setCarregando(true)
+    setErroCarga('')
     const params = new URLSearchParams({
       pagina,
       por_pagina: porPagina,
@@ -138,7 +145,12 @@ export default function Leads() {
     })
     api.get(`/leads?${params}`, { signal })
       .then(setDados)
-      .catch((e) => { if (e.name !== 'AbortError') setErro(e.message) })
+      .catch((e) => {
+        if (e.name !== 'AbortError') {
+          setErroCarga(e.message)
+          setDados({ total: 0, itens: [] })
+        }
+      })
       .finally(() => { if (!signal?.aborted) setCarregando(false) })
   }, [pagina, busca, filtros])
 
@@ -217,41 +229,47 @@ export default function Leads() {
       <CabecalhoPagina
         variante="operacional"
         titulo="Leads"
-        metadados={carregando && !dados.itens.length ? 'Carregando base de marketing…' : `${dados.total} ${dados.total === 1 ? 'contato encontrado' : 'contatos encontrados'}`}
+        metadados={carregando && !dados.itens.length ? 'Carregando base de marketing…' : erroCarga ? undefined : `${dados.total} ${dados.total === 1 ? 'contato encontrado' : 'contatos encontrados'}`}
         acoes={acoes}
       />
 
-      <BarraFiltros sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '2fr 1fr 1fr', lg: '2fr repeat(4,1fr)' } }}>
+      {/* `minmax(0, …)`: uma faixa `1fr` não encolhe abaixo do conteúdo mínimo
+          do campo e o último select estourava a largura da página. */}
+      <BarraFiltros sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0,1fr)', sm: 'minmax(0,2fr) repeat(2,minmax(0,1fr))', lg: 'minmax(0,2fr) repeat(4,minmax(0,1fr))' } }}>
         <TextField
           size="small" label="Buscar" value={busca}
           onChange={(e) => { setBusca(e.target.value); setPagina(1) }}
           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
         />
-        <TextField select size="small" label="Status" value={filtros.status} onChange={(e) => mudarFiltro('status', e.target.value)}>
+        <TextField select size="small" label="Status" value={filtros.status} onChange={(e) => mudarFiltro('status', e.target.value)} {...SELECT_FILTRO}>
           <MenuItem value="">Todos</MenuItem>
           <MenuItem value="ATIVO">Ativos</MenuItem>
           <MenuItem value="INATIVO">Inativos</MenuItem>
         </TextField>
-        <TextField select size="small" label="Origem" value={filtros.origem} onChange={(e) => mudarFiltro('origem', e.target.value)}>
+        <TextField select size="small" label="Origem" value={filtros.origem} onChange={(e) => mudarFiltro('origem', e.target.value)} {...SELECT_FILTRO}>
           <MenuItem value="">Todas</MenuItem>
           {opcoes.origens?.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Campanha" value={filtros.campanha} onChange={(e) => mudarFiltro('campanha', e.target.value)}>
+        <TextField select size="small" label="Campanha" value={filtros.campanha} onChange={(e) => mudarFiltro('campanha', e.target.value)} {...SELECT_FILTRO}>
           <MenuItem value="">Todas</MenuItem>
           {opcoes.campanhas?.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Funil" value={filtros.status_funil} onChange={(e) => mudarFiltro('status_funil', e.target.value)}>
+        <TextField select size="small" label="Funil" value={filtros.status_funil} onChange={(e) => mudarFiltro('status_funil', e.target.value)} {...SELECT_FILTRO}>
           <MenuItem value="">Todos</MenuItem>
           {Object.entries(FUNIL).map(([valor, rotulo]) => <MenuItem key={valor} value={valor}>{rotulo}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Consentimento" value={filtros.consentimento} onChange={(e) => mudarFiltro('consentimento', e.target.value)}>
+        <TextField select size="small" label="Consentimento" value={filtros.consentimento} onChange={(e) => mudarFiltro('consentimento', e.target.value)} {...SELECT_FILTRO}>
           <MenuItem value="">Todos</MenuItem>
           {Object.entries(CONSENTIMENTO).map(([valor, [rotulo]]) => <MenuItem key={valor} value={valor}>{rotulo}</MenuItem>)}
         </TextField>
       </BarraFiltros>
 
+      {!carregando && erroCarga && (
+        <EstadoErro titulo="Não foi possível carregar os leads" descricao={erroCarga} onTentarNovamente={() => carregar()} sx={{ mb: 2 }} />
+      )}
+
       {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        {!carregando && dados.itens.length === 0 && (
+        {!carregando && !erroCarga && dados.itens.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhum lead encontrado" descricao="Revise os filtros ou adicione um novo contato." /></CartaoLista>
         )}
         {dados.itens.map((lead) => (
@@ -283,7 +301,7 @@ export default function Leads() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {!carregando && dados.itens.length === 0 && (
+            {!carregando && !erroCarga && dados.itens.length === 0 && (
               <TableRow><TableCell colSpan={6} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum lead encontrado" descricao="Revise os filtros ou adicione um novo contato." /></TableCell></TableRow>
             )}
             {dados.itens.map((lead) => (
@@ -300,7 +318,7 @@ export default function Leads() {
                 <TableCell><Chip size="small" variant="outlined" label={FUNIL[lead.status_funil] || lead.status_funil} /></TableCell>
                 <TableCell><PilulaConsentimento status={lead.consentimento_status} /></TableCell>
                 <TableCell align="right">
-                  <Box component="button" type="button" onClick={() => editar(lead)} sx={{ ...resetBotao, fontSize: TOV.type.bodySm, fontWeight: 700, color: TOV.caption, '&:hover': { color: TOV.coral } }}>Editar</Box>
+                  <Box component="button" type="button" onClick={() => editar(lead)} sx={acaoTabelaSx}>Editar</Box>
                 </TableCell>
               </TableRow>
             ))}

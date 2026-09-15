@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     db_name: str = "tov"
 
     secret_key: str = "troque-esta-chave-no-deploy"
+    # Chave própria para cifrar credenciais guardadas no banco (token da
+    # instância UazAPI). Vazia, cai na secret_key — mas rotacionar o segredo
+    # do JWT não deveria inutilizar a integração do WhatsApp.
+    encryption_key: str = ""
     token_expire_minutes: int = 60 * 12  # expediente de um dia
     google_forms_webhook_secret: str = ""
     banco_webhook_secret: str = ""
@@ -28,6 +32,10 @@ class Settings(BaseSettings):
     vapid_private_key: str = ""
     vapid_subject: str = ""
     timezone: str = "America/Sao_Paulo"
+    # O reparo de integridade acadêmica apaga vínculos órfãos e duplicatas.
+    # É migração de dados, não rotina de boot: desligado por padrão e rodado
+    # deliberadamente por ``python -m app.reparar``.
+    reparo_integridade_no_boot: bool = False
 
     class Config:
         env_prefix = "TOV_"

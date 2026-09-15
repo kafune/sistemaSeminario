@@ -4,13 +4,14 @@ import io
 import json
 import re
 import unicodedata
-from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from ..consultas import termo_like
+from ..tempo import agora_utc
 from ..database import get_db
 from ..models import ImportacaoGoogleForms, ItemImportacaoGoogleForms
 from .integracoes import (
@@ -52,7 +53,7 @@ def _solicitar_google_forms(tipo: str, db: Session) -> dict:
     solicitacao = ImportacaoGoogleForms(
         tipo=tipo,
         status="PENDENTE",
-        solicitada_em=datetime.now(),
+        solicitada_em=agora_utc(),
         criados=0,
         atualizados=0,
         ja_cadastrados=0,
@@ -102,7 +103,7 @@ def listar_itens_google_forms(
     )
     if busca.strip():
         consulta = consulta.where(
-            ItemImportacaoGoogleForms.nome.like(f"%{busca.strip()}%")
+            ItemImportacaoGoogleForms.nome.like(termo_like(busca), escape="\\")
         )
     itens = list(
         db.scalars(
@@ -185,7 +186,7 @@ def importar_selecao_google_forms(
     for campo, valor in totais.items():
         setattr(solicitacao, campo, valor)
     solicitacao.status = "CONCLUIDA"
-    solicitacao.concluida_em = datetime.now()
+    solicitacao.concluida_em = agora_utc()
     solicitacao.mensagem = "; ".join(mensagens_erro[:5])[:255] or None
     db.execute(
         delete(ItemImportacaoGoogleForms).where(

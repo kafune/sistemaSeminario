@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.orm import Session
 
+from ..tempo import hoje_local
 from ..database import get_db
 from ..models import (
     Aluno,
@@ -36,7 +37,7 @@ def periodo_corrente(hoje: date) -> tuple[str, str]:
 
 @router.get("")
 def resumo(db: Session = Depends(get_db)):
-    ano, semestre = periodo_corrente(date.today())
+    ano, semestre = periodo_corrente(hoje_local())
 
     # Vínculo turma×matéria do período corrente com pelo menos um aluno
     # matriculado ainda sem nota lançada.

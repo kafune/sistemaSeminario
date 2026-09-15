@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
   IconButton, InputAdornment, TextField, Typography,
@@ -16,6 +16,7 @@ import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded'
 import { getPublico, postPublico } from '../api'
 import { TOV } from '../theme'
 import { AvatarIniciais, resetBotao } from '../ui'
+import { FUSO_INSTITUICAO } from '../formatters'
 
 function normalizar(texto) {
   return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -25,7 +26,7 @@ const formatadorData = new Intl.DateTimeFormat('pt-BR', {
   weekday: 'long', day: '2-digit', month: 'long',
 })
 const formatadorHora = new Intl.DateTimeFormat('pt-BR', {
-  hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
+  hour: '2-digit', minute: '2-digit', timeZone: FUSO_INSTITUICAO,
 })
 
 function textoData(data) {
@@ -171,6 +172,7 @@ const CartaoAluno = memo(function CartaoAluno({ aluno, onSelecionar }) {
 
 export default function PresencaTotem() {
   const { token } = useParams()
+  const navigate = useNavigate()
   const [chamada, setChamada] = useState(null)
   const [busca, setBusca] = useState('')
   const [selecionado, setSelecionado] = useState(null)
@@ -264,6 +266,20 @@ export default function PresencaTotem() {
   const buscaAtiva = Boolean(busca.trim())
   const exibirPresentes = buscaAtiva || mostrarPresentes
 
+  // Quiosque sem saída obriga a editar a URL: uma linha discreta no rodapé
+  // devolve o operador à tela de presenças da turma.
+  const sairDoTotem = () => navigate(chamada?.turma?.cod_tur ? `/turmas/${chamada.turma.cod_tur}/presencas` : '/')
+  const botaoSair = (
+    <Box sx={{ mt: { xs: 4, sm: 6 }, display: 'flex', justifyContent: 'center' }}>
+      <Box
+        component="button" type="button" onClick={sairDoTotem}
+        sx={{ ...resetBotao, minHeight: 44, px: 2, fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.caption, borderRadius: TOV.radiusSm, '&:hover': { color: TOV.ink } }}
+      >
+        Sair do modo totem
+      </Box>
+    </Box>
+  )
+
   const selecionarAluno = useCallback((aluno) => {
     document.activeElement?.blur?.()
     setSelecionado(aluno)
@@ -327,6 +343,7 @@ export default function PresencaTotem() {
               {encerrada ? 'Peça à secretaria para abrir a chamada de hoje neste iPad.' : 'Confira a internet do iPad e tente carregar a lista novamente.'}
             </Typography>
             {!encerrada && <Button variant="contained" onClick={() => carregar()} sx={{ mt: 3, minWidth: 180 }}>Tentar novamente</Button>}
+            {botaoSair}
           </Box>
         </Box>
       </Box>
@@ -406,7 +423,11 @@ export default function PresencaTotem() {
                   Encontre seu nome
                 </Typography>
                 <Typography sx={{ color: TOV.caption, fontSize: { xs: TOV.type.bodySm, sm: TOV.type.body }, mt: 0.5 }}>
-                  {chamada.ausentes === 0 ? 'Todas as presenças foram confirmadas.' : `${chamada.ausentes} ${chamada.ausentes === 1 ? 'pessoa ainda não confirmou' : 'pessoas ainda não confirmaram'}.`}
+                  {!chamada.total
+                    ? 'Toque no seu nome assim que ele aparecer na lista.'
+                    : chamada.ausentes === 0
+                      ? 'Todas as presenças foram confirmadas.'
+                      : `${chamada.ausentes} ${chamada.ausentes === 1 ? 'pessoa ainda não confirmou' : 'pessoas ainda não confirmaram'}.`}
                 </Typography>
               </Box>
             </Box>
@@ -492,6 +513,7 @@ export default function PresencaTotem() {
             )}
           </Box>
         )}
+        {botaoSair}
       </Box>
 
       <Dialog

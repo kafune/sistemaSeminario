@@ -1,3 +1,4 @@
+import re
 import csv
 import io
 import zipfile
@@ -7,6 +8,7 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..consultas import termo_like
 from ..database import get_db
 from ..models import Aluno, AluTurma
 from ..pdf.boletim import gerar_boletim
@@ -103,16 +105,21 @@ def _primeira_coluna(nome_arquivo: str, conteudo: bytes) -> list[str]:
     return [v for v in valores if v.lower() not in CABECALHOS_IGNORADOS]
 
 
+# Uma lista de matrículas ou nomes não passa de alguns KB; 5 MB já é abuso.
+LIMITE_ARQUIVO = 5 * 1024 * 1024
+
+
 def _achar_aluno(db: Session, valor: str) -> Aluno | None:
     """Localiza o aluno por matrícula (número) ou por nome."""
     v = valor.strip()
-    # planilhas costumam guardar números como '123.0'
-    if v.replace(".0", "").isdigit():
-        return db.get(Aluno, int(float(v)))
+    # planilhas costumam guardar números como '123.0'; qualquer outra forma
+    # com ponto ('1.0.0', '500.25') é texto, não matrícula.
+    if re.fullmatch(r"\d+(?:\.0+)?", v):
+        return db.get(Aluno, int(v.split(".")[0]))
     aluno = db.scalar(select(Aluno).where(Aluno.nome == v).limit(1))
     if aluno:
         return aluno
-    candidatos = list(db.scalars(select(Aluno).where(Aluno.nome.like(f"%{v}%")).limit(2)))
+    candidatos = list(db.scalars(select(Aluno).where(Aluno.nome.like(termo_like(v), escape="\\")).limit(2)))
     # só aceita busca parcial quando o resultado é único (evita pegar homônimos)
     return candidatos[0] if len(candidatos) == 1 else None
 
@@ -125,7 +132,15 @@ def relatorios_em_lote(
 ):
     """Recebe um CSV/XLSX/XLS com matrículas ou nomes na primeira coluna e
     devolve um ZIP com o boletim ou histórico de cada aluno encontrado."""
-    valores = _primeira_coluna(arquivo.filename, arquivo.file.read())
+    conteudo = arquivo.file.read(LIMITE_ARQUIVO + 1)
+    if len(conteudo) > LIMITE_ARQUIVO:
+        raise HTTPException(413, "Arquivo muito grande: envie uma lista de até 5 MB")
+    try:
+        valores = _primeira_coluna(arquivo.filename, conteudo)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(400, "Não foi possível ler o arquivo. Confira se ele não está corrompido.")
     if not valores:
         raise HTTPException(400, "O arquivo não tem valores na primeira coluna")
 

@@ -6,12 +6,13 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import Professor, Usuario
-from ..security import gerar_hash, usuario_atual
+from ..models import Professor, RegistroAuditoria, Usuario
+from ..security import gerar_hash, perfil_de, usuario_atual
+from ..services import auditoria
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
-SENHA_MINIMA = 6
+SENHA_MINIMA = 8
 
 
 class UsuarioInput(BaseModel):
@@ -30,6 +31,16 @@ class PerfilInput(BaseModel):
     cod_pro: int | None = None
 
 
+def _garantir_um_administrador(db: Session) -> None:
+    """Chamada dentro da transação, já com a alteração aplicada (flush)."""
+    administradores = db.scalar(
+        select(func.count()).select_from(Usuario).where(Usuario.perfil == "ADMIN")
+    ) or 0
+    if administradores < 1:
+        db.rollback()
+        raise HTTPException(400, "O sistema precisa manter ao menos um administrador")
+
+
 def _validar_senha(senha: str) -> None:
     if len(senha) < SENHA_MINIMA:
         raise HTTPException(400, f"A senha deve ter pelo menos {SENHA_MINIMA} caracteres")
@@ -41,7 +52,7 @@ def listar(db: Session = Depends(get_db)):
     return [
         {
             "user": usuario.user,
-            "perfil": usuario.perfil or "ADMIN",
+            "perfil": perfil_de(usuario),
             "cod_pro": usuario.cod_pro,
             "professor_nome": professor_nome,
         }
@@ -54,7 +65,11 @@ def listar(db: Session = Depends(get_db)):
 
 
 @router.post("")
-def criar(dados: UsuarioInput, db: Session = Depends(get_db)):
+def criar(
+    dados: UsuarioInput,
+    db: Session = Depends(get_db),
+    atual: str = Depends(usuario_atual),
+):
     user = dados.user.strip().upper()
     if not user:
         raise HTTPException(400, "Informe o nome do usuário")
@@ -73,6 +88,7 @@ def criar(dados: UsuarioInput, db: Session = Depends(get_db)):
         cod_pro=dados.cod_pro if dados.perfil == "PROFESSOR" else None,
     )
     db.add(novo)
+    auditoria.registrar(db, usuario=atual, acao="CRIAR", entidade="usuario", entidade_id=user, detalhes=f"perfil {dados.perfil}")
     db.commit()
     return {"user": novo.user, "perfil": novo.perfil}
 
@@ -102,26 +118,31 @@ def alterar_perfil(
         usuario.cod_pro = cod_pro
     else:
         usuario.cod_pro = None
-    if user == atual and dados.perfil != "ADMIN":
-        administradores = db.scalar(
-            select(func.count())
-            .select_from(Usuario)
-            .where(Usuario.perfil == "ADMIN")
-        ) or 0
-        if administradores <= 1:
-            raise HTTPException(400, "O sistema precisa manter ao menos um administrador")
+    anterior = usuario.perfil
     usuario.perfil = dados.perfil
+    auditoria.registrar(db, usuario=atual, acao="ALTERAR_PERFIL", entidade="usuario", entidade_id=user, detalhes=f"{anterior} -> {dados.perfil}")
+    db.flush()
+    # Conferido depois da alteração e para qualquer alvo, não só para quem se
+    # rebaixa: dois administradores se rebaixando ao mesmo tempo deixavam o
+    # sistema sem ninguém capaz de abrir /usuarios.
+    _garantir_um_administrador(db)
     db.commit()
     return {"user": usuario.user, "perfil": usuario.perfil}
 
 
 @router.put("/{user}/senha")
-def redefinir_senha(user: str, dados: SenhaInput, db: Session = Depends(get_db)):
+def redefinir_senha(
+    user: str,
+    dados: SenhaInput,
+    db: Session = Depends(get_db),
+    atual: str = Depends(usuario_atual),
+):
     usuario = db.get(Usuario, user)
     if not usuario:
         raise HTTPException(404, "Usuário não encontrado")
     _validar_senha(dados.senha)
     usuario.senha_hash = gerar_hash(dados.senha)
+    auditoria.registrar(db, usuario=atual, acao="REDEFINIR_SENHA", entidade="usuario", entidade_id=user)
     db.commit()
     return {"ok": True}
 
@@ -140,5 +161,42 @@ def excluir(
     if db.scalar(select(func.count()).select_from(Usuario)) <= 1:
         raise HTTPException(400, "Não é possível excluir o único usuário do sistema")
     db.delete(usuario)
+    auditoria.registrar(db, usuario=atual, acao="EXCLUIR", entidade="usuario", entidade_id=user, detalhes=f"perfil {usuario.perfil}")
+    db.flush()
+    _garantir_um_administrador(db)
     db.commit()
     return {"ok": True}
+
+
+@router.get("/auditoria")
+def listar_auditoria(
+    pagina: int = 1,
+    por_pagina: int = 50,
+    db: Session = Depends(get_db),
+):
+    """Histórico administrativo: exclusões, estornos, perfis e senhas."""
+    pagina = max(1, pagina)
+    por_pagina = min(200, max(1, por_pagina))
+    total = db.scalar(select(func.count()).select_from(RegistroAuditoria)) or 0
+    registros = db.scalars(
+        select(RegistroAuditoria)
+        .order_by(RegistroAuditoria.id.desc())
+        .offset((pagina - 1) * por_pagina)
+        .limit(por_pagina)
+    )
+    return {
+        "total": total,
+        "pagina": pagina,
+        "itens": [
+            {
+                "id": r.id,
+                "usuario": r.usuario,
+                "acao": r.acao,
+                "entidade": r.entidade,
+                "entidade_id": r.entidade_id,
+                "detalhes": r.detalhes,
+                "criado_em": r.criado_em.isoformat() if r.criado_em else None,
+            }
+            for r in registros
+        ],
+    }

@@ -6,10 +6,10 @@ import {
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  DialogoConfirmacao, LinhaCartao, cardSx, useDialogoTelaCheia,
+  DialogoConfirmacao, EstadoErro, LinhaCartao, cardSx, useDialogoTelaCheia,
 } from '../ui'
 import { useUnsavedChanges } from '../UnsavedChanges'
-import { emailValido, formatarCepInput, formatarCpfInput, formatarTelefoneInput } from '../formatters'
+import { emailValido, formatarCepInput, formatarCpfInput, formatarDataBr, formatarTelefoneInput } from '../formatters'
 
 const VAZIO = {
   nome: '', endereco: '', complemento: '', bairro: '', cidade: '', uf: '', cep: '',
@@ -47,9 +47,16 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
   const [turmas, setTurmas] = useState([])
   const [etapa, setEtapa] = useState(0)
   const [erro, setErro] = useState('')
+  // Falha ao trazer as turmas: `EstadoErro` no lugar do seletor, não um alerta solto.
+  const [erroCarga, setErroCarga] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [confirmarFechar, setConfirmarFechar] = useState(false)
   const telaCheia = useDialogoTelaCheia()
+
+  function carregarTurmas() {
+    setErroCarga('')
+    api.getCached('/turmas').then(setTurmas).catch((e) => setErroCarga(e.message))
+  }
 
   useEffect(() => {
     if (!aberto) return
@@ -59,7 +66,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
     setForm(dados)
     setInicial(dados)
     setConfirmarFechar(false)
-    api.getCached('/turmas').then(setTurmas).catch((e) => setErro(e.message))
+    carregarTurmas()
   }, [aberto, aluno])
 
   function alterar(nome, valor) {
@@ -193,6 +200,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
                   <MenuItem value="A">Ativo</MenuItem>
                   <MenuItem value="I">Inativo</MenuItem>
                   <MenuItem value="F">Formado</MenuItem>
+                  <MenuItem value="T">Trancado</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12} sm={4}>
@@ -288,16 +296,20 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
               <Grid item xs={12}>{campo('nome_conjuge', { label: 'Nome do cônjuge participante' })}</Grid>
               <Grid item xs={12}>{campo('turma_interesse', { label: 'Turma de interesse' })}</Grid>
               <Grid item xs={12}>
-                <TextField
-                  select size="small" fullWidth label="Turma matriculada"
-                  value={form.cod_tur ?? ''}
-                  onChange={(e) => alterar('cod_tur', e.target.value || null)}
-                >
-                  <MenuItem value="">Nenhuma turma</MenuItem>
-                  {turmas.map((t) => (
-                    <MenuItem key={t.cod_tur} value={t.cod_tur}>{t.nome}</MenuItem>
-                  ))}
-                </TextField>
+                {erroCarga ? (
+                  <EstadoErro titulo="Não foi possível carregar as turmas" descricao={erroCarga} onTentarNovamente={carregarTurmas} />
+                ) : (
+                  <TextField
+                    select size="small" fullWidth label="Turma matriculada"
+                    value={form.cod_tur ?? ''}
+                    onChange={(e) => alterar('cod_tur', e.target.value || null)}
+                  >
+                    <MenuItem value="">Nenhuma turma</MenuItem>
+                    {turmas.map((t) => (
+                      <MenuItem key={t.cod_tur} value={t.cod_tur}>{t.nome}</MenuItem>
+                    ))}
+                  </TextField>
+                )}
               </Grid>
             </Grid>
           )}
@@ -309,7 +321,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
               </Alert>
               {resumo('Identificação', 0, [
                 ['Nome', form.nome],
-                ['Nascimento', form.dat_nas],
+                ['Nascimento', form.dat_nas ? formatarDataBr(form.dat_nas) : null],
                 ['CPF', form.cpf],
                 ['RG', form.rg],
                 ['Status', STATUS_ALUNO[form.status] || form.status],
@@ -328,7 +340,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
               {resumo('Igreja', 3, [
                 ['Igreja', form.igreja],
                 ['Pastor', form.nome_pastor],
-                ['Membro desde', form.membro_desde],
+                ['Membro desde', form.membro_desde ? formatarDataBr(form.membro_desde) : null],
               ])}
               {resumo('Acadêmico', 4, [
                 ['Escolaridade', form.escolaridade],

@@ -123,8 +123,8 @@ class IntegridadeAcademicaTest(unittest.TestCase):
         self.db.add(nota)
         self.db.commit()
 
-        atualizar_schema(self.engine)
-        atualizar_schema(self.engine)
+        atualizar_schema(self.engine, reparar=True)
+        atualizar_schema(self.engine, reparar=True)
         self.db.expire_all()
 
         self.assertIsNotNone(

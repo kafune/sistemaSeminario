@@ -14,7 +14,6 @@ from app.models import (
     AluTurma,
     Cobranca,
     Pagamento,
-    PlanoFinanceiro,
     TransacaoBancaria,
     Turma,
 )
@@ -954,7 +953,7 @@ class AcessoDaAreaFinanceiraTest(unittest.TestCase):
 class SegredoDoWebhookTest(unittest.TestCase):
     def test_sem_segredo_configurado_a_integracao_fica_desligada(self):
         from app.config import settings
-        from app.routers.financeiro import _validar_segredo_banco
+        from app.routers.financeiro import validar_segredo_banco as _validar_segredo_banco
 
         original = settings.banco_webhook_secret
         try:
@@ -969,7 +968,7 @@ class SegredoDoWebhookTest(unittest.TestCase):
             self.assertEqual(erro.exception.status_code, 401)
             with self.assertRaises(HTTPException):
                 _validar_segredo_banco(None)
-            self.assertIsNone(_validar_segredo_banco("segredo-do-banco"))
+            self.assertEqual(_validar_segredo_banco("segredo-do-banco"), "segredo-do-banco")
         finally:
             settings.banco_webhook_secret = original
 

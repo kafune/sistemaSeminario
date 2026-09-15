@@ -54,6 +54,16 @@ export default function AcessoProfessor() {
         <Typography component="h1" variant="h2">Criar acesso</Typography>
         {carregando && <Box sx={{ py: 6, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>}
         {erro && <Alert severity="error" sx={{ mt: 3 }}>{erro}</Alert>}
+        {!carregando && !convite && !concluido && (
+          // Convite inválido ou acesso já criado: a página não termina num beco.
+          // Quem já tem usuário e senha segue para o login.
+          <Box sx={{ mt: 3 }}>
+            <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>
+              Se você já tem usuário e senha, entre pelo login. Em caso de dúvida, fale com a secretaria.
+            </Typography>
+            <Button variant="outlined" fullWidth sx={{ mt: 2 }} onClick={() => navigate('/login')}>Ir para o login</Button>
+          </Box>
+        )}
         {!carregando && concluido && (
           <Box sx={{ mt: 3 }}>
             <Alert severity="success">Acesso criado. Você já pode lançar notas e anexar materiais para suas turmas.</Alert>

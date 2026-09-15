@@ -562,26 +562,40 @@ export default function Notas() {
                 </Typography>
               </Box>
             </Box>
-            <Table sx={{ minWidth: atividades.length > 0 ? 520 + (atividades.length * 120) : 640 }}>
+            {/* O cabeçalho valia 2,7 linhas de aluno: o nome da atividade, em
+                caixa alta dentro de 120px fixos, quebrava em cinco linhas — e
+                "Aluno" era mais estreita que "Faltas" (AUDITORIA_VISUAL.md H10).
+                O nome vem em caixa normal, limitado a duas linhas, e as colunas
+                de dois dígitos devolvem largura para o nome. */}
+            <Table sx={{ minWidth: atividades.length > 0 ? 470 + (atividades.length * 132) : 620 }}>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ width: 60 }}>#</TableCell>
-                  <TableCell>Aluno</TableCell>
+                  <TableCell sx={{ width: 52 }}>#</TableCell>
+                  <TableCell sx={{ minWidth: 200 }}>Aluno</TableCell>
                   {atividades.length === 0 ? (
                     <TableCell sx={{ width: 120 }}>Nota (0–10)</TableCell>
                   ) : (
                     <>
                       {atividades.map((atividade) => (
-                        <TableCell key={atividade.id} sx={{ width: 120 }}>
-                          <Box sx={{ fontWeight: 700 }}>{atividade.nome}</Box>
-                          <Box sx={{ color: TOV.caption, fontSize: TOV.type.overline, mt: 0.5 }}>{rotuloTipo(atividade.tipo)} · até {formatarPontos(atividade.valor_maximo)}</Box>
+                        <TableCell key={atividade.id} sx={{ width: 132, textTransform: 'none', letterSpacing: 0 }}>
+                          <Box
+                            title={atividade.nome}
+                            sx={{
+                              fontWeight: 700, lineHeight: 1.3,
+                              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden', overflowWrap: 'anywhere',
+                            }}
+                          >
+                            {atividade.nome}
+                          </Box>
+                          <Box sx={{ color: TOV.caption, fontSize: TOV.type.overline, mt: 0.5, whiteSpace: 'nowrap' }}>{rotuloTipo(atividade.tipo)} · até {formatarPontos(atividade.valor_maximo)}</Box>
                         </TableCell>
                       ))}
-                      <TableCell sx={{ width: 90 }}>Total</TableCell>
+                      <TableCell sx={{ width: 84 }}>Total</TableCell>
                     </>
                   )}
-                  <TableCell sx={{ width: 120 }}>Faltas</TableCell>
-                  <TableCell sx={{ width: 110 }}>Cursou</TableCell>
+                  <TableCell sx={{ width: 88 }}>Faltas</TableCell>
+                  <TableCell sx={{ width: 96 }}>Cursou</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>

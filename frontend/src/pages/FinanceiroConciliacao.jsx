@@ -14,7 +14,7 @@ import { TOV } from '../theme'
 import {
   BarraFiltros, CabecalhoPagina, EstadoErro, EstadoVazio, GrupoSegmentado,
   LinkVoltar, SkeletonCards, StatusBadge, Superficie, TituloDialogo, cardSx,
-  useDialogoTelaCheia
+  useDialogoTelaCheia, useListaEmLotes
 } from '../ui'
 import { formatarDataBr, formatarMoeda } from '../formatters'
 import { SeloSituacao, hojeIso, numeroDoCampo } from './FinanceiroComum'
@@ -149,6 +149,9 @@ export default function FinanceiroConciliacao() {
   }
 
   const transacoes = dados.transacoes || []
+  // A API devolve até 200 recebimentos de uma vez; em 320px isso era uma
+  // página de 4.408px (AUDITORIA_VISUAL.md B6).
+  const { fatia: transacoesVisiveis, rodape: maisTransacoes } = useListaEmLotes(transacoes, 20)
   const manualValido = manual.identificador.trim().length >= 6 && numeroDoCampo(manual.valor) > 0
 
   return (
@@ -255,7 +258,7 @@ export default function FinanceiroConciliacao() {
       )}
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        {transacoes.map((item) => (
+        {transacoesVisiveis.map((item) => (
           <Box key={item.id} component="article" sx={{ ...cardSx, p: { xs: 2, sm: 2.5 } }}>
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, flexWrap: 'wrap' }}>
               <Box aria-hidden="true" sx={{ width: 46, height: 46, borderRadius: TOV.radiusSm, bgcolor: TOV.graphiteTint, color: TOV.graphite, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
@@ -341,6 +344,7 @@ export default function FinanceiroConciliacao() {
             )}
           </Box>
         ))}
+        {maisTransacoes}
       </Box>
 
       <Dialog open={manualAberto} onClose={processando ? undefined : () => setManualAberto(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>

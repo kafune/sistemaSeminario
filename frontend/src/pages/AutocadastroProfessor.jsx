@@ -59,8 +59,8 @@ export default function AutocadastroProfessor() {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: TOV.canvas }}>
-      <Box component="header" sx={{ bgcolor: TOV.graphite, color: TOV.onDark, px: 2, py: 2.5, borderTop: `4px solid ${TOV.ink}` }}>
-        <Box sx={{ maxWidth: 900, mx: 'auto', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box component="header" sx={{ bgcolor: TOV.graphite, color: TOV.onDark, py: 2.5, borderTop: `4px solid ${TOV.ink}` }}>
+        <Box sx={{ maxWidth: 900, mx: 'auto', px: { xs: 1.5, sm: 3 }, display: 'flex', alignItems: 'center', gap: 1.5 }}>
           <SchoolIcon />
           <Box>
             <Typography component="h1" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.title, lineHeight: 1.1 }}>
@@ -106,7 +106,7 @@ export default function AutocadastroProfessor() {
             <Typography variant="h3" sx={{ fontSize: TOV.type.section, mb: 1.5 }}>Contato</Typography>
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5, mb: 3 }}>
               <TextField required label="Nome completo" value={form.nome} onChange={(e) => alterar('nome', e.target.value)} sx={{ gridColumn: { sm: '1 / -1' } }} inputProps={{ maxLength: 100 }} />
-              <TextField required type="email" label="E-mail" value={form.e_mail} onChange={(e) => alterar('e_mail', e.target.value)} inputProps={{ maxLength: 100 }} />
+              <TextField required type="email" label="E-mail" value={form.e_mail} onChange={(e) => alterar('e_mail', e.target.value)} sx={{ gridColumn: { sm: '1 / -1' } }} inputProps={{ maxLength: 100 }} />
               <TextField required label="Celular / WhatsApp" value={form.celular} onChange={(e) => alterar('celular', e.target.value)} inputProps={{ maxLength: 20 }} />
               <TextField label="Outro telefone" value={form.fone1} onChange={(e) => alterar('fone1', e.target.value)} inputProps={{ maxLength: 20 }} />
             </Box>

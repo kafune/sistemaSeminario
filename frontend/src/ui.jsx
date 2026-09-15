@@ -809,6 +809,38 @@ export function DialogoConfirmacao({
   )
 }
 
+/**
+ * Lista longa sem paginação de servidor: mostra um lote por vez.
+ *
+ * Em 320px, listas de umas poucas centenas de itens viravam páginas de 4 a 17
+ * mil pixels (AUDITORIA_VISUAL.md B6). Devolve a fatia e o rodapé de "mostrar
+ * mais" — nulo quando já está tudo à vista.
+ */
+export function useListaEmLotes(itens, lote = 25) {
+  const [visiveis, setVisiveis] = useState(lote)
+  const total = itens.length
+  // Trocar de recorte recomeça do primeiro lote.
+  const [assinatura, setAssinatura] = useState(total)
+  if (assinatura !== total) {
+    setAssinatura(total)
+    setVisiveis(lote)
+  }
+  const restantes = Math.max(total - visiveis, 0)
+  return {
+    fatia: total > visiveis ? itens.slice(0, visiveis) : itens,
+    rodape: restantes > 0 ? (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, mt: 2 }}>
+        <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>
+          {visiveis} de {total}
+        </Typography>
+        <Button variant="outlined" size="small" onClick={() => setVisiveis((atual) => atual + lote)}>
+          Mostrar mais {Math.min(restantes, lote)}
+        </Button>
+      </Box>
+    ) : null,
+  }
+}
+
 export function LinhaCartao({ rotulo, valor }) {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, fontSize: TOV.type.body }}>

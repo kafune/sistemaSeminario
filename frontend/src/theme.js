@@ -392,7 +392,9 @@ export const tovTheme = createTheme(
         },
       },
       MuiFormHelperText: {
-        styleOverrides: { root: { marginLeft: 4, marginRight: 4 } },
+        // Sem recuo: com `marginLeft: 4` todo texto de ajuda do produto
+        // começava 4px à direita do campo que explica (AUDITORIA_VISUAL.md H11).
+        styleOverrides: { root: { marginLeft: 0, marginRight: 0 } },
       },
       MuiTableContainer: {
         styleOverrides: {

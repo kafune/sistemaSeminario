@@ -12,7 +12,7 @@ import InstallMobileIcon from '@mui/icons-material/InstallMobile'
 import CloseIcon from '@mui/icons-material/Close'
 import { api } from './api'
 import { TOV } from './theme'
-import { EstadoVazio } from './ui'
+import { EstadoVazio, GrupoSegmentado } from './ui'
 
 const CATEGORIAS = [
   ['push_whatsapp', 'WhatsApp'],
@@ -265,9 +265,13 @@ export default function NotificationCenter({ aberto, onFechar, onNavigate, estad
           <Tooltip title="Marcar todas como lidas"><span><IconButton disabled={!naoLidas} onClick={marcarTodas}><DoneAllIcon /></IconButton></span></Tooltip>
           <Tooltip title="Fechar notificações"><IconButton aria-label="Fechar notificações" onClick={onFechar}><CloseIcon /></IconButton></Tooltip>
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
-          <Button size="small" variant={filtro === 'todas' ? 'contained' : 'outlined'} onClick={() => setFiltro('todas')}>Todas</Button>
-          <Button size="small" variant={filtro === 'nao-lidas' ? 'contained' : 'outlined'} onClick={() => setFiltro('nao-lidas')}>Não lidas</Button>
+        <Box sx={{ mt: 2 }}>
+          <GrupoSegmentado
+            rotulo="Filtrar notificações"
+            opcoes={[{ valor: 'todas', rotulo: 'Todas' }, { valor: 'nao-lidas', rotulo: 'Não lidas' }]}
+            valor={filtro}
+            onChange={setFiltro}
+          />
         </Box>
         {erro && <Alert severity="warning" onClose={() => setErro('')} sx={{ mt: 2 }}>{erro}</Alert>}
         <Divider sx={{ my: 2 }} />

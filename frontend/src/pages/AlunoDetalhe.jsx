@@ -223,8 +223,12 @@ export default function AlunoDetalhe() {
     <Box>
       <LinkVoltar para="/alunos" rotulo="Voltar para Alunos" />
 
+      {/* A régua sobe para fora da linha: com ela dentro do bloco de texto, o
+          avatar centralizado contra um bloco que começa no topo formava um "L"
+          (AUDITORIA_VISUAL.md H5). Agora avatar e nome partem do mesmo eixo. */}
+      <Regua sx={{ mb: 2 }} />
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 3.5 }}>
-        <Box sx={{ display: 'flex', gap: { xs: 2, md: 3 }, alignItems: 'center', minWidth: 0 }}>
+        <Box sx={{ display: 'flex', gap: { xs: 2, md: 3 }, alignItems: 'flex-start', minWidth: 0 }}>
           <AvatarIniciais
             nome={aluno.nome}
             sx={{
@@ -233,8 +237,7 @@ export default function AlunoDetalhe() {
               borderRadius: { xs: TOV.radiusMd, md: TOV.radiusXl },
             }}
           />
-          <Box>
-            <Regua sx={{ mb: 1.5 }} />
+          <Box sx={{ minWidth: 0 }}>
             <Typography variant="h1" sx={{ fontSize: { xs: TOV.type.title, sm: TOV.type.displaySm, md: TOV.type.display }, overflowWrap: 'anywhere' }}>{aluno.nome}</Typography>
             <Box sx={{ mt: 1.5, display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
               <Box component="span" sx={{ px: 2, py: 0.5, bgcolor: TOV.ink, color: TOV.onDark, borderRadius: TOV.radiusFull, fontSize: TOV.type.bodySm, fontWeight: 600 }}>Matrícula {aluno.cod_alu}</Box>
@@ -247,7 +250,9 @@ export default function AlunoDetalhe() {
           sx={{
             display: 'flex', gap: 1.5, flexWrap: 'wrap', justifyContent: 'flex-end',
             width: { xs: '100%', md: 'auto' },
-            '& > button': { flex: { xs: '1 1 42%', sm: '0 0 auto' } },
+            // Largura inteira no celular: a 42% "Enviar mensagem" quebrava em
+            // duas linhas ao lado de "WhatsApp" em uma.
+            '& > button': { flex: { xs: '1 1 100%', sm: '0 0 auto' } },
           }}
         >
           <Button

@@ -17,7 +17,7 @@ import { api, enviarArquivoJson, getPerfil } from '../api'
 import { TOV, focusRing } from '../theme'
 import {
   CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio, Eyebrow,
-  StatusBadge, TituloDialogo, cardSx, useDialogoTelaCheia
+  GrupoSegmentado, StatusBadge, TituloDialogo, cardSx, useDialogoTelaCheia
 } from '../ui'
 import { dataDaApi, formatarDataHora } from '../formatters'
 
@@ -900,17 +900,16 @@ function Compositor({
           </Box>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0,1fr)', lg: 'minmax(0,1.15fr) minmax(0,.85fr)' }, gap: 2.5, minWidth: 0 }}>
             <Box sx={{ minWidth: 0 }}>
-              <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap' }}>
-                {TIPOS.map(([valor, label]) => (
-                  <Chip
-                    key={valor} clickable label={label} size="small"
-                    color={tipoMensagem === valor ? 'primary' : 'default'}
-                    variant={tipoMensagem === valor ? 'filled' : 'outlined'}
-                    onClick={() => setTipoMensagem(valor)}
-                    sx={{ fontWeight: tipoMensagem === valor ? 700 : 500 }}
-                  />
-                ))}
-              </Box>
+              {/* Sete pílulas próprias quebravam linha e deixavam "Carrossel"
+                  sozinho embaixo. O GrupoSegmentado rola na horizontal e é o
+                  vocabulário do sistema (AUDITORIA_VISUAL.md E2). */}
+              <GrupoSegmentado
+                rotulo="Tipo da mensagem"
+                opcoes={TIPOS.map(([valor, rotulo]) => ({ valor, rotulo }))}
+                valor={tipoMensagem}
+                onChange={setTipoMensagem}
+                sx={{ mb: 1.5, maxWidth: '100%' }}
+              />
               {['image', 'document', 'audio'].includes(tipoMensagem) && (
                 <Box sx={{ border: `1px dashed ${TOV.border}`, borderRadius: TOV.radiusLg, p: 2, mb: 2, textAlign: 'center' }}>
                   <Button component="label" startIcon={enviandoArquivo ? <CircularProgress size={16} /> : <UploadFileIcon />}>

@@ -7,11 +7,11 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Professor, Usuario
-from ..security import gerar_hash, usuario_atual
+from ..security import gerar_hash, perfil_de, usuario_atual
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
 
-SENHA_MINIMA = 6
+SENHA_MINIMA = 8
 
 
 class UsuarioInput(BaseModel):
@@ -30,6 +30,16 @@ class PerfilInput(BaseModel):
     cod_pro: int | None = None
 
 
+def _garantir_um_administrador(db: Session) -> None:
+    """Chamada dentro da transação, já com a alteração aplicada (flush)."""
+    administradores = db.scalar(
+        select(func.count()).select_from(Usuario).where(Usuario.perfil == "ADMIN")
+    ) or 0
+    if administradores < 1:
+        db.rollback()
+        raise HTTPException(400, "O sistema precisa manter ao menos um administrador")
+
+
 def _validar_senha(senha: str) -> None:
     if len(senha) < SENHA_MINIMA:
         raise HTTPException(400, f"A senha deve ter pelo menos {SENHA_MINIMA} caracteres")
@@ -41,7 +51,7 @@ def listar(db: Session = Depends(get_db)):
     return [
         {
             "user": usuario.user,
-            "perfil": usuario.perfil or "ADMIN",
+            "perfil": perfil_de(usuario),
             "cod_pro": usuario.cod_pro,
             "professor_nome": professor_nome,
         }
@@ -102,15 +112,12 @@ def alterar_perfil(
         usuario.cod_pro = cod_pro
     else:
         usuario.cod_pro = None
-    if user == atual and dados.perfil != "ADMIN":
-        administradores = db.scalar(
-            select(func.count())
-            .select_from(Usuario)
-            .where(Usuario.perfil == "ADMIN")
-        ) or 0
-        if administradores <= 1:
-            raise HTTPException(400, "O sistema precisa manter ao menos um administrador")
     usuario.perfil = dados.perfil
+    db.flush()
+    # Conferido depois da alteração e para qualquer alvo, não só para quem se
+    # rebaixa: dois administradores se rebaixando ao mesmo tempo deixavam o
+    # sistema sem ninguém capaz de abrir /usuarios.
+    _garantir_um_administrador(db)
     db.commit()
     return {"user": usuario.user, "perfil": usuario.perfil}
 
@@ -140,5 +147,7 @@ def excluir(
     if db.scalar(select(func.count()).select_from(Usuario)) <= 1:
         raise HTTPException(400, "Não é possível excluir o único usuário do sistema")
     db.delete(usuario)
+    db.flush()
+    _garantir_um_administrador(db)
     db.commit()
     return {"ok": True}

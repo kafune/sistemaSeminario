@@ -5,7 +5,9 @@ services:
     image: mysql:8.4
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${TOV_DB_PASSWORD:?defina TOV_DB_PASSWORD}
+      # Senha própria para o root: quem obtiver a credencial da aplicação não
+      # deve ter root no banco. Só vale na primeira inicialização do volume.
+      MYSQL_ROOT_PASSWORD: ${TOV_DB_ROOT_PASSWORD:-${TOV_DB_PASSWORD:?defina TOV_DB_PASSWORD}}
       MYSQL_DATABASE: tov
       MYSQL_USER: tov
       MYSQL_PASSWORD: ${TOV_DB_PASSWORD:?defina TOV_DB_PASSWORD}
@@ -28,6 +30,9 @@ services:
       TOV_DB_PASSWORD: ${TOV_DB_PASSWORD}
       TOV_DB_NAME: tov
       TOV_SECRET_KEY: ${TOV_SECRET_KEY:?defina TOV_SECRET_KEY}
+      TOV_ENCRYPTION_KEY: ${TOV_ENCRYPTION_KEY:-}
+      TOV_TOKEN_EXPIRE_MINUTES: ${TOV_TOKEN_EXPIRE_MINUTES:-720}
+      TOV_REPARO_INTEGRIDADE_NO_BOOT: ${TOV_REPARO_INTEGRIDADE_NO_BOOT:-0}
       TOV_GOOGLE_FORMS_WEBHOOK_SECRET: ${TOV_GOOGLE_FORMS_WEBHOOK_SECRET:-}
       TOV_BANCO_WEBHOOK_SECRET: ${TOV_BANCO_WEBHOOK_SECRET:-}
       TOV_CORS_ORIGINS: ${TOV_CORS_ORIGINS:-http://localhost}

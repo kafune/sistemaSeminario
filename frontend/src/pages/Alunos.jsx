@@ -16,7 +16,7 @@ import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
-  BarraFiltros, CabecalhoPagina, CartaoLista, EstadoVazio, GrupoSegmentado,
+  BarraFiltros, CabecalhoPagina, CartaoLista, EstadoErro, EstadoVazio, GrupoSegmentado,
   LinhaCartao, LinhasSkeleton, PilulaStatus, SeletorDensidade, SkeletonCards,
   useDensidade, usePreferencia, useTelaDesktop,
 } from '../ui'
@@ -60,6 +60,8 @@ export default function Alunos() {
   const [importacaoAberta, setImportacaoAberta] = useState(false)
   const [versaoLista, setVersaoLista] = useState(0)
   const [erro, setErro] = useState('')
+  // Falha da própria lista: vira `EstadoErro` no corpo, não estado vazio.
+  const [erroCarga, setErroCarga] = useState('')
   const [menuLinha, setMenuLinha] = useState(null)
   const navigate = useNavigate()
   const telaDesktop = useTelaDesktop()
@@ -68,12 +70,18 @@ export default function Alunos() {
     const controller = new AbortController()
     let ativo = true
     setCarregando(true)
+    setErroCarga('')
     const filtroStatus = status ? `&status=${status}` : ''
     const filtroSemTurma = semTurma ? '&sem_turma=true' : ''
     api
       .get(`/alunos?busca=${encodeURIComponent(buscaAtiva)}${filtroStatus}${filtroSemTurma}&ordenacao=${ordenacao}&pagina=${pagina}&por_pagina=${porPagina}`, { signal: controller.signal })
       .then((resposta) => { if (ativo) setDados(resposta) })
-      .catch((e) => { if (ativo && e.name !== 'AbortError') setErro(e.message) })
+      .catch((e) => {
+        if (ativo && e.name !== 'AbortError') {
+          setErroCarga(e.message)
+          setDados({ total: 0, itens: [] })
+        }
+      })
       .finally(() => { if (ativo) setCarregando(false) })
     return () => {
       ativo = false
@@ -132,6 +140,11 @@ export default function Alunos() {
     setVersaoLista((versao) => versao + 1)
   }, [])
 
+  const tentarNovamente = useCallback(() => setVersaoLista((versao) => versao + 1), [])
+
+  // Enquanto a lista não chegou, nenhum número: zero é um dado, não um esqueleto.
+  const aguardando = carregando && dados.itens.length === 0
+
   function pesquisar(e) {
     e.preventDefault()
     setPagina(1)
@@ -145,7 +158,7 @@ export default function Alunos() {
   const barraTabela = (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap', mb: 1.5 }}>
       <Typography sx={{ fontSize: TOV.type.body, color: TOV.caption, fontVariantNumeric: 'tabular-nums' }}>
-        {dados.total === 0 ? 'Nenhum registro' : `Mostrando ${inicio}–${fim} de ${dados.total}`}
+        {aguardando ? 'Carregando…' : erroCarga ? '' : dados.total === 0 ? 'Nenhum registro' : `Mostrando ${inicio}–${fim} de ${dados.total}`}
       </Typography>
       {totalPaginas > 1 && (
         <Pagination
@@ -184,7 +197,7 @@ export default function Alunos() {
       <CabecalhoPagina
         variante="operacional"
         titulo="Alunos"
-        metadados={`${dados.total} ${dados.total === 1 ? 'registro' : 'registros'}`}
+        metadados={aguardando ? 'Carregando…' : erroCarga ? undefined : `${dados.total} ${dados.total === 1 ? 'registro' : 'registros'}`}
         acoes={acoes}
       />
 
@@ -242,7 +255,10 @@ export default function Alunos() {
         {carregando && dados.itens.length === 0 && (
           <SkeletonCards quantidade={4} altura={112} colunas="1fr" />
         )}
-        {!carregando && dados.itens.length === 0 && (
+        {!carregando && erroCarga && (
+          <EstadoErro titulo="Não foi possível carregar os alunos" descricao={erroCarga} onTentarNovamente={tentarNovamente} />
+        )}
+        {!carregando && !erroCarga && dados.itens.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhum aluno encontrado" descricao="Ajuste a busca ou os filtros para ver outros registros." /></CartaoLista>
         )}
         {dados.itens.map((a) => (
@@ -276,7 +292,10 @@ export default function Alunos() {
             {carregando && dados.itens.length === 0 && (
               <LinhasSkeleton colunas={6} />
             )}
-            {!carregando && dados.itens.length === 0 && (
+            {!carregando && erroCarga && (
+              <TableRow><TableCell colSpan={6} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar os alunos" descricao={erroCarga} onTentarNovamente={tentarNovamente} /></TableCell></TableRow>
+            )}
+            {!carregando && !erroCarga && dados.itens.length === 0 && (
               <TableRow><TableCell colSpan={6} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum aluno encontrado" descricao="Ajuste a busca ou os filtros para ver outros registros." /></TableCell></TableRow>
             )}
             {dados.itens.map((a) => (

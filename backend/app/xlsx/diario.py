@@ -9,6 +9,7 @@ from openpyxl.utils import get_column_letter
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..tempo import hoje_local
 from ..models import (
     Aluno,
     AluTurma,
@@ -342,7 +343,7 @@ def gerar_diario_xlsx(db: Session, docturma_id: int) -> tuple[bytes, str]:
         if aula_id is not None
     }
 
-    ano = vinculo.Ano or str(aulas[0].data.year if aulas else date.today().year)
+    ano = vinculo.Ano or str(aulas[0].data.year if aulas else hoje_local().year)
     workbook = Workbook()
     _montar_lista_presenca(
         workbook,

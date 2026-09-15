@@ -16,6 +16,7 @@ import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded'
 import { getPublico, postPublico } from '../api'
 import { TOV } from '../theme'
 import { AvatarIniciais, resetBotao } from '../ui'
+import { FUSO_INSTITUICAO } from '../formatters'
 
 function normalizar(texto) {
   return String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -25,7 +26,7 @@ const formatadorData = new Intl.DateTimeFormat('pt-BR', {
   weekday: 'long', day: '2-digit', month: 'long',
 })
 const formatadorHora = new Intl.DateTimeFormat('pt-BR', {
-  hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
+  hour: '2-digit', minute: '2-digit', timeZone: FUSO_INSTITUICAO,
 })
 
 function textoData(data) {
@@ -406,7 +407,11 @@ export default function PresencaTotem() {
                   Encontre seu nome
                 </Typography>
                 <Typography sx={{ color: TOV.caption, fontSize: { xs: TOV.type.bodySm, sm: TOV.type.body }, mt: 0.5 }}>
-                  {chamada.ausentes === 0 ? 'Todas as presenças foram confirmadas.' : `${chamada.ausentes} ${chamada.ausentes === 1 ? 'pessoa ainda não confirmou' : 'pessoas ainda não confirmaram'}.`}
+                  {!chamada.total
+                    ? 'Toque no seu nome assim que ele aparecer na lista.'
+                    : chamada.ausentes === 0
+                      ? 'Todas as presenças foram confirmadas.'
+                      : `${chamada.ausentes} ${chamada.ausentes === 1 ? 'pessoa ainda não confirmou' : 'pessoas ainda não confirmaram'}.`}
                 </Typography>
               </Box>
             </Box>

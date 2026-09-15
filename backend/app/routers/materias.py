@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..consultas import termo_like
 from ..database import get_db, row_to_dict
 from ..models import AluNota, DocTurma, Materia, MatProf
 
@@ -20,7 +21,7 @@ class MateriaInput(BaseModel):
 def listar(busca: str = "", db: Session = Depends(get_db)):
     q = select(Materia)
     if busca:
-        q = q.where(Materia.NOME.like(f"%{busca}%"))
+        q = q.where(Materia.NOME.like(termo_like(busca), escape="\\"))
     return [row_to_dict(m) for m in db.scalars(q.order_by(Materia.NOME))]
 
 

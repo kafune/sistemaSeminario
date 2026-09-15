@@ -14,9 +14,10 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, baixarArquivo, enviarArquivoJson } from '../api'
 import { TOV } from '../theme'
 import {
-  BarraFiltros, CabecalhoPagina, DialogoConfirmacao, EstadoVazio, StatusBadge,
+  BarraFiltros, CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio, StatusBadge,
   cardSx, useDialogoTelaCheia,
 } from '../ui'
+import { formatarDataHora as formatarDataHoraApi } from '../formatters'
 
 const LIMITE_PADRAO_MB = 25
 
@@ -26,8 +27,7 @@ function formatarData(data) {
 }
 
 function formatarDataHora(data) {
-  if (!data) return ''
-  return new Date(data).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+  return data ? formatarDataHoraApi(data) : ''
 }
 
 function formatarTamanho(bytes) {
@@ -57,6 +57,8 @@ export default function Materiais() {
   const [materiais, setMateriais] = useState([])
   const [limiteMb, setLimiteMb] = useState(LIMITE_PADRAO_MB)
   const [carregando, setCarregando] = useState(false)
+  // Falha das opções ou da lista: vira `EstadoErro` no corpo, não estado vazio.
+  const [erroCarga, setErroCarga] = useState('')
   const [dialogoAberto, setDialogoAberto] = useState(false)
   const [arquivo, setArquivo] = useState(null)
   const [titulo, setTitulo] = useState('')
@@ -86,16 +88,19 @@ export default function Materiais() {
   const carregarMateriais = useCallback(async (id) => {
     if (!id) { setMateriais([]); return }
     setCarregando(true)
+    setErroCarga('')
     try {
       setMateriais(await api.get(`/materiais?docturma_id=${id}`))
     } catch (e) {
-      avisar(e.message)
+      setErroCarga(e.message)
+      setMateriais([])
     } finally {
       setCarregando(false)
     }
   }, [])
 
-  useEffect(() => {
+  const carregarOpcoes = useCallback(() => {
+    setErroCarga('')
     api.get('/materiais/opcoes')
       .then((resposta) => {
         setVinculos(resposta.vinculos || [])
@@ -103,13 +108,20 @@ export default function Materiais() {
         setLimiteMb(resposta.limite_upload_mb || LIMITE_PADRAO_MB)
         setDocturmaId((atual) => atual || String(resposta.vinculos?.[0]?.docturma_id || ''))
       })
-      .catch((e) => avisar(e.message))
+      .catch((e) => setErroCarga(e.message))
   }, [])
+
+  useEffect(() => { carregarOpcoes() }, [carregarOpcoes])
 
   useEffect(() => {
     setFiltroAula('TODOS')
     carregarMateriais(docturmaId)
   }, [docturmaId, carregarMateriais])
+
+  const tentarNovamente = () => {
+    if (vinculos.length === 0) carregarOpcoes()
+    else carregarMateriais(docturmaId)
+  }
 
   function abrirDialogo() {
     setArquivo(null)
@@ -191,7 +203,7 @@ export default function Materiais() {
         <TextField
           select size="small" label="Matéria e turma" value={docturmaId}
           onChange={(e) => setDocturmaId(e.target.value)}
-          sx={{ flex: '1 1 330px', maxWidth: 560 }}
+          sx={{ flex: '1 1 330px' }}
         >
           {vinculos.length === 0 && <MenuItem value="">Nenhuma matéria vinculada</MenuItem>}
           {vinculos.map((vinculo) => (
@@ -213,7 +225,9 @@ export default function Materiais() {
         </Typography>
       </BarraFiltros>
 
-      {!docturmaId ? (
+      {erroCarga && !carregando ? (
+        <EstadoErro titulo="Não foi possível carregar os materiais" descricao={erroCarga} onTentarNovamente={tentarNovamente} />
+      ) : !docturmaId ? (
         <Box sx={cardSx}>
           <EstadoVazio
             titulo="Nenhuma matéria disponível"

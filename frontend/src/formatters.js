@@ -1,3 +1,10 @@
+/**
+ * Fuso da instituição para exibir horários de chamada e datas de aula.
+ * Acompanha `TOV_TIMEZONE` do backend via `VITE_TIMEZONE` no build; sem isso
+ * as duas pontas podiam divergir.
+ */
+export const FUSO_INSTITUICAO = import.meta.env.VITE_TIMEZONE || 'America/Sao_Paulo'
+
 export function somenteDigitos(valor, limite) {
   return String(valor || '').replace(/\D/g, '').slice(0, limite)
 }
@@ -30,6 +37,31 @@ export function emailValido(valor) {
 
 export function formatarMoeda(valor) {
   return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+/**
+ * Carimbo vindo da API (UTC ingênuo, sem "Z") vira Date correto.
+ * O backend grava tudo em UTC sem offset; sem o "Z", o navegador leria o
+ * texto como hora local e mostraria tudo três horas adiantado.
+ */
+export function dataDaApi(iso) {
+  if (!iso) return null
+  const texto = String(iso)
+  const temOffset = /(?:Z|[+-]\d{2}:?\d{2})$/.test(texto)
+  const data = new Date(temOffset ? texto : `${texto}Z`)
+  return Number.isNaN(data.getTime()) ? null : data
+}
+
+/** Carimbo da API em "dd/mm/aaaa, hh:mm" no fuso do navegador. */
+export function formatarDataHora(iso, opcoes = { dateStyle: 'short', timeStyle: 'short' }) {
+  const data = dataDaApi(iso)
+  return data ? data.toLocaleString('pt-BR', opcoes) : '—'
+}
+
+/** Só a data (dd/mm/aaaa) de um carimbo da API, no fuso do navegador. */
+export function formatarDataDoCarimbo(iso) {
+  const data = dataDaApi(iso)
+  return data ? data.toLocaleDateString('pt-BR') : '—'
 }
 
 /** Data ISO (AAAA-MM-DD) em pt-BR sem passar por fuso horário. */

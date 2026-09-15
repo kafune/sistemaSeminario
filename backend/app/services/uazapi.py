@@ -25,7 +25,8 @@ class UazApiError(Exception):
 
 
 def _fernet() -> Fernet:
-    chave = base64.urlsafe_b64encode(hashlib.sha256(settings.secret_key.encode()).digest())
+    segredo = settings.encryption_key.strip() or settings.secret_key
+    chave = base64.urlsafe_b64encode(hashlib.sha256(segredo.encode()).digest())
     return Fernet(chave)
 
 
@@ -39,7 +40,7 @@ def descriptografar_token(token_criptografado: str) -> str:
     except InvalidToken as exc:
         raise UazApiError(
             "Não foi possível ler a credencial da instância. "
-            "Verifique se TOV_SECRET_KEY foi alterada.",
+            "Verifique se TOV_ENCRYPTION_KEY (ou TOV_SECRET_KEY) foi alterada.",
             500,
         ) from exc
 
@@ -64,6 +65,9 @@ class UazApiClient:
             raise UazApiError("A URL da UazAPI não está configurada.", 503)
         if not base_url.startswith(("https://", "http://")):
             raise UazApiError("A URL configurada para a UazAPI é inválida.", 500)
+        if base_url.startswith("http://") and not base_url.startswith(("http://localhost", "http://127.0.0.1")):
+            # O admintoken vai no header: em texto claro pela internet, não.
+            raise UazApiError("A URL da UazAPI precisa usar https://.", 500)
         self.base_url = base_url
         self.token_instancia = token_instancia
 

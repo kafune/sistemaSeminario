@@ -16,7 +16,7 @@ import {
   CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, SkeletonCards,
   StatusBadge, Superficie, cardSx, resetBotao, useTelaDesktop,
 } from '../ui'
-import { formatarDataBr, formatarMoeda } from '../formatters'
+import { formatarDataBr, formatarDataHora, formatarMoeda } from '../formatters'
 import { DialogoPagamento, SeloSituacao, numeroDoCampo, rotuloForma, textoPercentual } from './FinanceiroComum'
 
 function CardResumo({ rotulo, valor, nota }) {
@@ -82,10 +82,11 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
 
   function resumoDoAjuste(ajuste) {
     const partes = []
-    if (ajuste.atualizadas) partes.push(`${ajuste.atualizadas} mensalidade(s) atualizada(s)`)
-    if (ajuste.criadas) partes.push(`${ajuste.criadas} criada(s)`)
-    if (ajuste.removidas) partes.push(`${ajuste.removidas} removida(s)`)
-    if (ajuste.preservadas) partes.push(`${ajuste.preservadas} preservada(s) por já ter pagamento`)
+    const plural = (n, uma, varias) => `${n} ${n === 1 ? uma : varias}`
+    if (ajuste.atualizadas) partes.push(plural(ajuste.atualizadas, 'mensalidade atualizada', 'mensalidades atualizadas'))
+    if (ajuste.criadas) partes.push(plural(ajuste.criadas, 'criada', 'criadas'))
+    if (ajuste.removidas) partes.push(plural(ajuste.removidas, 'removida', 'removidas'))
+    if (ajuste.preservadas) partes.push(`${plural(ajuste.preservadas, 'preservada', 'preservadas')} por já ter pagamento`)
     return partes.length ? ` ${partes.join(', ')}.` : ' Nenhuma cobrança precisou mudar.'
   }
 
@@ -301,7 +302,7 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
           )}
           {extrato.acesso?.ultimo_acesso_em && (
             <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 1 }}>
-              Último acesso do aluno em {new Date(extrato.acesso.ultimo_acesso_em).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}
+              Último acesso do aluno em {formatarDataHora(extrato.acesso.ultimo_acesso_em)}
             </Typography>
           )}
         </Box>
@@ -391,7 +392,7 @@ export default function FinanceiroAlunoPainel({ codAlu, aoCarregarExtrato }) {
                         <Box
                           component="button" type="button"
                           onClick={() => setPagamentoEstornar(pagamento)}
-                          sx={{ ...resetBotao, minHeight: 0, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TOV.type.caption, fontWeight: 600, '&:hover': { color: TOV.danger } }}
+                          sx={{ ...resetBotao, display: 'inline-flex', alignItems: 'center', gap: 0.5, fontSize: TOV.type.caption, fontWeight: 600, '&:hover': { color: TOV.danger } }}
                         >
                           <UndoIcon sx={{ fontSize: TOV.type.caption }} /> estornar
                         </Box>

@@ -14,6 +14,7 @@ pago. Assim o banco nunca guarda um status que envelhece sozinho.
 """
 
 import re
+import secrets
 import unicodedata
 from calendar import monthrange
 from datetime import date, datetime
@@ -23,6 +24,7 @@ from typing import NamedTuple
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..tempo import agora_utc, hoje_local
 from ..models import (
     Aluno,
     AluTurma,
@@ -67,17 +69,43 @@ def formatar_percentual(percentual: Decimal) -> str:
     return f"{texto.replace('.', ',')}%"
 
 
-def referencia_de(cobranca_id: int) -> str:
-    """Código curto que o aluno informa no PIX e que o banco devolve."""
-    return f"TOV{cobranca_id:06d}"
+# Alfabeto do sufixo verificador: sem 0/O, 1/I e sem vogais que formem
+# palavras — o código é digitado num campo de PIX, muitas vezes no celular.
+ALFABETO_SUFIXO = "BCDFGHJKLMNPQRSTVWXZ23456789"
+_REFERENCIA = re.compile(
+    r"TOV\s*-?\s*(\d{4,10})(?:\s?-\s?|\s)?([A-Z2-9]{2})?(?![A-Z0-9])",
+    re.IGNORECASE,
+)
+
+
+def referencia_de(cobranca_id: int, sufixo: str | None = None) -> str:
+    """Código curto que o aluno informa no PIX e que o banco devolve.
+
+    O número sequencial sozinho é adivinhável: quem escrevesse "TOV000042" na
+    descrição de um PIX tinha o pagamento lançado no título de outra pessoa.
+    Por isso cada cobrança nova ganha um sufixo aleatório de dois caracteres
+    (``TOV000042-K7``); só o código completo casa com o título. Cobranças
+    antigas mantêm o formato sem sufixo e continuam sendo encontradas por ele.
+    """
+    if sufixo is None:
+        sufixo = "".join(secrets.choice(ALFABETO_SUFIXO) for _ in range(2))
+    return f"TOV{cobranca_id:06d}-{sufixo.upper()}"
 
 
 def extrair_referencia(texto: str | None) -> str | None:
-    """Encontra o código TOV dentro da descrição livre enviada pelo banco."""
-    achado = re.search(r"TOV\s*-?\s*(\d{4,10})", texto or "", re.IGNORECASE)
+    """Encontra o código TOV dentro da descrição livre enviada pelo banco.
+
+    Devolve o código normalizado — ``TOV000123`` (formato antigo) ou
+    ``TOV000123-K7`` — para comparação exata com ``Cobranca.referencia``.
+    """
+    achado = _REFERENCIA.search(texto or "")
     if not achado:
         return None
-    return referencia_de(int(achado.group(1)))
+    numero = int(achado.group(1))
+    sufixo = achado.group(2)
+    if sufixo:
+        return referencia_de(numero, sufixo)
+    return f"TOV{numero:06d}"
 
 
 def somente_digitos(valor: str | None) -> str:
@@ -210,7 +238,7 @@ def criar_cobranca(
         vencimento=vencimento,
         status="ABERTA",
         observacao=observacao,
-        criado_em=datetime.now(),
+        criado_em=agora_utc(),
         criado_por=criado_por,
     )
     db.add(cobranca)
@@ -249,7 +277,7 @@ def plano_efetivo(
     transferência mexe só no que é diferente — quase sempre a quantidade de
     meses e o mês de entrada.
     """
-    hoje = hoje or date.today()
+    hoje = hoje or hoje_local()
     base = plano.primeira_mensalidade or date(hoje.year, hoje.month, 1)
     dia = max(1, min(int(plano.dia_vencimento or base.day), 28))
     efetivo = PlanoEfetivo(
@@ -286,6 +314,11 @@ def plano_efetivo(
             primeira_mensalidade=condicao.primeira_mensalidade or efetivo.primeira_mensalidade,
             transferencia=True,
         )
+
+    elif condicao.cobra_matricula == "N":
+        # "Não cobrar matrícula" também vale para o aluno regular — antes a
+        # coluna era gravada e ignorada fora da transferência.
+        efetivo = efetivo._replace(valor_matricula=ZERO)
 
     # O desconto vale para quem segue o plano da turma e para quem veio de
     # transferência: ele incide sobre a mensalidade já resolvida.
@@ -492,7 +525,7 @@ def gerar_cobrancas_do_plano(
     quem foi contemplado antes. Quem tem condição própria — o aluno de
     transferência — recebe as parcelas dele, não as da turma.
     """
-    hoje = hoje or date.today()
+    hoje = hoje or hoje_local()
     consulta = select(AluTurma.cod_alu).where(AluTurma.cod_tur == plano.cod_tur)
     if apenas_aluno is not None:
         consulta = consulta.where(AluTurma.cod_alu == apenas_aluno)
@@ -556,15 +589,19 @@ def registrar_pagamento(
     pago = total_pago(db, cobranca.id)
     saldo = max(dinheiro(cobranca.valor) - pago, ZERO)
     valor = dinheiro(valor) if valor is not None else saldo
+    if valor > saldo:
+        # Nenhum caminho — tela, lote, conciliação ou importador — pode gravar
+        # uma baixa maior que o título: o excedente sumiria do extrato.
+        raise ValueError(f"O valor R$ {valor} excede o saldo de R$ {saldo} da cobrança")
     pagamento = Pagamento(
         cobranca_id=cobranca.id,
         valor=valor,
-        data_pagamento=data_pagamento or date.today(),
+        data_pagamento=data_pagamento or hoje_local(),
         forma=forma,
         observacao=observacao,
         transacao_id=transacao_id,
         registrado_por=registrado_por,
-        registrado_em=datetime.now(),
+        registrado_em=agora_utc(),
     )
     db.add(pagamento)
     db.flush()
@@ -605,9 +642,20 @@ def _aluno_do_pagador(db: Session, transacao: TransacaoBancaria) -> Aluno | None
     return candidatos[0] if len(candidatos) == 1 else None
 
 
+def referencia_da_transacao(transacao: TransacaoBancaria) -> str | None:
+    """Código TOV do aviso bancário, venha ele no campo próprio ou no texto."""
+    return extrair_referencia(transacao.referencia) or extrair_referencia(
+        transacao.descricao
+    )
+
+
+def saldo_de(db: Session, cobranca: Cobranca) -> Decimal:
+    return max(dinheiro(cobranca.valor) - total_pago(db, cobranca.id), ZERO)
+
+
 def candidatas_para(db: Session, transacao: TransacaoBancaria) -> list[Cobranca]:
     """Cobranças que a tela de conciliação sugere para um recebimento."""
-    referencia = transacao.referencia or extrair_referencia(transacao.descricao)
+    referencia = referencia_da_transacao(transacao)
     if referencia:
         cobranca = db.scalar(
             select(Cobranca).where(
@@ -641,7 +689,8 @@ def encontrar_cobranca(
     Devolve a cobrança e o motivo — o motivo é gravado para que a secretaria
     saiba **por que** o sistema fechou (ou não fechou) aquele título sozinho.
     """
-    referencia = transacao.referencia or extrair_referencia(transacao.descricao)
+    valor = dinheiro(transacao.valor)
+    referencia = referencia_da_transacao(transacao)
     if referencia:
         cobranca = db.scalar(
             select(Cobranca).where(
@@ -650,13 +699,24 @@ def encontrar_cobranca(
             )
         )
         if cobranca:
+            # O código identifica o título, mas não autoriza qualquer valor:
+            # um PIX de R$ 2.000 citando uma mensalidade de R$ 200 é erro de
+            # digitação ou tentativa de encobrir outra coisa — vai para a fila.
+            saldo = saldo_de(db, cobranca)
+            if saldo <= ZERO:
+                return None, f"Código {referencia} já está quitado"
+            if valor != saldo:
+                return (
+                    None,
+                    f"Código {referencia} informado, mas o valor R$ {valor} "
+                    f"difere do saldo R$ {saldo}",
+                )
             return cobranca, f"Código {referencia} informado no pagamento"
 
     aluno = _aluno_do_pagador(db, transacao)
     if aluno is None:
         return None, "Pagador não identificado entre os alunos"
 
-    valor = dinheiro(transacao.valor)
     abertas = _abertas_do_aluno(db, aluno.cod_alu)
     if not abertas:
         return None, f"{aluno.nome} não possui cobrança em aberto"
@@ -687,21 +747,34 @@ def conciliar(
     motivo: str,
     usuario: str | None = None,
 ) -> Pagamento:
-    """Amarra o recebimento ao título e lança a baixa correspondente."""
+    """Amarra o recebimento ao título e lança a baixa correspondente.
+
+    A baixa nunca passa do saldo em aberto. Quando o recebimento é maior, o
+    excedente fica registrado no motivo da transação — visível na fila de
+    conciliação — em vez de sumir dentro de um pagamento maior que o título.
+    """
+    recebido = dinheiro(transacao.valor)
+    saldo = saldo_de(db, cobranca)
+    valor = min(recebido, saldo)
+    excedente = recebido - valor
+    observacao = f"Conciliado com {transacao.meio} {transacao.identificador}"
+    if excedente > ZERO:
+        observacao += f" (recebido R$ {recebido}; excedente de R$ {excedente} não lançado)"
+        motivo = f"Excedente de R$ {excedente} não lançado; {motivo}"
     pagamento = registrar_pagamento(
         db,
         cobranca,
-        valor=dinheiro(transacao.valor),
+        valor=valor,
         data_pagamento=transacao.data,
         forma=transacao.meio if transacao.meio in FORMAS else "PIX",
-        observacao=f"Conciliado com {transacao.meio} {transacao.identificador}",
+        observacao=observacao[:255],
         transacao_id=transacao.id,
         registrado_por=usuario,
     )
     transacao.status = "CONCILIADA"
     transacao.cobranca_id = cobranca.id
     transacao.motivo = motivo[:120]
-    transacao.conciliada_em = datetime.now()
+    transacao.conciliada_em = agora_utc()
     transacao.conciliada_por = usuario
     return pagamento
 
@@ -735,7 +808,7 @@ def extrato_aluno(db: Session, cod_alu: int, *, hoje: date | None = None) -> dic
     É a mesma resposta usada pela secretaria, pelo financeiro e pela consulta
     do próprio aluno — muda apenas quem prova a identidade de quem pede.
     """
-    hoje = hoje or date.today()
+    hoje = hoje or hoje_local()
     aluno = db.get(Aluno, cod_alu)
     if aluno is None:
         return {}
@@ -864,5 +937,5 @@ def extrato_aluno(db: Session, cod_alu: int, *, hoje: date | None = None) -> dic
             "chave_pix": config.chave_pix,
             "instrucoes": config.instrucoes,
         },
-        "atualizado_em": datetime.now().isoformat(timespec="seconds"),
+        "atualizado_em": agora_utc().isoformat(timespec="seconds"),
     }

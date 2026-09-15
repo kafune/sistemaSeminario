@@ -3,16 +3,17 @@ import json
 import re
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..tempo import agora_utc, hoje_local
 from ..config import settings
 from ..database import get_db
 from ..models import Aluno, ImportacaoGoogleForms, ItemImportacaoGoogleForms
-from ..services.notificacoes import criar_para_todos, entregar_lista
+from ..services.notificacoes import agendar_entrega, criar_para_todos
 
 router = APIRouter(prefix="/integracoes", tags=["integrações"])
 
@@ -104,6 +105,7 @@ def processar_pre_cadastro(
     dados: PreCadastroGoogleForms,
     db: Session,
     origem: str = "GOOGLE_FORMS",
+    tarefas=None,
 ):
     aluno = _buscar_existente(dados, db)
     if aluno and aluno.inscricao_externa_id == dados.inscricao_id:
@@ -112,7 +114,7 @@ def processar_pre_cadastro(
     if aluno and aluno.status != "P":
         return {"ok": True, "acao": "ja_cadastrado", "cod_alu": aluno.cod_alu}
 
-    agora = datetime.now()
+    agora = agora_utc()
     campos = _campos_aluno(dados)
     if aluno:
         for campo, valor in campos.items():
@@ -125,7 +127,7 @@ def processar_pre_cadastro(
         aluno = Aluno(
             **campos,
             status="P",
-            dat_cad=date.today(),
+            dat_cad=hoje_local(),
             origem_cadastro=origem,
             inscricao_externa_id=dados.inscricao_id,
             inscricao_recebida_em=agora,
@@ -156,7 +158,7 @@ def processar_pre_cadastro(
             chave_evento=f"pre-cadastro:{dados.inscricao_id}",
         )
         db.commit()
-        entregar_lista(db, notificacoes)
+        agendar_entrega(tarefas, db, notificacoes)
     return {"ok": True, "acao": acao, "cod_alu": aluno.cod_alu}
 
 
@@ -165,9 +167,11 @@ def processar_pre_cadastro(
     dependencies=[Depends(_validar_segredo)],
 )
 def receber_pre_cadastro(
-    dados: PreCadastroGoogleForms, db: Session = Depends(get_db)
+    dados: PreCadastroGoogleForms,
+    tarefas: BackgroundTasks,
+    db: Session = Depends(get_db),
 ):
-    return processar_pre_cadastro(dados, db)
+    return processar_pre_cadastro(dados, db, tarefas=tarefas)
 
 
 class ResultadoImportacaoGoogleForms(BaseModel):
@@ -187,7 +191,7 @@ def proxima_importacao_google_forms(
     suporta_previa: bool = False,
     db: Session = Depends(get_db),
 ):
-    limite_reprocessamento = datetime.now() - timedelta(minutes=15)
+    limite_reprocessamento = agora_utc() - timedelta(minutes=15)
     consulta = (
         select(ImportacaoGoogleForms)
         .where(
@@ -212,7 +216,7 @@ def proxima_importacao_google_forms(
         return {"id": None}
 
     solicitacao.status = "PROCESSANDO"
-    solicitacao.iniciada_em = datetime.now()
+    solicitacao.iniciada_em = agora_utc()
     db.commit()
     return {
         "id": solicitacao.id,
@@ -269,7 +273,7 @@ def receber_previa_google_forms(
         quantidade += 1
 
     solicitacao.status = "PREVIA_PRONTA"
-    solicitacao.concluida_em = datetime.now()
+    solicitacao.concluida_em = agora_utc()
     solicitacao.erros = len(erros)
     solicitacao.mensagem = (
         f"{quantidade} pessoas disponíveis para seleção"
@@ -299,6 +303,6 @@ def concluir_importacao_google_forms(
     for campo, valor in resultado.model_dump().items():
         setattr(solicitacao, campo, valor)
     solicitacao.status = "CONCLUIDA"
-    solicitacao.concluida_em = datetime.now()
+    solicitacao.concluida_em = agora_utc()
     db.commit()
     return {"ok": True}

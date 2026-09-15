@@ -12,6 +12,18 @@ from .models import Usuario
 
 ALGORITHM = "HS256"
 _bearer = HTTPBearer(auto_error=False)
+# Quando a linha do usuário não diz o perfil, a política é conceder o mínimo
+# operacional — nunca o máximo. A migração de schema já grava ADMIN nas contas
+# anteriores à coluna, então este default só vale para dado inconsistente.
+PERFIL_PADRAO = "SECRETARIA"
+PERFIS = ("ADMIN", "SECRETARIA", "MARKETING", "FINANCEIRO", "PROFESSOR")
+
+
+def perfil_de(usuario: "Usuario | None") -> str:
+    """Perfil efetivo de uma linha de usuário, nunca ADMIN por omissão."""
+    if usuario is None:
+        return PERFIL_PADRAO
+    return (usuario.perfil or PERFIL_PADRAO).upper()
 
 
 def verificar_senha(senha: str, senha_hash: str) -> bool:
@@ -40,9 +52,12 @@ def usuario_atual(
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Não autenticado")
     try:
         payload = jwt.decode(cred.credentials, settings.secret_key, algorithms=[ALGORITHM])
-        return payload["sub"]
     except jwt.PyJWTError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sessão inválida ou expirada")
+    sub = payload.get("sub")
+    if not isinstance(sub, str) or not sub:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Sessão inválida ou expirada")
+    return sub
 
 
 def perfil_atual(
@@ -52,7 +67,7 @@ def perfil_atual(
     usuario = db.get(Usuario, user)
     if not usuario:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Usuário não encontrado")
-    return (usuario.perfil or "ADMIN").upper()
+    return perfil_de(usuario)
 
 
 def exigir_perfis(*perfis_permitidos: str):

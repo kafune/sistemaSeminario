@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..consultas import termo_like
+from ..tempo import hoje_local
 from ..database import get_db, row_to_dict
 from ..models import Aluno, AluNota, AluTurma, Turma
 from ..services.matriculas import sincronizar_matricula
@@ -65,7 +67,7 @@ def listar(
         if busca.isdigit():
             q = q.where(Aluno.cod_alu == int(busca))
         else:
-            q = q.where(Aluno.nome.like(f"%{busca}%"))
+            q = q.where(Aluno.nome.like(termo_like(busca), escape="\\"))
     if cod_tur:
         q = q.where(Aluno.cod_tur == cod_tur)
     if status:
@@ -95,10 +97,26 @@ def listar(
         .offset((pagina - 1) * por_pagina)
         .limit(por_pagina)
     )
+    itens = [row_to_dict(a) for a in db.scalars(q)]
+    # O nome da turma atual acompanha cada aluno: quem matricula precisa ver
+    # de onde o aluno está saindo antes de confirmar uma transferência.
+    codigos = {item["cod_tur"] for item in itens if item.get("cod_tur")}
+    nomes = (
+        {
+            cod_tur: nome
+            for cod_tur, nome in db.execute(
+                select(Turma.cod_tur, Turma.nome).where(Turma.cod_tur.in_(codigos))
+            )
+        }
+        if codigos
+        else {}
+    )
+    for item in itens:
+        item["turma_nome"] = nomes.get(item.get("cod_tur"))
     return {
         "total": total,
         "pagina": pagina,
-        "itens": [row_to_dict(a) for a in db.scalars(q)],
+        "itens": itens,
     }
 
 
@@ -120,7 +138,7 @@ def criar(dados: AlunoInput, db: Session = Depends(get_db)):
     cod_tur = valores.pop("cod_tur")
     aluno = Aluno(**valores)
     if not aluno.dat_cad:
-        aluno.dat_cad = date.today()
+        aluno.dat_cad = hoje_local()
     aluno.origem_cadastro = "MANUAL"
     db.add(aluno)
     db.flush()

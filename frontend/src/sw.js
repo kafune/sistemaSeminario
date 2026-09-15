@@ -48,13 +48,19 @@ self.addEventListener('push', (event) => {
   let dados = {}
   try { dados = event.data?.json() || {} } catch { dados = {} }
   const titulo = dados.titulo || 'TOV Acadêmico'
-  event.waitUntil(self.registration.showNotification(titulo, {
-    body: dados.corpo || 'Há uma atualização na central de notificações.',
-    icon: '/pwa-192x192.png',
-    badge: '/notification-icon.png',
-    tag: `tov-notificacao-${dados.notificacao_id || Date.now()}`,
-    data: { rota: dados.rota || '/', notificacaoId: dados.notificacao_id || null },
-  }))
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(titulo, {
+      body: dados.corpo || 'Há uma atualização na central de notificações.',
+      icon: '/pwa-192x192.png',
+      badge: '/notification-icon.png',
+      tag: `tov-notificacao-${dados.notificacao_id || Date.now()}`,
+      data: { rota: dados.rota || '/', notificacaoId: dados.notificacao_id || null },
+    }),
+    // As janelas abertas atualizam a central sem recarregar.
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(
+      (janelas) => Promise.all(janelas.map((janela) => janela.postMessage({ type: 'TOV_PUSH', dados }))),
+    ),
+  ]))
 })
 
 self.addEventListener('notificationclick', (event) => {
@@ -69,11 +75,4 @@ self.addEventListener('notificationclick', (event) => {
     }
     return self.clients.openWindow(destino)
   })())
-})
-
-self.addEventListener('push', (event) => {
-  const dados = (() => { try { return event.data?.json() || {} } catch { return {} } })()
-  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(
-    (janelas) => Promise.all(janelas.map((janela) => janela.postMessage({ type: 'TOV_PUSH', dados }))),
-  ))
 })

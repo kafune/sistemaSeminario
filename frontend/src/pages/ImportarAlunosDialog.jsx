@@ -9,7 +9,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, enviarArquivoJson } from '../api'
 import { TOV } from '../theme'
-import { cardSx, useDialogoTelaCheia } from '../ui'
+import { EstadoErro, cardSx, useDialogoTelaCheia } from '../ui'
 
 function Resumo({ resultado }) {
   if (!resultado || !['CONCLUIDA', 'ARQUIVO'].includes(resultado.status)) return null
@@ -52,6 +52,8 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
   const [importandoSelecao, setImportandoSelecao] = useState(false)
   const [resultadoSelecao, setResultadoSelecao] = useState(null)
   const [erro, setErro] = useState('')
+  // Falha ao trazer a lista de pessoas: `EstadoErro` com nova tentativa, não alerta solto.
+  const [erroPrevia, setErroPrevia] = useState('')
   const inputArquivo = useRef(null)
   const telaCheia = useDialogoTelaCheia()
 
@@ -104,13 +106,13 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
         } else if (atual.status === 'CONCLUIDA') {
           setPreviaGoogle(atual)
           setCarregandoPrevia(false)
-          setErro(atual.mensagem || 'Não foi possível carregar as pessoas da planilha.')
+          setErroPrevia(atual.mensagem || 'Não foi possível carregar as pessoas da planilha.')
         } else {
           setPreviaGoogle(atual)
         }
       } catch (e) {
         if (ativo) {
-          setErro(e.message)
+          setErroPrevia(e.message)
           setCarregandoPrevia(false)
         }
       } finally {
@@ -148,6 +150,7 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
 
   async function carregarPessoasGoogle() {
     setErro('')
+    setErroPrevia('')
     setCarregandoPrevia(true)
     setResultadoSelecao(null)
     setItensGoogle([])
@@ -157,7 +160,7 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
       const solicitacao = await api.post('/importacoes/google-forms/previa', {})
       setPreviaGoogle(solicitacao)
     } catch (e) {
-      setErro(e.message)
+      setErroPrevia(e.message)
       setCarregandoPrevia(false)
     }
   }
@@ -266,6 +269,15 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
                     Aguardando o Apps Script consultar a planilha…
                   </Typography>
                 </Box>
+              )}
+
+              {erroPrevia && !previaPronta && !carregandoPrevia && (
+                <EstadoErro
+                  titulo="Não foi possível carregar as pessoas da planilha"
+                  descricao={erroPrevia}
+                  onTentarNovamente={processando ? undefined : carregarPessoasGoogle}
+                  sx={{ mt: 2 }}
+                />
               )}
 
               {previaPronta && (

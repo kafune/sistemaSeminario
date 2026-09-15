@@ -154,8 +154,10 @@ curl --fail --silent --show-error --max-time 5 "$FRONTEND_URL" >/dev/null \
   || die "frontend não respondeu em $FRONTEND_URL"
 
 if [[ "$PRUNE_IMAGES" == "1" ]]; then
-  log "Removendo imagens órfãs"
-  docker image prune -f >/dev/null
+  log "Removendo imagens órfãs deste projeto"
+  # Só as camadas penduradas geradas pelo compose deste projeto: num host
+  # compartilhado, um prune global apagaria imagens de outras aplicações.
+  docker image prune -f --filter "label=com.docker.compose.project=tov" >/dev/null
 fi
 
 if [[ "$RELOAD_NGINX" == "1" ]]; then

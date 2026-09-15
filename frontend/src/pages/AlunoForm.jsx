@@ -6,7 +6,7 @@ import {
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  DialogoConfirmacao, LinhaCartao, cardSx, useDialogoTelaCheia,
+  DialogoConfirmacao, EstadoErro, LinhaCartao, cardSx, useDialogoTelaCheia,
 } from '../ui'
 import { useUnsavedChanges } from '../UnsavedChanges'
 import { emailValido, formatarCepInput, formatarCpfInput, formatarTelefoneInput } from '../formatters'
@@ -47,9 +47,16 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
   const [turmas, setTurmas] = useState([])
   const [etapa, setEtapa] = useState(0)
   const [erro, setErro] = useState('')
+  // Falha ao trazer as turmas: `EstadoErro` no lugar do seletor, não um alerta solto.
+  const [erroCarga, setErroCarga] = useState('')
   const [salvando, setSalvando] = useState(false)
   const [confirmarFechar, setConfirmarFechar] = useState(false)
   const telaCheia = useDialogoTelaCheia()
+
+  function carregarTurmas() {
+    setErroCarga('')
+    api.getCached('/turmas').then(setTurmas).catch((e) => setErroCarga(e.message))
+  }
 
   useEffect(() => {
     if (!aberto) return
@@ -59,7 +66,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
     setForm(dados)
     setInicial(dados)
     setConfirmarFechar(false)
-    api.getCached('/turmas').then(setTurmas).catch((e) => setErro(e.message))
+    carregarTurmas()
   }, [aberto, aluno])
 
   function alterar(nome, valor) {
@@ -288,16 +295,20 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
               <Grid item xs={12}>{campo('nome_conjuge', { label: 'Nome do cônjuge participante' })}</Grid>
               <Grid item xs={12}>{campo('turma_interesse', { label: 'Turma de interesse' })}</Grid>
               <Grid item xs={12}>
-                <TextField
-                  select size="small" fullWidth label="Turma matriculada"
-                  value={form.cod_tur ?? ''}
-                  onChange={(e) => alterar('cod_tur', e.target.value || null)}
-                >
-                  <MenuItem value="">Nenhuma turma</MenuItem>
-                  {turmas.map((t) => (
-                    <MenuItem key={t.cod_tur} value={t.cod_tur}>{t.nome}</MenuItem>
-                  ))}
-                </TextField>
+                {erroCarga ? (
+                  <EstadoErro titulo="Não foi possível carregar as turmas" descricao={erroCarga} onTentarNovamente={carregarTurmas} />
+                ) : (
+                  <TextField
+                    select size="small" fullWidth label="Turma matriculada"
+                    value={form.cod_tur ?? ''}
+                    onChange={(e) => alterar('cod_tur', e.target.value || null)}
+                  >
+                    <MenuItem value="">Nenhuma turma</MenuItem>
+                    {turmas.map((t) => (
+                      <MenuItem key={t.cod_tur} value={t.cod_tur}>{t.nome}</MenuItem>
+                    ))}
+                  </TextField>
+                )}
               </Grid>
             </Grid>
           )}

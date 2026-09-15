@@ -1,16 +1,18 @@
 import secrets
 from datetime import date, datetime, time, timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from ..tempo import agora_utc, hoje_local
 from ..database import get_db
 from ..models import (
     Aula,
     CalendarioPublico,
+    Chamada,
     DocTurma,
     Materia,
     MaterialDidatico,
@@ -22,6 +24,11 @@ from ..xlsx.diario import gerar_diario_xlsx
 
 router = APIRouter(prefix="/calendario", tags=["calendário"])
 public_router = APIRouter(prefix="/calendario-publico", tags=["calendário público"])
+
+# Uma repetição semanal cobre, no máximo, dois anos letivos. Sem teto, um
+# erro de digitação no ano (2126 em vez de 2026) gerava milhares de aulas em
+# uma requisição só.
+REPETICAO_MAXIMA_DIAS = 366 * 2
 
 
 class AulaInput(BaseModel):
@@ -43,6 +50,10 @@ class AulaInput(BaseModel):
             raise ValueError("O horário final deve ser posterior ao inicial")
         if self.repetir_ate and self.repetir_ate < self.data:
             raise ValueError("A repetição não pode terminar antes da primeira aula")
+        if self.repetir_ate and (self.repetir_ate - self.data).days > REPETICAO_MAXIMA_DIAS:
+            raise ValueError(
+                "A repetição semanal pode cobrir no máximo dois anos a partir da primeira aula"
+            )
         return self
 
 
@@ -143,28 +154,28 @@ def criar_aulas(dados: AulaInput, db: Session = Depends(get_db)):
 
     limite = dados.repetir_ate or dados.data
     dia = dados.data
-    criadas: list[Aula] = []
+    criadas = 0
     ignoradas = 0
     valores = dados.model_dump(exclude={"repetir_ate", "data"})
-    while dia <= limite:
-        existente = db.scalar(
-            select(Aula).where(
+    # Uma consulta só para as datas já ocupadas, em vez de um SELECT por semana.
+    ocupadas = set(
+        db.scalars(
+            select(Aula.data).where(
                 Aula.docturma_id == dados.docturma_id,
-                Aula.data == dia,
+                Aula.data.between(dia, limite),
                 Aula.hora_inicio == dados.hora_inicio,
             )
         )
-        if existente:
+    )
+    while dia <= limite:
+        if dia in ocupadas:
             ignoradas += 1
         else:
-            aula = Aula(data=dia, **valores)
-            db.add(aula)
-            criadas.append(aula)
+            db.add(Aula(data=dia, **valores))
+            criadas += 1
         dia += timedelta(days=7)
     db.commit()
-    for aula in criadas:
-        db.refresh(aula)
-    return {"ok": True, "criadas": len(criadas), "ignoradas": ignoradas}
+    return {"ok": True, "criadas": criadas, "ignoradas": ignoradas}
 
 
 @router.put("/aulas/{aula_id}")
@@ -193,6 +204,18 @@ def excluir_aula(aula_id: int, db: Session = Depends(get_db)):
     aula = db.get(Aula, aula_id)
     if not aula:
         raise HTTPException(404, "Aula não encontrada")
+    # A chamada aponta para a aula; sem ela, as faltas registradas sumiriam de
+    # todo cálculo (boletim, histórico, diário) sem ninguém ter pedido. Mesma
+    # regra que já protege a turma e o vínculo: cancele a aula em vez disso.
+    chamadas = db.scalar(
+        select(func.count()).select_from(Chamada).where(Chamada.aula_id == aula_id)
+    ) or 0
+    if chamadas:
+        raise HTTPException(
+            400,
+            "Esta aula já tem chamada registrada e não pode ser excluída. "
+            "Marque a aula como cancelada para preservar o histórico de presenças.",
+        )
     db.execute(
         MaterialDidatico.__table__.update()
         .where(MaterialDidatico.aula_id == aula_id)
@@ -208,20 +231,21 @@ def excluir_aula(aula_id: int, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-def _link_ativo(db: Session) -> CalendarioPublico | None:
+def _link_ativo(db: Session, cod_tur: int) -> CalendarioPublico | None:
     return db.scalar(
         select(CalendarioPublico)
-        .where(CalendarioPublico.ativo == "S")
+        .where(CalendarioPublico.ativo == "S", CalendarioPublico.cod_tur == cod_tur)
         .order_by(CalendarioPublico.id.desc())
         .limit(1)
     )
 
 
-def _criar_link(db: Session) -> CalendarioPublico:
+def _criar_link(db: Session, cod_tur: int) -> CalendarioPublico:
     link = CalendarioPublico(
         token=secrets.token_urlsafe(32),
+        cod_tur=cod_tur,
         ativo="S",
-        criado_em=datetime.now(),
+        criado_em=agora_utc(),
     )
     db.add(link)
     db.commit()
@@ -229,35 +253,52 @@ def _criar_link(db: Session) -> CalendarioPublico:
     return link
 
 
+def _turma_ou_404(db: Session, cod_tur: int) -> Turma:
+    turma = db.get(Turma, cod_tur)
+    if not turma:
+        raise HTTPException(404, "Turma não encontrada")
+    return turma
+
+
+class CompartilhamentoInput(BaseModel):
+    cod_tur: int
+
+
 @router.get("/compartilhamento")
-def obter_compartilhamento(db: Session = Depends(get_db)):
-    link = _link_ativo(db)
-    return {"token": link.token if link else None}
+def obter_compartilhamento(cod_tur: int, db: Session = Depends(get_db)):
+    _turma_ou_404(db, cod_tur)
+    link = _link_ativo(db, cod_tur)
+    return {"token": link.token if link else None, "cod_tur": cod_tur}
 
 
 @router.post("/compartilhamento")
-def criar_compartilhamento(db: Session = Depends(get_db)):
-    link = _link_ativo(db) or _criar_link(db)
-    return {"token": link.token}
+def criar_compartilhamento(dados: CompartilhamentoInput, db: Session = Depends(get_db)):
+    _turma_ou_404(db, dados.cod_tur)
+    link = _link_ativo(db, dados.cod_tur) or _criar_link(db, dados.cod_tur)
+    return {"token": link.token, "cod_tur": dados.cod_tur}
 
 
 @router.post("/compartilhamento/renovar")
-def renovar_compartilhamento(db: Session = Depends(get_db)):
+def renovar_compartilhamento(dados: CompartilhamentoInput, db: Session = Depends(get_db)):
+    """Invalida os links já enviados da turma e cria um novo."""
+    _turma_ou_404(db, dados.cod_tur)
     for link in db.scalars(
-        select(CalendarioPublico).where(CalendarioPublico.ativo == "S")
+        select(CalendarioPublico).where(
+            CalendarioPublico.ativo == "S",
+            CalendarioPublico.cod_tur == dados.cod_tur,
+        )
     ):
         link.ativo = "N"
     db.commit()
-    link = _criar_link(db)
-    return {"token": link.token}
+    link = _criar_link(db, dados.cod_tur)
+    return {"token": link.token, "cod_tur": dados.cod_tur}
 
 
 @public_router.get("/{token}")
 def calendario_publico(
     token: str,
-    inicio: date | None = Query(default=None),
-    fim: date | None = Query(default=None),
-    cod_tur: int | None = Query(default=None),
+    inicio: date | None = None,
+    fim: date | None = None,
     db: Session = Depends(get_db),
 ):
     link = db.scalar(
@@ -266,27 +307,25 @@ def calendario_publico(
             CalendarioPublico.ativo == "S",
         )
     )
-    if not link:
+    if not link or link.cod_tur is None:
+        # Links antigos, sem turma, entregavam a agenda da instituição inteira
+        # a quem apagasse o filtro da URL. Eles não valem mais.
         raise HTTPException(404, "Calendário não encontrado ou link expirado")
-    turma = None
-    if cod_tur is not None:
-        turma = db.get(Turma, cod_tur)
-        if not turma:
-            raise HTTPException(404, "Turma não encontrada")
-    inicio = inicio or (date.today() - timedelta(days=45))
-    fim = fim or (date.today() + timedelta(days=370))
-    aulas = _listar(db, inicio, fim, cod_tur=cod_tur)
+    turma = db.get(Turma, link.cod_tur)
+    if not turma:
+        raise HTTPException(404, "Turma não encontrada")
+    inicio = inicio or (hoje_local() - timedelta(days=45))
+    fim = fim or (hoje_local() + timedelta(days=370))
+    if fim < inicio or (fim - inicio).days > 732:
+        raise HTTPException(400, "Período inválido")
+    aulas = _listar(db, inicio, fim, cod_tur=link.cod_tur)
     for aula in aulas:
         # Observações são de uso interno da secretaria.
         aula.pop("observacao", None)
         aula.pop("docturma_id", None)
     return {
         "aulas": aulas,
-        "turma": (
-            {"cod_tur": turma.cod_tur, "nome": turma.nome}
-            if turma
-            else None
-        ),
+        "turma": {"cod_tur": turma.cod_tur, "nome": turma.nome},
     }
 
 

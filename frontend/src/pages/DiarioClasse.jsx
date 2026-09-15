@@ -13,6 +13,7 @@ import {
   BarraFiltros, CabecalhoPagina, CardMetrica, EstadoErro, EstadoVazio,
   SkeletonTabela, cardSx, resetBotao,
 } from '../ui'
+import { FUSO_INSTITUICAO } from '../formatters'
 
 const TODO_O_PERIODO = 'tudo'
 
@@ -34,7 +35,7 @@ function mesLongo(mes) {
 
 function hojeLocal() {
   const partes = new Intl.DateTimeFormat('pt-BR', {
-    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: FUSO_INSTITUICAO,
   }).formatToParts(new Date())
   const valor = (tipo) => partes.find((parte) => parte.type === tipo)?.value
   return `${valor('year')}-${valor('month')}-${valor('day')}`

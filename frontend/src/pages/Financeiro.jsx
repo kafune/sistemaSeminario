@@ -16,7 +16,7 @@ import { api } from '../api'
 import { TOV } from '../theme'
 import {
   BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CardMetrica, CartaoLista,
-  EstadoVazio, LinhasSkeleton, SkeletonCards, StatusBadge, Superficie,
+  EstadoErro, EstadoVazio, LinhasSkeleton, SkeletonCards, StatusBadge, Superficie,
   cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import { formatarCompetencia, formatarDataBr, formatarMoeda } from '../formatters'
@@ -40,6 +40,8 @@ const TIPOS_FILTRO = [
 ]
 
 const POR_PAGINA = 50
+
+const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`
 
 export default function Financeiro() {
   const navigate = useNavigate()
@@ -135,6 +137,10 @@ export default function Financeiro() {
   }, [turma, situacao, mes, setSearchParams])
 
   const cobrancas = lista.cobrancas || []
+  // Sem lista ainda, nenhum número no cabeçalho: zero é um dado, não um esqueleto.
+  const aguardandoLista = carregandoLista && cobrancas.length === 0
+  // Falha com a lista vazia é `EstadoErro`; falha com dados na tela é só o alerta.
+  const falhaSemDados = Boolean(erro) && cobrancas.length === 0
   const selecionaveis = useMemo(
     () => cobrancas.filter((item) => item.saldo > 0 && !['CANCELADA', 'ISENTA'].includes(item.status)),
     [cobrancas],
@@ -175,7 +181,7 @@ export default function Financeiro() {
         forma: 'PIX',
       })
       avisar(
-        `${resposta.quitadas} cobrança(s) marcada(s) como paga(s).${resposta.ignoradas ? ` ${resposta.ignoradas} já estava(m) quitada(s).` : ''}`,
+        `${plural(resposta.quitadas, 'cobrança marcada como paga', 'cobranças marcadas como pagas')}.${resposta.ignoradas ? ` ${plural(resposta.ignoradas, 'já estava quitada', 'já estavam quitadas')}.` : ''}`,
         false,
       )
       recarregar()
@@ -239,11 +245,14 @@ export default function Financeiro() {
         variante="operacional"
         titulo="Financeiro"
         descricao="Matrícula e mensalidades de cada turma, baixa dos pagamentos e o que o banco já identificou."
-        metadados={`${lista.total} cobrança(s) no recorte · ${formatarMoeda(lista.saldo)} em aberto`}
+        metadados={aguardandoLista ? 'Carregando…' : falhaSemDados ? undefined : `${plural(lista.total, 'cobrança', 'cobranças')} no recorte · ${formatarMoeda(lista.saldo)} em aberto`}
         acoes={acoes}
       />
 
-      {erro && (
+      {falhaSemDados && (
+        <EstadoErro titulo="Não foi possível carregar as cobranças" descricao={erro} onTentarNovamente={recarregar} sx={{ mb: 2 }} />
+      )}
+      {erro && !falhaSemDados && (
         <Alert severity="error" sx={{ mb: 2 }} action={<Button onClick={recarregar}>Tentar novamente</Button>}>{erro}</Alert>
       )}
 
@@ -255,7 +264,7 @@ export default function Financeiro() {
             destaque
             rotulo="Vencido"
             valor={formatarMoeda(painel.vencido)}
-            nota={{ texto: `${painel.vencidas} cobrança(s) atrasada(s)` }}
+            nota={{ texto: plural(painel.vencidas, 'cobrança atrasada', 'cobranças atrasadas') }}
             icone={<EventBusyOutlinedIcon />}
             onClick={() => alternarRecorte('VENCIDA')}
           />
@@ -309,7 +318,7 @@ export default function Financeiro() {
                     {item.turma_nome}
                   </Typography>
                   <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>
-                    {item.alunos} aluno(s) · {item.cobrancas} cobrança(s)
+                    {plural(item.alunos, 'aluno', 'alunos')} · {plural(item.cobrancas, 'cobrança', 'cobranças')}
                   </Typography>
                 </Box>
                 <StatusBadge tom={item.vencido > 0 ? 'error' : 'success'} dot sx={{ flexShrink: 0 }}>
@@ -391,7 +400,7 @@ export default function Financeiro() {
       {!telaDesktop && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {carregandoLista && cobrancas.length === 0 && <SkeletonCards quantidade={4} altura={148} colunas="1fr" />}
-          {!carregandoLista && cobrancas.length === 0 && (
+          {!carregandoLista && !erro && cobrancas.length === 0 && (
             <CartaoLista>
               <EstadoVazio
                 compacto
@@ -463,7 +472,7 @@ export default function Financeiro() {
             </TableHead>
             <TableBody>
               {carregandoLista && cobrancas.length === 0 && <LinhasSkeleton colunas={8} />}
-              {!carregandoLista && cobrancas.length === 0 && (
+              {!carregandoLista && !erro && cobrancas.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={8} sx={{ p: 0 }}>
                     <EstadoVazio
@@ -520,7 +529,7 @@ export default function Financeiro() {
                           Registrar pagamento
                         </Box>
                       ) : (
-                        <Box component="span" sx={{ fontSize: TOV.type.bodySm, color: TOV.border }}>—</Box>
+                        <Box component="span" sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>—</Box>
                       )}
                     </TableCell>
                   </TableRow>
@@ -534,7 +543,7 @@ export default function Financeiro() {
       {lista.paginas > 1 && (
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mt: 2 }}>
           <Typography sx={{ fontSize: TOV.type.bodySm, color: TOV.caption }}>
-            Página {lista.pagina} de {lista.paginas} · {lista.total} cobrança(s) no recorte
+            Página {lista.pagina} de {lista.paginas} · {plural(lista.total, 'cobrança', 'cobranças')} no recorte
           </Typography>
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
@@ -558,7 +567,7 @@ export default function Financeiro() {
       <BarraAcaoFixa
         visivel={selecionadas.length > 0}
         rotulo="Cobranças selecionadas"
-        selo={<StatusBadge tom="info">{selecionadas.length} selecionada(s)</StatusBadge>}
+        selo={<StatusBadge tom="info">{plural(selecionadas.length, 'selecionada', 'selecionadas')}</StatusBadge>}
         resumo={`${formatarMoeda(totalSelecionado)} serão marcados como pagos hoje`}
         acoes={(
           <>

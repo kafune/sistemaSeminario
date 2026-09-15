@@ -48,11 +48,27 @@ export function hojeIso() {
   return `${agora.getFullYear()}-${mes}-${dia}`
 }
 
-/** Valor digitado em pt-BR ("1.200,50") vira número para a API. */
+/**
+ * Valor digitado vira número para a API.
+ *
+ * Aceita tanto "1.200,50" (pt-BR) quanto "200.50" (teclado numérico do
+ * celular, que em vários idiomas só oferece o ponto). A regra: quando há
+ * vírgula, o ponto é separador de milhar; sem vírgula, um único ponto é o
+ * decimal — tratar "200.50" como "20050" multiplicava mensalidades por 100.
+ */
 export function numeroDoCampo(texto) {
-  const limpo = String(texto ?? '').replace(/\./g, '').replace(',', '.').trim()
-  if (!limpo) return null
-  const numero = Number(limpo)
+  const bruto = String(texto ?? '').trim()
+  if (!bruto) return null
+  let limpo
+  if (bruto.includes(',')) {
+    limpo = bruto.replace(/\./g, '').replace(',', '.')
+  } else {
+    const pontos = (bruto.match(/\./g) || []).length
+    // "1.200.000" (só milhares) ou "200.50" (decimal)? Um ponto seguido de
+    // exatamente três dígitos no fim é milhar; qualquer outro ponto é decimal.
+    limpo = pontos > 1 || /\.\d{3}$/.test(bruto) ? bruto.replace(/\./g, '') : bruto
+  }
+  const numero = Number(limpo.replace(/\s/g, ''))
   return Number.isFinite(numero) ? numero : null
 }
 

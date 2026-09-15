@@ -308,8 +308,13 @@ def garantir_plano(
     parcelas: int,
     primeira_mensalidade: date,
     dia_vencimento: int,
+    reconfigurar: bool = False,
 ) -> PlanoFinanceiro:
     plano = db.scalar(select(PlanoFinanceiro).where(PlanoFinanceiro.cod_tur == cod_tur))
+    if plano is not None and not reconfigurar:
+        # Plano já configurado na tela: os defaults da linha de comando não
+        # podem reconfigurar o dinheiro da turma em silêncio.
+        return plano
     if plano is None:
         plano = PlanoFinanceiro(cod_tur=cod_tur)
         db.add(plano)
@@ -734,6 +739,7 @@ def importar(
     primeira_mensalidade: date,
     dia_vencimento: int = 10,
     parcelas_transferencia: int | None = None,
+    reconfigurar_plano: bool = False,
     relatar=print,
 ) -> dict:
     """Grava no banco e devolve o que foi feito. Não faz commit."""
@@ -748,10 +754,13 @@ def importar(
             parcelas=parcelas,
             primeira_mensalidade=primeira_mensalidade,
             dia_vencimento=dia_vencimento,
+            reconfigurar=reconfigurar_plano,
         )
         for cod_tur in turmas
     }
     relatar(f"Plano aplicado a {len(turmas)} turma(s): {', '.join(str(t) for t in turmas)}")
+    if not reconfigurar_plano:
+        relatar("Turmas que já tinham plano mantiveram os valores da tela (use --reconfigurar-plano para sobrescrever).")
 
     # 2. Aluno, matrícula na turma e condição.
     criados = 0
@@ -881,6 +890,16 @@ def main() -> None:
         type=int,
         help="Turma para quem não está no cadastro ou está sem turma",
     )
+    analisador.add_argument(
+        "--reconfigurar-plano",
+        action="store_true",
+        help="Sobrescreve o plano das turmas que já têm um configurado na tela",
+    )
+    analisador.add_argument(
+        "--sim",
+        action="store_true",
+        help="Não pedir confirmação interativa antes de --sobrescrever apagar baixas",
+    )
     analisador.add_argument("--matricula", type=Decimal, default=Decimal("100"))
     analisador.add_argument("--mensalidade", type=Decimal, default=Decimal("200"))
     analisador.add_argument("--desconto-conjuge", type=Decimal, default=Decimal("50"))
@@ -994,6 +1013,13 @@ def main() -> None:
             return
 
         if args.sobrescrever:
+            if not args.sim:
+                resposta = input(
+                    "Confirma apagar as cobranças e baixas acima para reconstruir? [digite SIM] "
+                )
+                if resposta.strip().upper() != "SIM":
+                    print("Cancelado: nada foi apagado.")
+                    return
             sobrescrever(db, entram)
 
         resultado = importar(
@@ -1007,6 +1033,7 @@ def main() -> None:
             primeira_mensalidade=vencimento,
             dia_vencimento=args.dia_vencimento,
             parcelas_transferencia=args.parcelas_transferencia,
+            reconfigurar_plano=args.reconfigurar_plano,
         )
         if not resultado["confere"]:
             db.rollback()

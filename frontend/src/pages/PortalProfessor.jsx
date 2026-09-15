@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material'
+import { Box, Button, CircularProgress, Typography } from '@mui/material'
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
 import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined'
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined'
@@ -9,7 +9,17 @@ import PendingActionsOutlinedIcon from '@mui/icons-material/PendingActionsOutlin
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import { api } from '../api'
 import { TOV, focusRing } from '../theme'
-import { CabecalhoPagina, CardMetrica, EstadoVazio, StatusBadge, cardSx } from '../ui'
+import { CabecalhoPagina, CardMetrica, EstadoErro, EstadoVazio, StatusBadge, cardSx } from '../ui'
+
+// Num seminário o nome começa por título com frequência ("Rev. Dr. Antônio…");
+// a saudação pula os títulos e cumprimenta a pessoa.
+const HONORIFICOS = new Set(['rev', 'pr', 'pra', 'prof', 'profa', 'dr', 'dra', 'pb', 'ev', 'bispo', 'reverendo', 'pastor', 'pastora'])
+
+function primeiroNome(nome) {
+  const partes = String(nome || '').trim().split(/\s+/).filter(Boolean)
+  const proprio = partes.find((parte) => !HONORIFICOS.has(parte.replace(/\.$/, '').toLowerCase()))
+  return proprio || partes[0] || ''
+}
 
 function dataLonga(data) {
   if (!data) return '—'
@@ -31,7 +41,7 @@ function CartaoTurma({ turma, onAbrir }) {
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 0.5 }}>{[turma.turma_nome, periodo].filter(Boolean).join(' · ')}</Typography>
         </Box>
         {turma.notas_pendentes > 0
-          ? <StatusBadge tom="warning">{turma.notas_pendentes} pendente(s)</StatusBadge>
+          ? <StatusBadge tom="warning">{turma.notas_pendentes} {turma.notas_pendentes === 1 ? 'pendente' : 'pendentes'}</StatusBadge>
           : <StatusBadge tom="success">Notas completas</StatusBadge>}
       </Box>
       <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 1, py: 1.5, borderTop: `1px solid ${TOV.divider}`, borderBottom: `1px solid ${TOV.divider}` }}>
@@ -53,27 +63,35 @@ export default function PortalProfessor({ somenteTurmas = false }) {
   const [dados, setDados] = useState(null)
   const [erro, setErro] = useState('')
 
-  useEffect(() => {
+  const carregar = useCallback(() => {
+    setErro('')
     api.get('/portal-professor/resumo').then(setDados).catch((e) => setErro(e.message))
   }, [])
 
-  if (erro) return <Alert severity="error">{erro}</Alert>
+  useEffect(() => { carregar() }, [carregar])
+
+  if (erro) return <EstadoErro titulo="Não foi possível carregar o portal" descricao={erro} onTentarNovamente={carregar} />
   if (!dados) return <Box sx={{ minHeight: 320, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>
+
+  // Como no painel: a superfície invertida marca a primeira fila que de fato
+  // tem fila — nunca um zero.
+  const pendencias = [['aulas_hoje', dados.metricas.aulas_hoje], ['notas_pendentes', dados.metricas.notas_pendentes]]
+  const chaveUrgente = pendencias.find(([, total]) => total > 0)?.[0]
 
   return (
     <Box>
       <CabecalhoPagina
-        titulo={somenteTurmas ? 'Minhas turmas' : `Olá, ${dados.professor.nome?.split(' ')[0] || 'professor'}`}
+        titulo={somenteTurmas ? 'Minhas turmas' : `Olá, ${primeiroNome(dados.professor.nome) || 'professor'}`}
         descricao={somenteTurmas ? 'Acesse o espaço de trabalho de cada matéria e turma.' : 'Acompanhe suas próximas aulas e o que precisa de atenção.'}
       />
 
       {!somenteTurmas && (
         <>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))', lg: 'repeat(4, minmax(0, 1fr))' }, gap: 1.5, mb: 3 }}>
-            <CardMetrica rotulo="Turmas" valor={dados.metricas.turmas} nota={{ texto: `${dados.metricas.materias} matéria(s)` }} icone={<SchoolOutlinedIcon />} />
+            <CardMetrica rotulo="Turmas" valor={dados.metricas.turmas} nota={{ texto: `${dados.metricas.materias} ${dados.metricas.materias === 1 ? 'matéria' : 'matérias'}` }} icone={<SchoolOutlinedIcon />} />
             <CardMetrica rotulo="Alunos" valor={dados.metricas.alunos} nota={{ texto: 'alunos nas suas turmas' }} icone={<GroupsOutlinedIcon />} />
-            <CardMetrica rotulo="Aulas hoje" valor={dados.metricas.aulas_hoje} nota={{ texto: 'na agenda de hoje' }} destaque icone={<CalendarMonthOutlinedIcon />} />
-            <CardMetrica rotulo="Notas pendentes" valor={dados.metricas.notas_pendentes} nota={{ texto: 'lançamentos restantes' }} icone={<PendingActionsOutlinedIcon />} />
+            <CardMetrica rotulo="Aulas hoje" valor={dados.metricas.aulas_hoje} nota={{ texto: 'na agenda de hoje' }} destaque={chaveUrgente === 'aulas_hoje'} icone={<CalendarMonthOutlinedIcon />} />
+            <CardMetrica rotulo="Notas pendentes" valor={dados.metricas.notas_pendentes} nota={{ texto: 'lançamentos restantes' }} destaque={chaveUrgente === 'notas_pendentes'} icone={<PendingActionsOutlinedIcon />} />
           </Box>
 
           <Box sx={{ ...cardSx, p: { xs: 2, sm: 2.5 }, mb: 3 }}>

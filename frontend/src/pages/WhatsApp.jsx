@@ -16,9 +16,10 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, enviarArquivoJson, getPerfil } from '../api'
 import { TOV, focusRing } from '../theme'
 import {
-  CabecalhoPagina, DialogoConfirmacao, EstadoVazio, Eyebrow, StatusBadge,
+  CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio, Eyebrow, StatusBadge,
   cardSx, useDialogoTelaCheia,
 } from '../ui'
+import { dataDaApi, formatarDataHora } from '../formatters'
 
 const STATUS_FINAL = new Set(['CONCLUIDO', 'CONCLUIDO_COM_FALHAS', 'FALHA', 'CANCELADO'])
 const DESTINATARIOS_POR_PAGINA = 50
@@ -73,12 +74,12 @@ const TIPOS = [
 
 function dataHora(iso) {
   if (!iso) return '—'
-  return new Date(`${iso}${iso.endsWith('Z') ? '' : 'Z'}`).toLocaleString('pt-BR')
+  return formatarDataHora(iso, { dateStyle: 'short', timeStyle: 'medium' })
 }
 
 function valorDataLocal(iso) {
   if (!iso) return ''
-  const data = new Date(`${iso}${iso.endsWith('Z') ? '' : 'Z'}`)
+  const data = dataDaApi(iso)
   const local = new Date(data.getTime() - data.getTimezoneOffset() * 60000)
   return local.toISOString().slice(0, 16)
 }
@@ -618,7 +619,7 @@ function Compositor({
     try {
       const resposta = await api.post('/whatsapp/testar', composicaoAtual())
       setConfirmarTeste(false)
-      onAviso(`${resposta.quantidade} mensagem(ns) de teste adicionada(s) à fila do número conectado.`, false)
+      onAviso(`${resposta.quantidade} ${resposta.quantidade === 1 ? 'mensagem de teste adicionada' : 'mensagens de teste adicionadas'} à fila do número conectado.`, false)
     } catch (e) {
       onAviso(e.message)
     } finally {
@@ -795,7 +796,13 @@ function Compositor({
           <TextField
             select fullWidth size="small" label="Turma" value={codTur}
             onChange={(evento) => setCodTur(evento.target.value)} sx={{ mb: 2 }}
+            // Rótulo no entalhe e o estado vazio escrito na caixa, como no
+            // campo "Público" logo acima. Aqui o vazio é "ainda sem turma",
+            // não "todas": o disparo exige uma turma escolhida.
+            InputLabelProps={{ shrink: true }}
+            SelectProps={{ displayEmpty: true }}
           >
+            <MenuItem value="" disabled>Selecione a turma</MenuItem>
             {turmas.map((turma) => (
               <MenuItem key={turma.cod_tur} value={turma.cod_tur}>
                 {turma.nome} ({turma.qtd_alunos || 0} alunos)
@@ -1117,11 +1124,14 @@ function Compositor({
   )
 }
 
-function Historico({ itens, onAbrir }) {
+function Historico({ itens, erro, onTentarNovamente, onAbrir }) {
   return (
     <Box sx={{ ...cardSx, p: { xs: 2.5, md: '28px 32px' }, mt: 2.5 }}>
       <Typography variant="h2" sx={{ fontSize: TOV.type.title, mb: 2.5 }}>Histórico de disparos</Typography>
-      {!itens && <LinearProgress />}
+      {erro && !itens && (
+        <EstadoErro titulo="Não foi possível carregar o histórico" descricao={erro} onTentarNovamente={onTentarNovamente} />
+      )}
+      {!itens && !erro && <LinearProgress />}
       {itens?.length === 0 && (
         <EstadoVazio compacto titulo="Nenhum disparo realizado" descricao="As campanhas enviadas ou agendadas aparecerão neste histórico." />
       )}
@@ -1192,6 +1202,7 @@ export default function WhatsApp() {
   const [carregandoInstancia, setCarregandoInstancia] = useState(true)
   const [turmas, setTurmas] = useState([])
   const [historico, setHistorico] = useState(null)
+  const [erroHistorico, setErroHistorico] = useState('')
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState(true)
   const [criacaoAberta, setCriacaoAberta] = useState(false)
@@ -1233,9 +1244,15 @@ export default function WhatsApp() {
   }
 
   function carregarHistorico() {
+    setErroHistorico('')
     api.get('/whatsapp/disparos?por_pagina=30')
       .then((resposta) => setHistorico((atuais) => mesclarListaDisparos(atuais, resposta.itens)))
-      .catch((e) => notificar(e.message))
+      .catch((e) => {
+        // Sem histórico na tela, a falha vira `EstadoErro` no cartão; com
+        // histórico já carregado, só o aviso.
+        setErroHistorico(e.message)
+        if (historico) notificar(e.message)
+      })
   }
 
   useEffect(() => {
@@ -1501,7 +1518,7 @@ export default function WhatsApp() {
         alunoInicial={alunoInicial}
         disparoEdicao={disparoEdicao}
       />
-      <Historico itens={historico} onAbrir={abrirDetalhe} />
+      <Historico itens={historico} erro={erroHistorico} onTentarNovamente={carregarHistorico} onAbrir={abrirDetalhe} />
 
       <Dialog open={criacaoAberta} onClose={() => setCriacaoAberta(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Criar instância do WhatsApp</DialogTitle>

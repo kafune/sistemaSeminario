@@ -42,3 +42,7 @@ class Presenca(Base):
     # O nome fica congelado para preservar o histórico mesmo após alterações cadastrais.
     nome_aluno: Mapped[str] = mapped_column(String(150))
     registrado_em: Mapped[datetime | None] = mapped_column(DateTime)
+    # Origem da marcação pelo totem: sem prova de identidade, a única
+    # auditoria possível é de onde e com que aparelho a presença foi marcada.
+    origem_ip: Mapped[str | None] = mapped_column(String(45))
+    origem_agente: Mapped[str | None] = mapped_column(String(255))

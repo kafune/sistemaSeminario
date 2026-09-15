@@ -79,6 +79,8 @@ export default function TurmaDetalhe() {
   }, [buscaAluno])
 
   const [salvandoDlg, setSalvandoDlg] = useState(false)
+  // O modelo é de turma única: matricular quem já está em outra turma é transferir.
+  const transferencia = !!alunoSel?.cod_tur && String(alunoSel.cod_tur) !== String(codTur)
 
   async function matricular() {
     setSalvandoDlg(true)
@@ -88,7 +90,7 @@ export default function TurmaDetalhe() {
       setAlunoSel(null)
       setBuscaAluno('')
       carregar()
-      avisar('Aluno matriculado', false)
+      avisar(transferencia ? 'Aluno transferido para esta turma' : 'Aluno matriculado', false)
     } catch (e) {
       avisar(e.message)
     } finally {
@@ -165,15 +167,15 @@ export default function TurmaDetalhe() {
           <Typography variant="h1" sx={{ fontSize: { xs: TOV.type.displaySm, md: TOV.type.display } }}>{turma.nome}</Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', width: { xs: '100%', md: 'auto' }, '& > *': { flexGrow: { xs: 1, sm: 0 } } }}>
-          <Button variant="outlined" startIcon={<HowToRegRoundedIcon />} sx={{ height: 44 }}
+          <Button variant="outlined" startIcon={<HowToRegRoundedIcon />}
             onClick={() => navigate(`/turmas/${codTur}/presencas`)}>
             Fazer chamada
           </Button>
-          <Button variant="outlined" startIcon={<PictureAsPdfIcon />} sx={{ height: 44 }}
+          <Button variant="outlined" startIcon={<PictureAsPdfIcon />}
             onClick={() => abrirArquivo(`/relatorios/lista-turma/${codTur}`).catch((e) => avisar(e.message))}>
             Lista de alunos
           </Button>
-          <Button variant="contained" startIcon={<PictureAsPdfIcon />} sx={{ height: 44 }}
+          <Button variant="contained" startIcon={<PictureAsPdfIcon />}
             onClick={() => abrirArquivo(`/relatorios/boletim-turma/${codTur}`).catch((e) => avisar(e.message))}>
             Boletins (ZIP)
           </Button>
@@ -190,7 +192,7 @@ export default function TurmaDetalhe() {
 
       {aba === 0 && (
         <Box>
-          <Button startIcon={<AddIcon />} variant="contained" sx={{ mb: 2, height: 44, width: { xs: '100%', sm: 'auto' } }} onClick={() => setDlgMatricula(true)}>
+          <Button startIcon={<AddIcon />} variant="contained" sx={{ mb: 2, width: { xs: '100%', sm: 'auto' } }} onClick={() => setDlgMatricula(true)}>
             Matricular aluno
           </Button>
 
@@ -237,7 +239,7 @@ export default function TurmaDetalhe() {
                   <TableRow key={a.cod_alu} hover>
                     <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>{a.cod_alu}</TableCell>
                     <TableCell>
-                      <Box component="button" type="button" onClick={() => navigate(`/alunos/${a.cod_alu}`)} sx={{ ...resetBotao, fontWeight: 700, color: TOV.coral, '&:hover': { color: TOV.coralHover } }}>{a.nome}</Box>
+                      <Box component="button" type="button" onClick={() => navigate(`/alunos/${a.cod_alu}`)} sx={{ ...resetBotao, fontWeight: 700, color: TOV.ink, '&:hover': { color: TOV.coral } }}>{a.nome}</Box>
                     </TableCell>
                     <TableCell sx={{ color: TOV.graphite }}>{a.celular || '—'}</TableCell>
                     <TableCell sx={{ color: TOV.graphite }}>{a.e_mail || '—'}</TableCell>
@@ -256,7 +258,7 @@ export default function TurmaDetalhe() {
 
       {aba === 1 && (
         <Box>
-          <Button startIcon={<AddIcon />} variant="contained" sx={{ mb: 2, height: 44, width: { xs: '100%', sm: 'auto' } }} onClick={abrirDlgMateria}>
+          <Button startIcon={<AddIcon />} variant="contained" sx={{ mb: 2, width: { xs: '100%', sm: 'auto' } }} onClick={abrirDlgMateria}>
             Adicionar matéria
           </Button>
 
@@ -280,7 +282,7 @@ export default function TurmaDetalhe() {
                       <MenuBookOutlinedIcon fontSize="small" />
                     </IconButton>
                     <IconButton size="small" title="Diário de classe (PDF)"
-                      onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?cod_mat=${m.cod_mat}`).catch((e) => avisar(e.message))}>
+                      onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?docturma_id=${m.id}`).catch((e) => avisar(e.message))}>
                       <PictureAsPdfIcon fontSize="small" />
                     </IconButton>
                     <IconButton size="small" color="error" title="Remover da turma" aria-label="Remover matéria da turma" onClick={() => setParaRemover({ tipo: 'materia', item: m })}>
@@ -321,7 +323,7 @@ export default function TurmaDetalhe() {
                         <MenuBookOutlinedIcon fontSize="small" />
                       </IconButton>
                       <IconButton size="small" title="Diário de classe (PDF)"
-                        onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?cod_mat=${m.cod_mat}`).catch((e) => avisar(e.message))}>
+                        onClick={() => abrirArquivo(`/relatorios/diario/${codTur}?docturma_id=${m.id}`).catch((e) => avisar(e.message))}>
                         <PictureAsPdfIcon fontSize="small" />
                       </IconButton>
                       <IconButton size="small" color="error" title="Remover da turma" aria-label="Remover matéria da turma" onClick={() => setParaRemover({ tipo: 'materia', item: m })}>
@@ -339,6 +341,13 @@ export default function TurmaDetalhe() {
       <Dialog open={dlgMatricula} onClose={() => setDlgMatricula(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         <DialogTitle>Matricular aluno</DialogTitle>
         <DialogContent>
+          {transferencia && (
+            <Alert severity="warning" sx={{ mt: 1 }}>
+              {alunoSel.nome} está matriculado(a) em <strong>{alunoSel.turma_nome}</strong>.
+              Um aluno fica em uma turma por vez: matricular aqui vai transferi-lo(a) e a
+              matrícula anterior será removida. As cobranças já geradas na turma antiga permanecem.
+            </Alert>
+          )}
           <Autocomplete
             sx={{ mt: 1 }} options={opcoesAluno} value={alunoSel}
             getOptionLabel={(a) => `${a.cod_alu} - ${a.nome}`}
@@ -352,7 +361,7 @@ export default function TurmaDetalhe() {
         <DialogActions sx={{ p: 3, pt: 1 }}>
           <Button onClick={() => setDlgMatricula(false)} variant="outlined" disabled={salvandoDlg}>Cancelar</Button>
           <Button variant="contained" onClick={matricular} disabled={!alunoSel || salvandoDlg}>
-            {salvandoDlg ? 'Matriculando…' : 'Matricular'}
+            {salvandoDlg ? (transferencia ? 'Transferindo…' : 'Matriculando…') : (transferencia ? 'Transferir para esta turma' : 'Matricular')}
           </Button>
         </DialogActions>
       </Dialog>

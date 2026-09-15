@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { formatarDataHora } from './formatters'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert, Badge, Box, Button, Divider, Drawer, IconButton, List, ListItemButton,
@@ -20,9 +21,7 @@ const CATEGORIAS = [
 ]
 
 function dataHora(iso) {
-  return new Date(`${iso}${iso.endsWith('Z') ? '' : 'Z'}`).toLocaleString('pt-BR', {
-    dateStyle: 'short', timeStyle: 'short',
-  })
+  return formatarDataHora(iso)
 }
 
 function urlBase64ParaUint8Array(valor) {
@@ -188,6 +187,7 @@ export default function NotificationCenter({ aberto, onFechar, onNavigate, estad
     () => filtro === 'nao-lidas' ? itens.filter((item) => !item.lida) : itens,
     [filtro, itens],
   )
+  const pushDisponivel = Boolean(configuracao?.disponivel) && pushSuportado()
 
   async function abrir(item) {
     try {
@@ -293,15 +293,22 @@ export default function NotificationCenter({ aberto, onFechar, onNavigate, estad
         </List>
         <Divider sx={{ my: 2 }} />
         <Typography variant="h6" sx={{ fontSize: TOV.type.bodyLg }}>Preferências</Typography>
-        {configuracao?.disponivel && pushSuportado() ? (
+        {pushDisponivel ? (
           <Button sx={{ alignSelf: 'flex-start', mt: 1 }} variant={dispositivoAtivo ? 'outlined' : 'contained'} disabled={processandoPush} onClick={alternarPush}>
             {processandoPush ? 'Configurando…' : dispositivoAtivo ? 'Desativar push neste dispositivo' : 'Ativar push neste dispositivo'}
           </Button>
-        ) : <Alert severity="info" sx={{ mt: 1, fontSize: TOV.type.bodySm }}>{configuracao?.disponivel ? mensagemPushIndisponivel() : 'Push está indisponível nesta instalação. O histórico interno continua ativo.'}</Alert>}
+        ) : (
+          <Alert severity="info" sx={{ mt: 1, fontSize: TOV.type.bodySm }}>
+            {configuracao?.disponivel ? mensagemPushIndisponivel() : 'Push está indisponível nesta instalação. O histórico interno continua ativo.'}
+            {' '}As preferências abaixo passam a valer quando o push estiver ativado.
+          </Alert>
+        )}
+        {/* Sem push, os interruptores não ligam nada: ficam desabilitados em
+            vez de acesos em coral, que é o sinal de "ativo". */}
         {preferencias && CATEGORIAS.map(([campo, rotulo]) => (
           <Box key={campo} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: .5 }}>
-            <Typography sx={{ fontSize: TOV.type.body }}>{rotulo}</Typography>
-            <Switch checked={Boolean(preferencias[campo])} onChange={(evento) => alterarPreferencia(campo, evento.target.checked)} inputProps={{ 'aria-label': `Push de ${rotulo}` }} />
+            <Typography sx={{ fontSize: TOV.type.body, color: pushDisponivel ? TOV.ink : TOV.caption }}>{rotulo}</Typography>
+            <Switch checked={Boolean(preferencias[campo])} disabled={!pushDisponivel} onChange={(evento) => alterarPreferencia(campo, evento.target.checked)} inputProps={{ 'aria-label': `Push de ${rotulo}` }} />
           </Box>
         ))}
       </Box>

@@ -14,7 +14,7 @@ import { api, abrirArquivo, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
   BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CartaoLista,
-  DialogoConfirmacao, EstadoVazio, LinhasSkeleton, Metadado, SkeletonCards,
+  DialogoConfirmacao, EstadoErro, EstadoVazio, LinhasSkeleton, Metadado, SkeletonCards,
   StatusBadge,
   cardSx, useAtalhoSalvar, useTelaDesktop,
 } from '../ui'
@@ -74,14 +74,21 @@ export default function Notas() {
   const telaDesktop = useTelaDesktop()
   const avisar = (texto, erro = true) => { setEhErro(erro); setMsg(texto) }
 
-  useEffect(() => {
+  // Falha das opções ou da grade: vira `EstadoErro` no corpo, não estado vazio.
+  const [erroOpcoes, setErroOpcoes] = useState('')
+  const [erroGrade, setErroGrade] = useState('')
+
+  const carregarOpcoes = useCallback(() => {
+    setErroOpcoes('')
     api.get('/notas/opcoes')
       .then((resposta) => {
         setTurmas(resposta.turmas)
         setVinculos(resposta.vinculos)
       })
-      .catch((e) => avisar(e.message))
+      .catch((e) => setErroOpcoes(e.message))
   }, [])
+
+  useEffect(() => { carregarOpcoes() }, [carregarOpcoes])
 
   // Ao trocar a turma, carrega as matérias vinculadas.
   useEffect(() => {
@@ -94,6 +101,7 @@ export default function Notas() {
   const carregarGrade = useCallback((doc) => {
     if (!codTur || !doc) { setLinhas([]); setAtividades([]); return }
     setCarregandoGrade(true)
+    setErroGrade('')
     api.get(`/notas/vinculo/${doc.id}`)
       .then((r) => {
         setAtividades(r.atividades || [])
@@ -112,7 +120,11 @@ export default function Notas() {
           _dirty: false,
         })))
       })
-      .catch((e) => avisar(e.message))
+      .catch((e) => {
+        setErroGrade(e.message)
+        setLinhas([])
+        setAtividades([])
+      })
       .finally(() => setCarregandoGrade(false))
   }, [codTur])
 
@@ -456,7 +468,9 @@ export default function Notas() {
       )}
 
       {/* Grade */}
-      {!docSel ? (
+      {erroOpcoes && !docSel ? (
+        <EstadoErro titulo="Não foi possível carregar turmas e matérias" descricao={erroOpcoes} onTentarNovamente={carregarOpcoes} />
+      ) : !docSel ? (
         <Box sx={cardSx}>
           <EstadoVazio
             titulo="Selecione uma turma e uma matéria"
@@ -477,7 +491,10 @@ export default function Notas() {
               {carregandoGrade && (
                 <SkeletonCards quantidade={4} altura={132} colunas="1fr" />
               )}
-              {!carregandoGrade && linhas.length === 0 && (
+              {!carregandoGrade && erroGrade && (
+                <EstadoErro titulo="Não foi possível carregar a grade" descricao={erroGrade} onTentarNovamente={() => carregarGrade(docSel)} />
+              )}
+              {!carregandoGrade && !erroGrade && linhas.length === 0 && (
                 <CartaoLista sx={{ alignItems: 'center', color: TOV.caption, py: 4 }}>Nenhum aluno matriculado nesta turma.</CartaoLista>
               )}
               {!carregandoGrade && linhas.map((l, i) => (
@@ -554,7 +571,10 @@ export default function Notas() {
                 {carregandoGrade && (
                   <LinhasSkeleton colunas={atividades.length > 0 ? atividades.length + 5 : 5} />
                 )}
-                {!carregandoGrade && linhas.length === 0 && (
+                {!carregandoGrade && erroGrade && (
+                  <TableRow><TableCell colSpan={atividades.length > 0 ? atividades.length + 5 : 5} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar a grade" descricao={erroGrade} onTentarNovamente={() => carregarGrade(docSel)} /></TableCell></TableRow>
+                )}
+                {!carregandoGrade && !erroGrade && linhas.length === 0 && (
                   <TableRow><TableCell colSpan={atividades.length > 0 ? atividades.length + 5 : 5} sx={{ py: 4, textAlign: 'center', color: TOV.caption }}>Nenhum aluno matriculado nesta turma.</TableCell></TableRow>
                 )}
                 {!carregandoGrade && linhas.map((l, i) => (
@@ -668,7 +688,7 @@ export default function Notas() {
             Adicionar atividade
           </Button>
           {somaAtividadesEdicao > 10.000001 && (
-            <Alert severity="error">A soma ultrapassou 10 pontos. Reduza {formatarPontos(somaAtividadesEdicao - 10)} ponto(s).</Alert>
+            <Alert severity="error">A soma ultrapassou 10 pontos. Reduza {formatarPontos(somaAtividadesEdicao - 10)} {somaAtividadesEdicao - 10 <= 1 ? 'ponto' : 'pontos'}.</Alert>
           )}
         </DialogContent>
         <DialogActions sx={{ p: 2.5, gap: 1, flexWrap: 'wrap' }}>

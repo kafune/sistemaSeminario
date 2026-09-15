@@ -2,7 +2,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db, row_to_dict
@@ -273,6 +273,22 @@ def desmatricular(cod_tur: int, cod_alu: int, db: Session = Depends(get_db)):
 
 # ---- materias/professores da turma (docturma) ------------------------------
 
+def _notas_do_vinculo(dt: DocTurma):
+    """Notas deste vínculo: pela chave canônica ou, no legado, pela dupla turma×matéria.
+
+    A mesma matéria pode estar vinculada duas vezes à turma (semestres
+    diferentes); notas de um vínculo não podem travar o outro.
+    """
+    return or_(
+        AluNota.docturma_id == dt.id,
+        and_(
+            AluNota.docturma_id.is_(None),
+            AluNota.cod_tur == dt.cod_tur,
+            AluNota.cod_mat == dt.cod_mat,
+        ),
+    )
+
+
 def _validar_referencias_materia(
     db: Session,
     dados: DocTurmaInput,
@@ -352,10 +368,7 @@ def atualizar_materia(
     )
     if alterou_identidade:
         tem_notas = db.scalar(
-            select(func.count()).select_from(AluNota).where(
-                AluNota.cod_tur == cod_tur,
-                AluNota.cod_mat == dt.cod_mat,
-            )
+            select(func.count()).select_from(AluNota).where(_notas_do_vinculo(dt))
         ) or 0
         if tem_notas:
             raise HTTPException(
@@ -384,10 +397,7 @@ def remover_materia(cod_tur: int, docturma_id: int, db: Session = Depends(get_db
             f"Este vínculo possui {tem_aulas} aula(s) no calendário; remova-as antes.",
         )
     tem_notas = db.scalar(
-        select(func.count()).select_from(AluNota).where(
-            AluNota.cod_tur == cod_tur,
-            AluNota.cod_mat == dt.cod_mat,
-        )
+        select(func.count()).select_from(AluNota).where(_notas_do_vinculo(dt))
     ) or 0
     if tem_notas:
         raise HTTPException(

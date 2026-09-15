@@ -18,18 +18,28 @@ import NoteAddOutlinedIcon from '@mui/icons-material/NoteAddOutlined'
 import { api, baixarArquivo } from '../api'
 import { TOV } from '../theme'
 import {
-  CabecalhoPagina, CardMetrica, DialogoConfirmacao, EstadoVazio, StatusBadge,
+  CabecalhoPagina, CardMetrica, DialogoConfirmacao, EstadoErro, EstadoVazio, StatusBadge,
   cardSx, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
+import { FUSO_INSTITUICAO, formatarDataHora } from '../formatters'
 
 const ABAS = ['visao', 'aulas', 'notas', 'materiais']
+
+// Mesmo rótulo da agenda (`CalendarioGrade`): o enum do backend não vai à tela.
+const STATUS_AULA = {
+  AGENDADA: 'Agendada',
+  REALIZADA: 'Realizada',
+  CANCELADA: 'Cancelada',
+}
+
+const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`
 
 function dataCurta(data) {
   return data ? new Intl.DateTimeFormat('pt-BR').format(new Date(`${data}T12:00:00`)) : '—'
 }
 
 function dataHora(data) {
-  return data ? new Date(data).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—'
+  return formatarDataHora(data)
 }
 
 function tamanho(bytes) {
@@ -38,7 +48,7 @@ function tamanho(bytes) {
 }
 
 function hojeLocal() {
-  const partes = new Intl.DateTimeFormat('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'America/Sao_Paulo' }).formatToParts(new Date())
+  const partes = new Intl.DateTimeFormat('pt-BR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: FUSO_INSTITUICAO }).formatToParts(new Date())
   const parte = (tipo) => partes.find((item) => item.type === tipo)?.value
   return `${parte('year')}-${parte('month')}-${parte('day')}`
 }
@@ -147,11 +157,14 @@ export default function TurmaProfessor() {
     }
   }
 
-  if (erro) return <Box><Button startIcon={<ArrowBackRoundedIcon />} onClick={() => navigate('/professor/turmas')} sx={{ mb: 2 }}>Voltar</Button><Alert severity="error">{erro}</Alert></Box>
+  if (erro) return <Box><Button startIcon={<ArrowBackRoundedIcon />} onClick={() => navigate('/professor/turmas')} sx={{ mb: 2 }}>Voltar</Button><EstadoErro titulo="Não foi possível carregar a turma" descricao={erro} onTentarNovamente={carregar} /></Box>
   if (!dados) return <Box sx={{ minHeight: 360, display: 'grid', placeItems: 'center' }}><CircularProgress /></Box>
 
   const { vinculo } = dados
   const periodo = vinculo.ano && vinculo.semestre ? `${vinculo.ano}/${vinculo.semestre}` : null
+  // O nome da turma costuma trazer o curso ("Turma 2026.1 — Bacharel em Teologia"):
+  // repetir o curso ao lado vira eco.
+  const curso = vinculo.curso && !(vinculo.turma_nome || '').toLowerCase().includes(vinculo.curso.toLowerCase()) ? vinculo.curso : null
   const indiceAba = ABAS.indexOf(abaAtual)
 
   return (
@@ -159,7 +172,7 @@ export default function TurmaProfessor() {
       <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => navigate('/professor/turmas')} sx={{ mb: 2 }}>Minhas turmas</Button>
       <CabecalhoPagina
         titulo={vinculo.materia_nome}
-        descricao={[vinculo.turma_nome, vinculo.curso, periodo].filter(Boolean).join(' · ')}
+        descricao={[vinculo.turma_nome, curso, periodo].filter(Boolean).join(' · ')}
         metadados={vinculo.horario || null}
       />
 
@@ -190,8 +203,9 @@ export default function TurmaProfessor() {
                     <Box key={aluno.cod_alu} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 1.5, borderBottom: indice < dados.alunos.length - 1 ? `1px solid ${TOV.divider}` : 0 }}>
                       <Box sx={{ color: TOV.caption, fontSize: TOV.type.caption, fontWeight: 700 }}>{String(indice + 1).padStart(2, '0')}</Box>
                       <Typography sx={{ flexGrow: 1, fontWeight: 700 }}>{aluno.nome}</Typography>
-                      <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>{aluno.faltas} falta(s)</Typography>
-                      <StatusBadge tom={aluno.nota == null ? 'warning' : 'success'}>{aluno.nota == null ? 'Sem nota' : `Nota ${aluno.nota.toLocaleString('pt-BR')}`}</StatusBadge>
+                      <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm }}>{plural(aluno.faltas, 'falta', 'faltas')}</Typography>
+                      {/* Não há limiar de aprovação: a nota existe, não é "sucesso". */}
+                      <StatusBadge tom={aluno.nota == null ? 'warning' : 'neutral'}>{aluno.nota == null ? 'Sem nota' : `Nota ${aluno.nota.toLocaleString('pt-BR')}`}</StatusBadge>
                     </Box>
                   ))}
                 </Box>
@@ -233,9 +247,9 @@ export default function TurmaProfessor() {
                   <Box key={aula.id} component="article" sx={{ ...cardSx, p: 2.5, borderColor: hoje ? TOV.coral : TOV.border }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
                       <Box><Typography sx={{ color: hoje ? TOV.coral : TOV.caption, fontSize: TOV.type.caption, fontWeight: 700, textTransform: 'uppercase' }}>{hoje ? 'Hoje · ' : ''}{dataCurta(aula.data)}{aula.hora_inicio ? ` · ${aula.hora_inicio}` : ''}</Typography><Typography variant="h3" sx={{ fontSize: TOV.type.section, mt: 0.5 }}>{aula.tema || 'Tema ainda não informado'}</Typography></Box>
-                      <StatusBadge tom={aula.status === 'REALIZADA' ? 'success' : aula.status === 'CANCELADA' ? 'error' : 'info'}>{aula.status}</StatusBadge>
+                      <StatusBadge tom={aula.status === 'REALIZADA' ? 'success' : aula.status === 'CANCELADA' ? 'error' : 'info'}>{STATUS_AULA[aula.status] || aula.status}</StatusBadge>
                     </Box>
-                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5 }}><StatusBadge tom={planejada ? 'success' : 'warning'}>{planejada ? 'Planejada' : 'Planejamento pendente'}</StatusBadge>{aula.total_materiais > 0 && <StatusBadge>{aula.total_materiais} material(is)</StatusBadge>}{aula.chamada && <StatusBadge tom={aula.chamada.status === 'ABERTA' ? 'success' : 'muted'}>Chamada {aula.chamada.status.toLowerCase()}</StatusBadge>}</Box>
+                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 1.5 }}><StatusBadge tom={planejada ? 'success' : 'warning'}>{planejada ? 'Planejada' : 'Planejamento pendente'}</StatusBadge>{aula.total_materiais > 0 && <StatusBadge>{plural(aula.total_materiais, 'material', 'materiais')}</StatusBadge>}{aula.chamada && <StatusBadge tom={aula.chamada.status === 'ABERTA' ? 'success' : 'muted'}>Chamada {aula.chamada.status.toLowerCase()}</StatusBadge>}</Box>
                     {aula.planejamento?.objetivos && <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 1.5 }}><b style={{ color: TOV.ink }}>Objetivos:</b> {aula.planejamento.objetivos}</Typography>}
                     {aula.planejamento?.tarefa && <Typography sx={{ color: TOV.caption, fontSize: TOV.type.bodySm, mt: 1 }}><b style={{ color: TOV.ink }}>Tarefa:</b> {aula.planejamento.tarefa}</Typography>}
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 2 }}><Button variant="outlined" size="small" startIcon={<NoteAddOutlinedIcon />} onClick={() => abrirPlanejamento(aula)}>{planejada ? 'Editar planejamento' : 'Planejar aula'}</Button>{(hoje || aula.chamada) && <Button variant={hoje ? 'contained' : 'text'} size="small" startIcon={<HowToRegOutlinedIcon />} onClick={() => navigate(`/turmas/${vinculo.cod_tur}/presencas?vinculo=${docturmaId}`)}>{aula.chamada ? 'Ver chamada' : 'Fazer chamada'}</Button>}</Box>

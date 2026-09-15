@@ -350,8 +350,8 @@ Content-Type: application/json
   "data": "2026-03-10",
   "pagador_nome": "Ana Souza",
   "pagador_documento": "12345678900",
-  "referencia": "TOV000123",
-  "descricao": "Mensalidade TOV000123"
+  "referencia": "TOV000123-K7",
+  "descricao": "Mensalidade TOV000123-K7"
 }
 ```
 
@@ -366,9 +366,14 @@ integração fica desligada e a conciliação segue por lançamento manual.
 
 Na ordem, parando no primeiro que resolver:
 
-1. **Código da cobrança.** `referencia` no payload, ou um `TOV000123` escrito
-   em qualquer lugar da descrição. É o caminho preferido: peça ao aluno que
-   informe o código na mensagem do PIX.
+1. **Código da cobrança.** `referencia` no payload, ou um `TOV000123-K7`
+   escrito em qualquer lugar da descrição. É o caminho preferido: peça ao
+   aluno que informe o código na mensagem do PIX. O sufixo de duas letras é
+   aleatório por cobrança — sem ele, ou com o número de outra pessoa, o código
+   não casa. E o código sozinho não basta: o **valor precisa ser exatamente o
+   saldo** do título; caso contrário a transação vai para a fila manual com o
+   motivo ("valor difere do saldo"). Cobranças anteriores a esta regra mantêm
+   o código sem sufixo e continuam sendo encontradas por ele.
 2. **CPF do pagador** igual ao CPF do aluno, com **valor exato** de uma
    cobrança em aberto dele.
 3. **Nome do pagador** idêntico ao do aluno (sem acento e sem caixa), com

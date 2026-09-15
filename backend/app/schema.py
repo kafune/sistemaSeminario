@@ -186,7 +186,63 @@ def _reparar_integridade_academica(engine: Engine) -> None:
             )
 
 
-def atualizar_schema(engine: Engine) -> None:
+def _reparar_integridade_academica_com_relatorio(engine: Engine) -> dict[str, int]:
+    """Versão com contagem, para o comando de manutenção."""
+    antes = _contagens(engine)
+    _reparar_integridade_academica(engine)
+    depois = _contagens(engine)
+    return {tabela: depois[tabela] - antes[tabela] for tabela in antes}
+
+
+def _contagens(engine: Engine) -> dict[str, int]:
+    tabelas = ("aluturma", "matprof", "alunos")
+    existentes = set(inspect(engine).get_table_names())
+    with engine.connect() as conexao:
+        return {
+            tabela: int(conexao.execute(text(f"SELECT COUNT(*) FROM `{tabela}`")).scalar() or 0)
+            for tabela in tabelas
+            if tabela in existentes
+        }
+
+
+class _LockDeSchema:
+    """Lock consultivo do MySQL: duas réplicas subindo juntas não disputam o DDL.
+
+    Sem ele, o ``CREATE INDEX`` da segunda instância falhava com erro fatal e
+    derrubava o boot. Em SQLite (testes) não faz nada.
+    """
+
+    NOME = "tov_schema"
+
+    def __init__(self, engine: Engine):
+        self.engine = engine
+        self.conexao = None
+
+    def __enter__(self):
+        if self.engine.dialect.name in {"mysql", "mariadb"}:
+            self.conexao = self.engine.connect()
+            obtido = self.conexao.execute(
+                text("SELECT GET_LOCK(:nome, 120)"), {"nome": self.NOME}
+            ).scalar()
+            if obtido != 1:
+                raise RuntimeError("Não foi possível obter o lock de atualização do schema")
+        return self
+
+    def __exit__(self, *exc):
+        if self.conexao is not None:
+            try:
+                self.conexao.execute(text("SELECT RELEASE_LOCK(:nome)"), {"nome": self.NOME})
+            finally:
+                self.conexao.close()
+        return False
+
+
+def atualizar_schema(engine: Engine, *, reparar: bool | None = None) -> None:
+    with _LockDeSchema(engine):
+        _atualizar_schema(engine, reparar=reparar)
+
+
+def _atualizar_schema(engine: Engine, *, reparar: bool | None) -> None:
     inspector = inspect(engine)
     tabelas = inspector.get_table_names()
     # Tabelas novas são criadas por metadata.create_all; os ajustes abaixo
@@ -391,6 +447,26 @@ def atualizar_schema(engine: Engine) -> None:
                 "ALTER TABLE chamadas ADD COLUMN aula_id INT NULL"
             )
 
+    if "presencas" in tabelas:
+        colunas_presenca = {
+            coluna["name"] for coluna in inspector.get_columns("presencas")
+        }
+        if "origem_ip" not in colunas_presenca:
+            comandos.append("ALTER TABLE presencas ADD COLUMN origem_ip VARCHAR(45) NULL")
+        if "origem_agente" not in colunas_presenca:
+            comandos.append(
+                "ALTER TABLE presencas ADD COLUMN origem_agente VARCHAR(255) NULL"
+            )
+
+    if "calendario_publico" in tabelas:
+        colunas_link = {
+            coluna["name"] for coluna in inspector.get_columns("calendario_publico")
+        }
+        if "cod_tur" not in colunas_link:
+            comandos.append(
+                "ALTER TABLE calendario_publico ADD COLUMN cod_tur INT NULL"
+            )
+
     # Índices usados pelos filtros, ordenações e relacionamentos mais frequentes.
     # ``create_all`` os cria em bancos novos; esta lista mantém bancos existentes
     # alinhados sem depender de uma recriação destrutiva das tabelas.
@@ -526,7 +602,12 @@ def atualizar_schema(engine: Engine) -> None:
                     text("ALTER TABLE chamadas DROP INDEX uq_chamadas_turma_data")
                 )
 
-    _reparar_integridade_academica(engine)
+    if reparar is None:
+        from .config import settings
+
+        reparar = settings.reparo_integridade_no_boot
+    if reparar:
+        _reparar_integridade_academica(engine)
 
     # As restrições abaixo também são declaradas nos modelos para bancos novos.
     # Bancos existentes recebem os índices após a reconciliação dos dados.

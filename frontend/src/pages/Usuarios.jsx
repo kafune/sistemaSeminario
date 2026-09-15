@@ -8,7 +8,7 @@ import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
 import { TOV } from '../theme'
 import {
-  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoVazio,
+  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
   LinhasSkeleton, SkeletonCards, iniciais, resetBotao, useDialogoTelaCheia,
   useTelaDesktop,
 } from '../ui'
@@ -19,6 +19,8 @@ const SENHA_MINIMA = 6
 export default function Usuarios() {
   const [usuarios, setUsuarios] = useState([])
   const [carregando, setCarregando] = useState(true)
+  // Falha da própria lista: vira `EstadoErro` no corpo, não estado vazio.
+  const [erroCarga, setErroCarga] = useState('')
   const [form, setForm] = useState(null) // null = fechado; { user, senha, confirmar, novo }
   const [confirmarFecharForm, setConfirmarFecharForm] = useState(false)
   const [salvando, setSalvando] = useState(false)
@@ -38,9 +40,13 @@ export default function Usuarios() {
 
   function carregar() {
     setCarregando(true)
+    setErroCarga('')
     api.get('/usuarios')
       .then(setUsuarios)
-      .catch((e) => setMsg(e.message))
+      .catch((e) => {
+        setErroCarga(e.message)
+        setUsuarios([])
+      })
       .finally(() => setCarregando(false))
   }
 
@@ -112,7 +118,7 @@ export default function Usuarios() {
       <CabecalhoPagina
         variante="operacional"
         titulo="Usuários"
-        metadados={carregando ? ' ' : `${usuarios.length} ${usuarios.length === 1 ? 'usuário com acesso' : 'usuários com acesso'} ao sistema`}
+        metadados={carregando || erroCarga ? ' ' : `${usuarios.length} ${usuarios.length === 1 ? 'usuário com acesso' : 'usuários com acesso'} ao sistema`}
         acoes={acoes}
       />
 
@@ -121,7 +127,10 @@ export default function Usuarios() {
         {carregando && usuarios.length === 0 && (
           <SkeletonCards quantidade={4} altura={112} colunas="1fr" />
         )}
-        {!carregando && usuarios.length === 0 && (
+        {!carregando && erroCarga && (
+          <EstadoErro titulo="Não foi possível carregar os usuários" descricao={erroCarga} onTentarNovamente={carregar} />
+        )}
+        {!carregando && !erroCarga && usuarios.length === 0 && (
           <CartaoLista><EstadoVazio compacto titulo="Nenhum usuário cadastrado" descricao="Crie um acesso para começar." /></CartaoLista>
         )}
         {usuarios.map((u) => {
@@ -171,7 +180,10 @@ export default function Usuarios() {
             {carregando && usuarios.length === 0 && (
               <LinhasSkeleton colunas={2} />
             )}
-            {!carregando && usuarios.length === 0 && (
+            {!carregando && erroCarga && (
+              <TableRow><TableCell colSpan={2} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar os usuários" descricao={erroCarga} onTentarNovamente={carregar} /></TableCell></TableRow>
+            )}
+            {!carregando && !erroCarga && usuarios.length === 0 && (
               <TableRow><TableCell colSpan={2} sx={{ p: 0 }}><EstadoVazio titulo="Nenhum usuário cadastrado" descricao="Crie um acesso para começar." /></TableCell></TableRow>
             )}
             {usuarios.map((u) => {
@@ -205,7 +217,7 @@ export default function Usuarios() {
                         sx={{ ...resetBotao, '&:hover': { color: TOV.coral } }}>
                         Gerenciar acesso
                       </Box>
-                      <Box component="span" sx={{ color: TOV.border }}>·</Box>
+                      <Box component="span" aria-hidden="true" sx={{ color: TOV.caption }}>·</Box>
                       {euMesmo ? (
                         <Box component="span" title="Não é possível excluir o próprio usuário"
                           sx={{ color: TOV.border, cursor: 'not-allowed' }}>

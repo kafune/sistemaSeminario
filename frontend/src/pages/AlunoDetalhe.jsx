@@ -27,10 +27,19 @@ function Campo({ rotulo, valor }) {
 }
 
 function CardResumo({ rotulo, valor, escuro, offwhite, corValor }) {
+  // Sem valor, o travessão vai em corpo de texto e cor de legenda: em 44px
+  // ele vira uma barra preta que lê como tarja, não como "sem informação".
+  const vazio = valor == null || valor === '' || valor === '—'
   return (
-    <Superficie variante={escuro ? 'inverse' : 'base'} sx={{ bgcolor: offwhite ? TOV.canvas : undefined, p: '24px' }}>
+    // `bgcolor: undefined` no sx apagaria o grafite da variante `inverse`
+    // (o espalhamento de objeto não ignora chaves indefinidas).
+    <Superficie variante={escuro ? 'inverse' : 'base'} sx={{ ...(offwhite ? { bgcolor: TOV.canvas } : null), p: '24px' }}>
       <Box sx={{ fontSize: TOV.type.overline, textTransform: 'uppercase', letterSpacing: '.2em', color: escuro ? TOV.onDarkMuted : TOV.caption, fontFamily: TOV.fontHead, fontWeight: 600 }}>{rotulo}</Box>
-      <Box sx={{ fontFamily: escuro ? TOV.fontHead : TOV.fontBody, fontWeight: 700, fontSize: escuro ? 44 : 17, mt: 1, color: corValor }}>{valor}</Box>
+      {vazio ? (
+        <Box sx={{ fontSize: TOV.type.body, mt: 1, color: escuro ? TOV.onDarkMuted : TOV.caption }}>Sem registro</Box>
+      ) : (
+        <Box sx={{ fontFamily: escuro ? TOV.fontHead : TOV.fontBody, fontWeight: 700, fontSize: escuro ? 44 : 17, mt: 1, color: corValor, overflowWrap: 'anywhere' }}>{valor}</Box>
+      )}
     </Superficie>
   )
 }
@@ -194,7 +203,7 @@ export default function AlunoDetalhe() {
       {aba === 1 && <FinanceiroAlunoPainel codAlu={codAlu} />}
 
       {aba === 0 && (<>
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 300px' }, gap: 2.5, mb: 2.5 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) 300px' }, gap: 2.5, mb: 2.5 }}>
       <Box sx={{ ...cardSx, p: { xs: '20px', md: '28px 32px' } }}>
           <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm, mb: 3 }}>Dados cadastrais</Typography>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(3,1fr)' }, gap: { xs: '16px', md: '24px' } }}>
@@ -303,7 +312,7 @@ export default function AlunoDetalhe() {
       <DialogoConfirmacao
         aberto={confirmarExclusao}
         titulo="Excluir aluno"
-        descricao={`Excluir o aluno ${aluno.nome}? Todas as notas e matrículas dele serão perdidas. Esta ação não pode ser desfeita.`}
+        descricao={`Excluir o cadastro de ${aluno.nome}? A matrícula em turma será removida. Alunos com notas lançadas não podem ser excluídos: nesse caso, altere o status para inativo. Esta ação não pode ser desfeita.`}
         processando={excluindo}
         onConfirmar={excluir}
         onFechar={() => setConfirmarExclusao(false)}

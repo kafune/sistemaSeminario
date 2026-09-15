@@ -1,4 +1,23 @@
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const MENSAGEM_SEM_CONEXAO = 'Não foi possível falar com o servidor. Verifique a conexão e tente novamente.'
+
+/**
+ * `fetch` só rejeita quando a rede falha, e rejeita com o TypeError técnico
+ * do navegador ("Failed to fetch"). Esse texto não é para o usuário final.
+ */
+async function buscar(url, init) {
+  try {
+    return await fetch(url, init)
+  } catch (erro) {
+    if (erro?.name === 'AbortError') throw erro
+    throw new Error(MENSAGEM_SEM_CONEXAO)
+  }
+}
+
+/** Revoga o blob depois de o navegador ter iniciado o download. */
+function liberarUrlDepois(url) {
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+}
 const GET_CACHE = new Map()
 const GET_EM_ANDAMENTO = new Map()
 let GERACAO_CACHE = 0
@@ -54,7 +73,7 @@ async function request(method, path, body, options = {}) {
   const headers = { 'Content-Type': 'application/json' }
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
-  const res = await fetch(BASE + path, {
+  const res = await buscar(BASE + path, {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -110,7 +129,7 @@ export const api = {
 export async function enviarArquivoEBaixar(path, arquivo, nomeDownload) {
   const fd = new FormData()
   fd.append('arquivo', arquivo)
-  const res = await fetch(BASE + path, {
+  const res = await buscar(BASE + path, {
     method: 'POST',
     headers: { Authorization: `Bearer ${getToken()}` },
     body: fd,
@@ -127,7 +146,7 @@ export async function enviarArquivoEBaixar(path, arquivo, nomeDownload) {
   a.href = url
   a.download = nomeDownload
   a.click()
-  URL.revokeObjectURL(url)
+  liberarUrlDepois(url)
 }
 
 /** Abre um PDF/ZIP autenticado em nova aba (baixa como blob para levar o token). */
@@ -140,7 +159,7 @@ export async function abrirArquivo(path) {
     novaAba.document.title = 'Preparando documento…'
   }
   try {
-    const res = await fetch(BASE + path, {
+    const res = await buscar(BASE + path, {
       headers: { Authorization: `Bearer ${getToken()}` },
     })
     verificarSessao(res)
@@ -159,7 +178,7 @@ export async function abrirArquivo(path) {
       a.rel = 'noopener noreferrer'
       a.click()
     }
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    liberarUrlDepois(url)
   } catch (erro) {
     novaAba?.close()
     throw erro
@@ -168,7 +187,7 @@ export async function abrirArquivo(path) {
 
 /** Baixa um arquivo autenticado preservando o nome sugerido pela API. */
 export async function baixarArquivo(path, nomePadrao = 'arquivo') {
-  const res = await fetch(BASE + path, {
+  const res = await buscar(BASE + path, {
     headers: { Authorization: `Bearer ${getToken()}` },
   })
   verificarSessao(res)
@@ -185,12 +204,12 @@ export async function baixarArquivo(path, nomePadrao = 'arquivo') {
   a.href = url
   a.download = nome
   a.click()
-  URL.revokeObjectURL(url)
+  liberarUrlDepois(url)
 }
 
 /** GET público: não exige sessão e nunca redireciona para o login. */
 export async function getPublico(path) {
-  const res = await fetch(BASE + path)
+  const res = await buscar(BASE + path)
   if (!res.ok) {
     let msg = `Erro ${res.status}`
     try { msg = (await res.json()).detail || msg } catch { /* ignora */ }
@@ -201,7 +220,7 @@ export async function getPublico(path) {
 
 /** POST público: usado por formulários acessados por convite. */
 export async function postPublico(path, body) {
-  const res = await fetch(BASE + path, {
+  const res = await buscar(BASE + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -225,7 +244,7 @@ export async function enviarArquivoJson(path, arquivo, campos = {}) {
   Object.entries(campos).forEach(([campo, valor]) => {
     if (valor !== undefined && valor !== null && valor !== '') fd.append(campo, String(valor))
   })
-  const res = await fetch(BASE + path, {
+  const res = await buscar(BASE + path, {
     method: 'POST',
     headers: { Authorization: `Bearer ${getToken()}` },
     body: fd,

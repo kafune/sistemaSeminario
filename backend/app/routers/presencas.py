@@ -2,12 +2,14 @@ import secrets
 from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..tempo import agora_utc, hoje_local
 from ..config import settings
 from ..database import get_db
 from ..models import (
@@ -43,11 +45,11 @@ class RegistrarPresencaInput(BaseModel):
 
 
 def _agora_utc() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return agora_utc()
 
 
 def _hoje_local():
-    return datetime.now(ZoneInfo(settings.timezone)).date()
+    return hoje_local()
 
 
 def _cod_professor_usuario(db: Session, user) -> int | None:
@@ -369,7 +371,19 @@ def abrir_chamada(
         db.flush()
 
     _sincronizar_alunos(db, chamada)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        # Duas aberturas simultâneas da mesma aula (secretaria e professor, ou
+        # um duplo toque): a segunda reaproveita a chamada que a primeira criou.
+        db.rollback()
+        chamada = db.scalar(select(Chamada).where(Chamada.aula_id == aula.id)) if aula else None
+        if chamada is None:
+            raise HTTPException(409, "A chamada está sendo aberta por outra pessoa; tente de novo.")
+        chamada.status = "ABERTA"
+        chamada.encerrada_em = None
+        _sincronizar_alunos(db, chamada)
+        db.commit()
     db.refresh(chamada)
     return _detalhe_chamada(db, chamada)
 
@@ -692,10 +706,22 @@ def obter_chamada_publica(token: str, db: Session = Depends(get_db)):
     return detalhe
 
 
+def _origem_da_requisicao(request: Request | None) -> tuple[str | None, str | None]:
+    if request is None:
+        return None, None
+    encaminhado = request.headers.get("x-forwarded-for", "")
+    ip = encaminhado.split(",")[0].strip() if encaminhado else (
+        request.client.host if request.client else None
+    )
+    agente = request.headers.get("user-agent")
+    return (ip or None)[:45] if ip else None, (agente or None)[:255] if agente else None
+
+
 @public_router.post("/{token}")
 def marcar_presenca(
     token: str,
     dados: MarcarPresencaInput,
+    request: Request = None,
     db: Session = Depends(get_db),
 ):
     chamada = _chamada_publica(db, token)
@@ -709,6 +735,7 @@ def marcar_presenca(
         raise HTTPException(404, "Aluno não está nesta chamada")
     if registro.registrado_em is None:
         registro.registrado_em = _agora_utc()
+        registro.origem_ip, registro.origem_agente = _origem_da_requisicao(request)
         db.commit()
     return {
         "ok": True,

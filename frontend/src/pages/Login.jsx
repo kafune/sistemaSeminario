@@ -106,7 +106,7 @@ export default function Login() {
 
           <Typography component="label" htmlFor="campo-senha" sx={{ display: 'block', fontSize: TOV.type.bodySm, fontWeight: 600, color: TOV.graphite, mt: 2.5, mb: 1 }}>Senha</Typography>
           <TextField
-            fullWidth type={mostrarSenha ? 'text' : 'password'} value={senha} placeholder="••••••••"
+            fullWidth type={mostrarSenha ? 'text' : 'password'} value={senha}
             id="campo-senha"
             inputProps={{ autoComplete: 'current-password' }}
             InputProps={{

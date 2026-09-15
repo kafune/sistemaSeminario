@@ -81,7 +81,7 @@ export function GrupoSegmentado({ rotulo, opcoes, valor, onChange, sx }) {
       role="group"
       aria-label={rotulo}
       sx={{
-        display: 'inline-flex', height: TOV.controlHSm, flexShrink: 0, maxWidth: '100%',
+        display: 'inline-flex', height: TOV.controlHSm + 2, flexShrink: 0, maxWidth: '100%',
         border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusSm,
         bgcolor: TOV.surface, overflowX: 'auto', overscrollBehaviorInline: 'contain',
         scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' },
@@ -485,7 +485,9 @@ export function CardMetrica({ rotulo, valor, nota, destaque = false, icone, onCl
         ...sx,
       }}
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
+      {/* Altura reservada para duas linhas de rótulo: numa grade de quatro
+          cartões, os números precisam de uma base comum mesmo quando um rótulo quebra. */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, minHeight: 32 }}>
         <Eyebrow sx={{ color: destaque ? TOV.onDarkMuted : TOV.caption }}>{rotulo}</Eyebrow>
         {icone && <Box sx={{ color: destaque ? TOV.onDarkBody : TOV.graphite, lineHeight: 0 }}>{icone}</Box>}
       </Box>
@@ -494,11 +496,14 @@ export function CardMetrica({ rotulo, valor, nota, destaque = false, icone, onCl
         sx={{
           fontFamily: TOV.fontHead,
           fontWeight: 700,
-          fontSize: { xs: TOV.type.displaySm, md: TOV.type.display },
+          // Em `lg` a grade passa de 2 para 4 colunas e o cartão encolhe pela
+          // metade; o valor volta um passo para não cortar centavos.
+          fontSize: { xs: TOV.type.displaySm, md: TOV.type.display, lg: TOV.type.displaySm, xl: TOV.type.display },
           letterSpacing: '-.04em',
           mt: 1.5,
           lineHeight: 1,
           fontVariantNumeric: 'tabular-nums',
+          overflowWrap: 'anywhere',
         }}
       >
         {valor}

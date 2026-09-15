@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
-  Snackbar, TextField, Typography,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, Grid, Snackbar,
+  TextField, Typography
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { api } from '../api'
 import { TOV, focusRing } from '../theme'
 import {
   CabecalhoPagina, DialogoConfirmacao, EstadoErro, SkeletonCards, StatusBadge,
-  resetBotao, useDialogoTelaCheia,
+  TituloDialogo, resetBotao, useDialogoTelaCheia
 } from '../ui'
 import { useClearUnsavedChanges, useDirtyForm } from '../UnsavedChanges'
 
@@ -34,8 +34,7 @@ function CardTurma({ turma, onClick }) {
         '&:focus-visible': focusRing,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Box component="span" sx={{ px: 1.5, py: 0.5, bgcolor: TOV.graphiteTint, color: TOV.graphite, borderRadius: TOV.radiusFull, fontSize: TOV.type.caption, fontWeight: 700 }}>#{turma.cod_tur}</Box>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minHeight: 24, mb: 2 }}>
         {/* O canto direito é o slot de estado: chamada aberta é o que pede
             ação hoje, e quem chega do painel reconhece a turma sem abrir uma
             por uma. O horário desce para a linha do curso. */}
@@ -128,7 +127,7 @@ export default function Turmas() {
             onClick={abrirForm}
             sx={{
               ...resetBotao,
-              bgcolor: 'transparent', border: `1px dashed ${TOV.borderHover}`, borderRadius: TOV.radiusMd, p: '24px 28px',
+              bgcolor: 'transparent', border: `1px solid ${TOV.borderHover}`, borderRadius: TOV.radiusMd, p: '24px 28px',
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
               color: TOV.caption, minHeight: 200,
               '&:hover': { borderColor: TOV.coral },
@@ -142,7 +141,7 @@ export default function Turmas() {
       </Box>
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Nova turma</DialogTitle>
+        <TituloDialogo onFechar={salvando ? undefined : fecharForm}>Nova turma</TituloDialogo>
         <DialogContent>
           {form && (
             <Grid container spacing={1.5} sx={{ mt: 0 }}>

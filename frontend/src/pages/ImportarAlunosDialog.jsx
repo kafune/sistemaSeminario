@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, Divider, InputAdornment, LinearProgress,
-  TextField, Typography,
+  DialogContent, Divider, InputAdornment, LinearProgress, TextField, Typography
 } from '@mui/material'
 import CloudSyncIcon from '@mui/icons-material/CloudSync'
 import SearchIcon from '@mui/icons-material/Search'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, enviarArquivoJson } from '../api'
 import { TOV } from '../theme'
-import { EstadoErro, cardSx, useDialogoTelaCheia } from '../ui'
+import {
+  EstadoErro, TituloDialogo, cardSx, useDialogoTelaCheia
+} from '../ui'
 
 function Resumo({ resultado }) {
   if (!resultado || !['CONCLUIDA', 'ARQUIVO'].includes(resultado.status)) return null
@@ -231,7 +232,7 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
 
   return (
     <Dialog open={aberto} onClose={processando ? undefined : aoFechar} maxWidth="md" fullWidth fullScreen={telaCheia}>
-      <DialogTitle>Importar alunos</DialogTitle>
+      <TituloDialogo onFechar={processando ? undefined : aoFechar}>Importar alunos</TituloDialogo>
       <DialogContent>
         {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
 

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
-  Snackbar, Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, TextField, MenuItem, Chip, Typography,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, Grid, Snackbar,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
+  MenuItem, Chip, Typography
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { api, getUser } from '../api'
@@ -10,8 +10,8 @@ import { TOV } from '../theme'
 import { formatarDataHora } from '../formatters'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
-  LinhasSkeleton, SkeletonCards, acaoTabelaSx, iniciais, useDialogoTelaCheia,
-  useTelaDesktop,
+  LinhasSkeleton, SkeletonCards, TituloDialogo, acaoTabelaSx, iniciais,
+  useDialogoTelaCheia, useTelaDesktop
 } from '../ui'
 import { useDirtyForm } from '../UnsavedChanges'
 
@@ -296,7 +296,7 @@ export default function Usuarios() {
       </Box>
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="xs" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{form?.novo ? 'Novo usuário' : `Gerenciar acesso — ${form?.user}`}</DialogTitle>
+        <TituloDialogo onFechar={salvando ? undefined : fecharForm}>{form?.novo ? 'Novo usuário' : `Gerenciar acesso — ${form?.user}`}</TituloDialogo>
         <DialogContent>
           {form && (
             <Grid container spacing={1.5} sx={{ mt: 0 }}>

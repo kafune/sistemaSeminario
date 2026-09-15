@@ -320,23 +320,18 @@ export function CabecalhoPagina({
         {eyebrow && <Eyebrow sx={{ mb: 1 }}>{eyebrow}</Eyebrow>}
         <Regua sx={{ mb: 1.5 }} />
         <Typography component="h1" variant="h1" sx={{ overflowWrap: 'anywhere' }}>{titulo}</Typography>
-        {(texto != null || metadados != null) && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
-            {texto != null && (
-              <Typography sx={{ fontSize: { xs: TOV.type.body, md: TOV.type.bodyLg }, color: TOV.caption, maxWidth: '72ch' }}>
-                {texto}
-              </Typography>
-            )}
-            {metadados != null && (
-              // Ponto e metadado no mesmo item de flex: quando a linha quebra,
-              // os dois descem juntos e o separador não fica órfão no fim.
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                {texto != null && <Box aria-hidden="true" sx={{ width: 4, height: 4, flex: '0 0 4px', borderRadius: TOV.radiusFull, bgcolor: TOV.border }} />}
-                {/* Sem `minWidth: 0` o item de flex não encolhe abaixo do
-                    conteúdo e o metadado longo empurra a largura da página. */}
-                <Box sx={{ minWidth: 0, fontSize: TOV.type.bodySm, color: TOV.caption }}>{metadados}</Box>
-              </Box>
-            )}
+        {/* Descrição e metadados em linhas próprias. Separá-los por um ponto
+            resolvia o órfão no fim da linha e criava um no começo: com
+            `maxWidth: 760` a descrição quase sempre toma a linha inteira e o
+            metadado descia liderado pelo separador (AUDITORIA_VISUAL.md H6). */}
+        {texto != null && (
+          <Typography sx={{ mt: 1.5, fontSize: { xs: TOV.type.body, md: TOV.type.bodyLg }, color: TOV.caption, maxWidth: '72ch' }}>
+            {texto}
+          </Typography>
+        )}
+        {metadados != null && (
+          <Box sx={{ mt: texto != null ? 1 : 1.5, minWidth: 0, fontSize: TOV.type.bodySm, color: TOV.caption }}>
+            {metadados}
           </Box>
         )}
       </Box>
@@ -745,16 +740,17 @@ export function CartaoLista({ children, onClick, sx }) {
  * mas num diálogo de tela cheia com formulário longo ele fica depois de toda
  * a rolagem — e o gesto que todo mundo procura primeiro é o ✕.
  */
-export function TituloDialogo({ children, onFechar, id }) {
+export function TituloDialogo({ children, onFechar, id, sx }) {
   return (
     <DialogTitle
       id={id}
       sx={{
         display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
         gap: 1.5, pr: onFechar ? 1.5 : undefined,
+        ...sx,
       }}
     >
-      <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>{children}</Box>
+      <Box component="span" sx={{ minWidth: 0, overflowWrap: 'anywhere', flex: 1 }}>{children}</Box>
       {onFechar && (
         <IconButton
           onClick={onFechar}

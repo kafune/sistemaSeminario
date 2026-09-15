@@ -135,7 +135,10 @@ export default function Dashboard() {
       </Box>}
 
       {/* Matrículas por curso + Atividade recente */}
-      {!erro && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.55fr 1fr' }, gap: 2.5 }}>
+      {/* `alignItems: start`: com 3 cursos, "Matrículas por curso" fechava as
+          barras e seguia vazio por ~200px só para alcançar a altura de
+          "Atividade recente" (AUDITORIA_VISUAL.md H1). */}
+      {!erro && <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1.55fr 1fr' }, gap: 2.5, alignItems: 'start' }}>
         <Superficie sx={{ p: { xs: 2.5, md: 3.5 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
             <Typography variant="h3" sx={{ fontSize: TOV.type.titleSm }}>Matrículas por curso</Typography>

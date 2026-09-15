@@ -2,9 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, FormControlLabel, InputAdornment, Snackbar, Switch, Table,
-  TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
-  Typography,
+  FormControlLabel, InputAdornment, Snackbar, Switch, Table, TableBody,
+  TableCell, TableContainer, TableHead, TableRow, TextField, Typography
 } from '@mui/material'
 import AutorenewIcon from '@mui/icons-material/Autorenew'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
@@ -15,8 +14,9 @@ import { api } from '../api'
 import { TOV } from '../theme'
 import {
   CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
-  GrupoSegmentado, LinhasSkeleton, Metadado, SkeletonCards, StatusBadge,
-  LinkVoltar, Superficie, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
+  GrupoSegmentado, LinhasSkeleton, LinkVoltar, Metadado, SkeletonCards,
+  StatusBadge, Superficie, TituloDialogo, cardSx, resetBotao,
+  useDialogoTelaCheia, useTelaDesktop
 } from '../ui'
 import { formatarDataBr, formatarDataDoCarimbo, formatarMoeda } from '../formatters'
 import { SeloSituacao, numeroDoCampo, textoDoValor, textoPercentual } from './FinanceiroComum'
@@ -305,8 +305,11 @@ export default function FinanceiroTurma() {
               nota={dados.plano.atualizado_por ? `por ${dados.plano.atualizado_por}` : undefined}
             />
           )}
+          {/* Duas ações coral contidas competiam a 460px de distância. A
+              primária é a que o estado da tela pede: sem plano salvo, salvar;
+              com plano, gerar (AUDITORIA_VISUAL.md E14). */}
           <Button
-            variant="contained"
+            variant={semPlano ? 'contained' : 'outlined'}
             startIcon={salvando ? <CircularProgress size={16} color="inherit" /> : <SaveOutlinedIcon />}
             disabled={salvando}
             onClick={salvarPlano}
@@ -465,7 +468,7 @@ export default function FinanceiroTurma() {
         onClose={salvandoCondicao ? undefined : () => setAlunoCondicao(null)}
         maxWidth="sm" fullWidth fullScreen={telaCheia}
       >
-        <DialogTitle>Condição de pagamento — {alunoCondicao?.nome}</DialogTitle>
+        <TituloDialogo onFechar={salvandoCondicao ? undefined : () => setAlunoCondicao(null)}>Condição de pagamento — {alunoCondicao?.nome}</TituloDialogo>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
           <GrupoSegmentado
             rotulo="Condição do aluno"

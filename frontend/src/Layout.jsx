@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useBlocker, useLocation, useNavigate } from 'react-router-dom'
 import {
   Alert, AppBar, BottomNavigation, BottomNavigationAction, Box, Button, Dialog,
-  DialogActions, DialogContent, DialogTitle, Drawer, ListItemIcon, ListItemText,
-  Menu, MenuItem, Paper, TextField, Toolbar, Typography,
+  DialogActions, DialogContent, Drawer, ListItemIcon, ListItemText, Menu,
+  MenuItem, Paper, TextField, Toolbar, Typography
 } from '@mui/material'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
 import SpaceDashboardIcon from '@mui/icons-material/SpaceDashboard'
@@ -25,7 +25,9 @@ import HistoryEduIcon from '@mui/icons-material/HistoryEdu'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import { api, clearSession, getPerfil, getToken, getUser, setSession } from './api'
 import { TOV, focusRingOnDark } from './theme'
-import { DialogoConfirmacao, iniciais, resetBotao, useDialogoTelaCheia } from './ui'
+import {
+  DialogoConfirmacao, TituloDialogo, iniciais, resetBotao, useDialogoTelaCheia
+} from './ui'
 import NotificationCenter, { BotaoInstalarPwa, BotaoNotificacoes, useNotificacoes } from './NotificationCenter'
 import { UnsavedChangesContext } from './UnsavedChanges'
 
@@ -266,7 +268,7 @@ function DialogoTrocarSenha({ aberto, onFechar }) {
 
   return (
     <Dialog open={aberto} onClose={salvando ? undefined : onFechar} maxWidth="xs" fullWidth fullScreen={telaCheia}>
-      <DialogTitle>Alterar minha senha</DialogTitle>
+      <TituloDialogo onFechar={salvando ? undefined : onFechar}>Alterar minha senha</TituloDialogo>
       <DialogContent sx={{ display: 'grid', gap: 2, pt: '8px !important' }}>
         {sucesso ? (
           <Alert severity="success">Senha alterada. Use a nova senha no próximo acesso.</Alert>

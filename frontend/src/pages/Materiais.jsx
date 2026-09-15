@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, MenuItem, Snackbar, TextField, Typography,
+  MenuItem, Snackbar, TextField, Typography
 } from '@mui/material'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import CloudDownloadOutlinedIcon from '@mui/icons-material/CloudDownloadOutlined'
@@ -14,8 +14,8 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, baixarArquivo, enviarArquivoJson } from '../api'
 import { TOV } from '../theme'
 import {
-  BarraFiltros, CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio, StatusBadge,
-  cardSx, useDialogoTelaCheia,
+  BarraFiltros, CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio,
+  StatusBadge, TituloDialogo, cardSx, useDialogoTelaCheia
 } from '../ui'
 import { formatarDataHora as formatarDataHoraApi } from '../formatters'
 
@@ -289,7 +289,7 @@ export default function Materiais() {
       )}
 
       <Dialog open={dialogoAberto} onClose={fecharDialogo} maxWidth="sm" fullWidth fullScreen={dialogoTelaCheia}>
-        <DialogTitle>Anexar material</DialogTitle>
+        <TituloDialogo onFechar={fecharDialogo}>Anexar material</TituloDialogo>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
           <Alert severity="info" icon={<MenuBookOutlinedIcon />}>
             {vinculoSelecionado ? rotuloVinculo(vinculoSelecionado) : 'Selecione uma matéria'}

@@ -1,14 +1,16 @@
 import { useRef, useState } from 'react'
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, Divider, LinearProgress, Typography,
+  DialogContent, Divider, LinearProgress, Typography
 } from '@mui/material'
 import CloudSyncIcon from '@mui/icons-material/CloudSync'
 import UploadFileIcon from '@mui/icons-material/UploadFile'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import { api, baixarArquivo, enviarArquivoJson } from '../api'
 import { TOV } from '../theme'
-import { cardSx, useDialogoTelaCheia } from '../ui'
+import {
+  TituloDialogo, cardSx, useDialogoTelaCheia
+} from '../ui'
 
 const ACAO = {
   CRIAR: { rotulo: 'Novo', cor: 'success' },
@@ -109,7 +111,7 @@ export default function ImportarLeadsDialog({ aberto, aoFechar, aoImportar }) {
 
   return (
     <Dialog open={aberto} onClose={fechar} maxWidth="md" fullWidth fullScreen={telaCheia}>
-      <DialogTitle>Importar leads</DialogTitle>
+      <TituloDialogo onFechar={fechar}>Importar leads</TituloDialogo>
       <DialogContent>
         {erro && <Alert severity="error" sx={{ mb: 2 }}>{erro}</Alert>}
 

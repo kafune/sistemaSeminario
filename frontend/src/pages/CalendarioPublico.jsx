@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import {
-  Alert, Box, Button, CircularProgress, Dialog, DialogContent, DialogTitle,
-  MenuItem, TextField, Typography,
+  Alert, Box, Button, CircularProgress, Dialog, DialogContent, MenuItem,
+  TextField, Typography
 } from '@mui/material'
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
 import FilterListIcon from '@mui/icons-material/FilterList'
 import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import { getPublico } from '../api'
 import { TOV } from '../theme'
-import { cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
+import {
+  TituloDialogo, cardSx, useDialogoTelaCheia, useTelaDesktop
+} from '../ui'
 import CalendarioGrade, { CalendarioAgenda, intervaloGrade } from './CalendarioGrade'
 
 const MESES = [
@@ -191,7 +193,7 @@ export default function CalendarioPublico() {
       <Dialog open={!!selecionada} onClose={() => setSelecionada(null)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
         {selecionada && (
           <>
-            <DialogTitle>{selecionada.materia_nome}</DialogTitle>
+            <TituloDialogo onFechar={() => setSelecionada(null)}>{selecionada.materia_nome}</TituloDialogo>
             <DialogContent>
               <Box sx={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: 1, pb: 1 }}>
                 <Typography color="text.secondary">Data</Typography>

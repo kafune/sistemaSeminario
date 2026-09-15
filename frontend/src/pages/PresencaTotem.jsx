@@ -451,7 +451,7 @@ export default function PresencaTotem() {
         </Box>
 
         {alunosFiltrados.length === 0 && (
-          <Box sx={{ border: `1px dashed ${TOV.border}`, borderRadius: TOV.radiusXl, bgcolor: TOV.glassSurfaceFaint, py: { xs: 5, sm: 7 }, px: 3, textAlign: 'center' }}>
+          <Box sx={{ border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusXl, bgcolor: TOV.glassSurfaceFaint, py: { xs: 5, sm: 7 }, px: 3, textAlign: 'center' }}>
             <Box sx={{ width: 60, height: 60, mx: 'auto', mb: 2, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusLg, bgcolor: TOV.graphiteTint, color: TOV.caption }}><SearchRoundedIcon sx={{ fontSize: TOV.type.titleLg }} /></Box>
             <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm }}>{busca ? 'Nenhum nome encontrado' : 'A lista ainda está vazia'}</Typography>
             <Typography sx={{ color: TOV.caption, mt: 1 }}>{busca ? 'Confira a digitação ou tente apenas o primeiro nome.' : 'Peça à secretaria para conferir os alunos desta turma.'}</Typography>

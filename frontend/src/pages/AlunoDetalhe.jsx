@@ -9,6 +9,7 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import DescriptionIcon from '@mui/icons-material/Description'
 import AddIcon from '@mui/icons-material/Add'
 import EditIcon from '@mui/icons-material/Edit'
+import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
@@ -252,7 +253,7 @@ export default function AlunoDetalhe() {
           <Button
             variant="contained"
             disabled={!whatsapp}
-            startIcon={<WhatsAppIcon />}
+            startIcon={<ChatBubbleOutlineRoundedIcon />}
             onClick={() => navigate(`/whatsapp?aluno=${aluno.cod_alu}`)}
           >
             Enviar mensagem

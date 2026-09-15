@@ -179,6 +179,9 @@ export default function Leads() {
   const [opcoes, setOpcoes] = useState({ origens: [], campanhas: [], tags: [] })
   const [busca, setBusca] = useState('')
   const [filtros, setFiltros] = useState({ status: '', origem: '', campanha: '', status_funil: '', consentimento: '' })
+  // Em 320px os cinco recortes somavam ~900px de altura antes do primeiro
+  // lead; no celular eles ficam recolhidos (AUDITORIA_VISUAL.md H7).
+  const [recortesAbertos, setRecortesAbertos] = useState(false)
   const [pagina, setPagina] = useState(1)
   const [carregando, setCarregando] = useState(true)
   const [importacaoAberta, setImportacaoAberta] = useState(false)
@@ -191,6 +194,8 @@ export default function Leads() {
   const [erroCarga, setErroCarga] = useState('')
   const [ok, setOk] = useState('')
   const telaCheia = useDialogoTelaCheia()
+  const recortesAtivos = Object.values(filtros).filter(Boolean).length
+  const campoRecorte = { display: { xs: recortesAbertos ? 'inline-flex' : 'none', sm: 'inline-flex' } }
   const telaDesktop = useTelaDesktop()
   const porPagina = 50
   const formAlterado = useDirtyForm(!!form, form, 'Há dados do lead que ainda não foram salvos.')
@@ -307,24 +312,35 @@ export default function Leads() {
           onChange={(e) => { setBusca(e.target.value); setPagina(1) }}
           InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
         />
-        <TextField select size="small" label="Status" value={filtros.status} onChange={(e) => mudarFiltro('status', e.target.value)} {...SELECT_FILTRO}>
+        <Box
+          component="button"
+          type="button"
+          onClick={() => setRecortesAbertos((atual) => !atual)}
+          aria-expanded={recortesAbertos}
+          sx={{ ...acaoTabelaSx, display: { xs: 'inline-flex', sm: 'none' }, width: '100%' }}
+        >
+          {recortesAbertos
+            ? 'Ocultar recortes'
+            : `Mais recortes${recortesAtivos ? ` · ${recortesAtivos} ${recortesAtivos === 1 ? 'ativo' : 'ativos'}` : ''}`}
+        </Box>
+        <TextField sx={campoRecorte} select size="small" label="Status" value={filtros.status} onChange={(e) => mudarFiltro('status', e.target.value)} {...SELECT_FILTRO}>
           <MenuItem value="">Todos</MenuItem>
           <MenuItem value="ATIVO">Ativos</MenuItem>
           <MenuItem value="INATIVO">Inativos</MenuItem>
         </TextField>
-        <TextField select size="small" label="Origem" value={filtros.origem} onChange={(e) => mudarFiltro('origem', e.target.value)} {...SELECT_FILTRO}>
+        <TextField sx={campoRecorte} select size="small" label="Origem" value={filtros.origem} onChange={(e) => mudarFiltro('origem', e.target.value)} {...SELECT_FILTRO}>
           <MenuItem value="">Todas</MenuItem>
           {opcoes.origens?.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Campanha" value={filtros.campanha} onChange={(e) => mudarFiltro('campanha', e.target.value)} {...SELECT_FILTRO}>
+        <TextField sx={campoRecorte} select size="small" label="Campanha" value={filtros.campanha} onChange={(e) => mudarFiltro('campanha', e.target.value)} {...SELECT_FILTRO}>
           <MenuItem value="">Todas</MenuItem>
           {opcoes.campanhas?.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Funil" value={filtros.status_funil} onChange={(e) => mudarFiltro('status_funil', e.target.value)} {...SELECT_FILTRO}>
+        <TextField sx={campoRecorte} select size="small" label="Funil" value={filtros.status_funil} onChange={(e) => mudarFiltro('status_funil', e.target.value)} {...SELECT_FILTRO}>
           <MenuItem value="">Todos</MenuItem>
           {Object.entries(FUNIL).map(([valor, rotulo]) => <MenuItem key={valor} value={valor}>{rotulo}</MenuItem>)}
         </TextField>
-        <TextField select size="small" label="Consentimento" value={filtros.consentimento} onChange={(e) => mudarFiltro('consentimento', e.target.value)} {...SELECT_FILTRO}>
+        <TextField sx={campoRecorte} select size="small" label="Consentimento" value={filtros.consentimento} onChange={(e) => mudarFiltro('consentimento', e.target.value)} {...SELECT_FILTRO}>
           <MenuItem value="">Todos</MenuItem>
           {Object.entries(CONSENTIMENTO).map(([valor, [rotulo]]) => <MenuItem key={valor} value={valor}>{rotulo}</MenuItem>)}
         </TextField>

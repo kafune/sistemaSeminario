@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Alert, Autocomplete, Box, Button, Checkbox, Chip, CircularProgress, Dialog,
-  DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel,
-  IconButton, LinearProgress, MenuItem, Pagination, Snackbar, TextField, Typography,
+  DialogActions, DialogContent, Divider, FormControlLabel, IconButton,
+  LinearProgress, MenuItem, Pagination, Snackbar, TextField, Typography
 } from '@mui/material'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
 import QrCode2Icon from '@mui/icons-material/QrCode2'
@@ -16,8 +16,8 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, enviarArquivoJson, getPerfil } from '../api'
 import { TOV, focusRing } from '../theme'
 import {
-  CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio, Eyebrow, StatusBadge,
-  cardSx, useDialogoTelaCheia,
+  CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio, Eyebrow,
+  StatusBadge, TituloDialogo, cardSx, useDialogoTelaCheia
 } from '../ui'
 import { dataDaApi, formatarDataHora } from '../formatters'
 
@@ -135,7 +135,7 @@ function CardInstancia({
             </Typography>
           )}
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' } }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: { xs: '100%', sm: 'auto' }, '& > *': { flex: { xs: '1 1 100%', sm: '0 0 auto' } } }}>
           <Button
             variant="outlined" startIcon={<RefreshIcon />} disabled={carregando}
             onClick={onAtualizar}
@@ -309,6 +309,7 @@ function Compositor({
   ])
   const [agendadoPara, setAgendadoPara] = useState('')
   const [templates, setTemplates] = useState([])
+  const [erroTemplates, setErroTemplates] = useState('')
   const [templateId, setTemplateId] = useState('')
   const [templateAberto, setTemplateAberto] = useState(false)
   const [nomeTemplate, setNomeTemplate] = useState('')
@@ -410,7 +411,11 @@ function Compositor({
   }, [tipo])
 
   function carregarTemplates() {
-    api.getCached('/whatsapp/templates').then(setTemplates).catch(() => {})
+    // `.catch(() => {})` engolia a falha: o select ficava vazio sem dizer por
+    // quê — o sintoma visível do J3 (AUDITORIA_VISUAL.md).
+    api.getCached('/whatsapp/templates')
+      .then((lista) => { setTemplates(lista); setErroTemplates('') })
+      .catch((e) => setErroTemplates(e.message))
   }
   useEffect(() => { carregarTemplates() }, [])
 
@@ -870,6 +875,8 @@ function Compositor({
               select size="small" label="Usar template" value={templateId}
               onChange={(e) => aplicarTemplate(e.target.value)}
               sx={{ minWidth: { xs: '100%', sm: 260 } }}
+              error={!!erroTemplates}
+              helperText={erroTemplates || ' '}
             >
               <MenuItem value="">Nenhum template</MenuItem>
               {[...templates]
@@ -1089,7 +1096,7 @@ function Compositor({
         </>
       )}
       <Dialog open={templateAberto} onClose={() => setTemplateAberto(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Salvar template</DialogTitle>
+        <TituloDialogo onFechar={() => setTemplateAberto(false)}>Salvar template</TituloDialogo>
         <DialogContent>
           <TextField autoFocus fullWidth label="Nome do template" value={nomeTemplate} onChange={(e) => setNomeTemplate(e.target.value)} sx={{ mt: 1 }} />
           <TextField fullWidth label="Categoria" value={categoriaTemplate} onChange={(e) => setCategoriaTemplate(e.target.value)} sx={{ mt: 2 }} />
@@ -1107,7 +1114,7 @@ function Compositor({
         </DialogActions>
       </Dialog>
       <Dialog open={confirmarTeste} onClose={testando ? undefined : () => setConfirmarTeste(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Enviar teste para o número conectado?</DialogTitle>
+        <TituloDialogo onFechar={testando ? undefined : () => setConfirmarTeste(false)}>Enviar teste para o número conectado?</TituloDialogo>
         <DialogContent>
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body }}>
             A composição completa será enviada somente para o WhatsApp da secretaria, sem entrar no histórico de disparos.
@@ -1521,7 +1528,7 @@ export default function WhatsApp() {
       <Historico itens={historico} erro={erroHistorico} onTentarNovamente={carregarHistorico} onAbrir={abrirDetalhe} />
 
       <Dialog open={criacaoAberta} onClose={() => setCriacaoAberta(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Criar instância do WhatsApp</DialogTitle>
+        <TituloDialogo onFechar={() => setCriacaoAberta(false)}>Criar instância do WhatsApp</TituloDialogo>
         <DialogContent>
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2 }}>
             Será criada uma única instância na UazAPI para o Centro TOV.
@@ -1540,7 +1547,7 @@ export default function WhatsApp() {
       </Dialog>
 
       <Dialog open={qrAberto} onClose={() => setQrAberto(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Conectar WhatsApp</DialogTitle>
+        <TituloDialogo onFechar={() => setQrAberto(false)}>Conectar WhatsApp</TituloDialogo>
         <DialogContent sx={{ textAlign: 'center' }}>
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2 }}>
             No celular, abra WhatsApp → Aparelhos conectados → Conectar um aparelho.
@@ -1567,7 +1574,7 @@ export default function WhatsApp() {
       </Dialog>
 
       <Dialog open={!!previa} onClose={salvando ? undefined : () => setPrevia(null)} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Revisar disparo</DialogTitle>
+        <TituloDialogo onFechar={salvando ? undefined : () => setPrevia(null)}>Revisar disparo</TituloDialogo>
         <DialogContent>
           {previa && (
             <>
@@ -1622,9 +1629,9 @@ export default function WhatsApp() {
       </Dialog>
 
       <Dialog open={!!detalhe} onClose={() => setDetalhe(null)} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+        <TituloDialogo onFechar={() => setDetalhe(null)} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           Disparo #{detalhe?.id} {detalhe && <PilulaDisparo status={detalhe.status} />}
-        </DialogTitle>
+        </TituloDialogo>
         <DialogContent>
           {detalhe && (
             <>
@@ -1733,7 +1740,7 @@ export default function WhatsApp() {
       </Dialog>
 
       <Dialog open={reagendamentoAberto} onClose={() => setReagendamentoAberto(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Reagendar campanha</DialogTitle>
+        <TituloDialogo onFechar={() => setReagendamentoAberto(false)}>Reagendar campanha</TituloDialogo>
         <DialogContent>
           <TextField
             autoFocus fullWidth type="datetime-local" label="Nova data e hora"

@@ -49,7 +49,7 @@ export default function Login() {
       {/* Painel institucional (esconde no mobile) */}
       <Box
         sx={{
-          flex: '0 0 min(46vw, 640px)', maxWidth: 640, bgcolor: TOV.graphite, color: TOV.onDark,
+          flex: '0 0 46%', bgcolor: TOV.graphite, color: TOV.onDark,
           p: { md: '52px 48px', lg: '64px 60px' }, display: { xs: 'none', md: 'flex' }, flexDirection: 'column',
           justifyContent: 'space-between', position: 'relative', overflow: 'hidden',
           borderRight: `1px solid ${TOV.darkHairline}`,

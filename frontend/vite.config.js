@@ -2,9 +2,47 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Os WOFF2 só eram descobertos depois de baixar e interpretar o CSS, e o
+// `font-display: swap` pintava a primeira tela na fonte de sistema. Os nomes
+// saem com hash do build, então o preload é injetado a partir do bundle
+// (AUDITORIA_VISUAL.md J1).
+const FONTES_ACIMA_DA_DOBRA = [
+  'bricolage-grotesque-latin-700-normal',
+  'open-sans-latin-400-normal',
+  'open-sans-latin-600-normal',
+]
+
+function preloadDeFontes() {
+  return {
+    name: 'tov-preload-de-fontes',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(_html, ctx) {
+        const arquivos = Object.keys(ctx.bundle || {}).filter(
+          (nome) => nome.endsWith('.woff2')
+            && FONTES_ACIMA_DA_DOBRA.some((peso) => nome.includes(peso)),
+        )
+        return arquivos.map((arquivo) => ({
+          tag: 'link',
+          injectTo: 'head-prepend',
+          attrs: {
+            rel: 'preload',
+            as: 'font',
+            type: 'font/woff2',
+            href: `/${arquivo}`,
+            crossorigin: '',
+          },
+        }))
+      },
+    },
+  }
+}
+
 export default defineConfig({
   plugins: [
     react(),
+    preloadDeFontes(),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
-  InputAdornment, Snackbar, Table, TableBody, TableCell, TableContainer,
-  TableHead, TableRow, TextField,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, Grid, InputAdornment,
+  Snackbar, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
+  TextField
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import SearchIcon from '@mui/icons-material/Search'
@@ -10,9 +10,9 @@ import { api } from '../api'
 import { TOV } from '../theme'
 import { useDirtyForm } from '../UnsavedChanges'
 import {
-  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao,
-  LinhasSkeleton, SkeletonCards, acaoTabelaSx, useDialogoTelaCheia,
-  useTelaDesktop,
+  BarraFiltros, CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro,
+  EstadoVazio, LinhasSkeleton, SkeletonCards, TituloDialogo, acaoTabelaSx,
+  useDialogoTelaCheia, useTelaDesktop
 } from '../ui'
 
 const VAZIA = { NOME: '', APELIDO: '', area: '', observa: '' }
@@ -97,21 +97,6 @@ export default function Materias() {
   const areas = new Set(materias.map((m) => m.area?.trim()).filter(Boolean)).size
   const acoes = (
     <>
-      <Box component="form" onSubmit={(e) => { e.preventDefault(); carregar() }}>
-        <TextField
-          size="small" placeholder="Buscar matéria" value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          sx={{ minWidth: { xs: '100%', sm: 240 } }}
-          inputProps={{ enterKeyHint: 'search', 'aria-label': 'Buscar matéria' }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon sx={{ color: TOV.caption, fontSize: TOV.type.titleSm }} />
-              </InputAdornment>
-            ),
-          }}
-        />
-      </Box>
       <Button variant="contained" startIcon={<AddIcon />} onClick={() => abrirForm(VAZIA)}>
         Nova matéria
       </Button>
@@ -126,6 +111,25 @@ export default function Materias() {
         metadados={carregando || erroCarga ? ' ' : `${materias.length} ${materias.length === 1 ? 'matéria' : 'matérias'} · ${areas} ${areas === 1 ? 'área' : 'áreas'}`}
         acoes={acoes}
       />
+
+      {/* Regra 9: busca e recorte vivem na mesma barra; o cabeçalho fica com
+          criação. Aqui a busca morava ao lado de "Nova matéria". */}
+      <BarraFiltros>
+        <Box component="form" onSubmit={(e) => { e.preventDefault(); carregar() }} sx={{ flex: '1 1 240px', maxWidth: 380 }}>
+          <TextField
+            fullWidth size="small" label="Buscar matéria" value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            inputProps={{ enterKeyHint: 'search' }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ color: TOV.caption, fontSize: TOV.type.titleSm }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Box>
+      </BarraFiltros>
 
       {/* Lista em cards — celular/tablet */}
       {!telaDesktop && <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
@@ -143,11 +147,12 @@ export default function Materias() {
             <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1.5 }}>
               <Box sx={{ minWidth: 0 }}>
                 <Box sx={{ fontWeight: 700, fontSize: TOV.type.bodyLg, lineHeight: 1.3 }}>{m.NOME?.trim()}</Box>
-                <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>MT-{String(m.cod_mat).padStart(2, '0')}</Box>
+                {m.APELIDO?.trim() && (
+                  <Box sx={{ fontSize: TOV.type.bodySm, color: TOV.caption, fontWeight: 600, mt: 0.5 }}>{m.APELIDO.trim()}</Box>
+                )}
               </Box>
               <PilulaArea area={m.area?.trim()} />
             </Box>
-            <LinhaCartao rotulo="Apelido" valor={m.APELIDO?.trim()} />
             <Box sx={{ display: 'flex', gap: 1, pt: 1, borderTop: `1px solid ${TOV.divider}` }}>
               <Button size="small" variant="outlined" fullWidth onClick={() => abrirForm(m)}>Editar</Button>
               <Button size="small" variant="outlined" color="error" fullWidth onClick={() => setParaExcluir(m)}>Excluir</Button>
@@ -161,7 +166,6 @@ export default function Materias() {
         <Table sx={{ minWidth: 680 }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ width: 100 }}>Código</TableCell>
               <TableCell>Nome</TableCell>
               <TableCell>Apelido</TableCell>
               <TableCell>Área</TableCell>
@@ -170,17 +174,16 @@ export default function Materias() {
           </TableHead>
           <TableBody>
             {carregando && materias.length === 0 && (
-              <LinhasSkeleton colunas={5} />
+              <LinhasSkeleton colunas={4} />
             )}
             {!carregando && erroCarga && (
-              <TableRow><TableCell colSpan={5} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar as matérias" descricao={erroCarga} onTentarNovamente={carregar} /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} sx={{ p: 2 }}><EstadoErro titulo="Não foi possível carregar as matérias" descricao={erroCarga} onTentarNovamente={carregar} /></TableCell></TableRow>
             )}
             {!carregando && !erroCarga && materias.length === 0 && (
-              <TableRow><TableCell colSpan={5} sx={{ p: 0 }}><EstadoVazio titulo="Nenhuma matéria encontrada" descricao="Revise a busca ou cadastre uma nova matéria." /></TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} sx={{ p: 0 }}><EstadoVazio titulo="Nenhuma matéria encontrada" descricao="Revise a busca ou cadastre uma nova matéria." /></TableCell></TableRow>
             )}
             {materias.map((m) => (
               <TableRow key={m.cod_mat} hover>
-                <TableCell sx={{ color: TOV.caption, fontWeight: 600 }}>MT-{String(m.cod_mat).padStart(2, '0')}</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>{m.NOME?.trim()}</TableCell>
                 <TableCell sx={{ color: TOV.graphite }}>{m.APELIDO?.trim() || '—'}</TableCell>
                 <TableCell><PilulaArea area={m.area?.trim()} /></TableCell>
@@ -204,7 +207,7 @@ export default function Materias() {
       </TableContainer>}
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{form?.cod_mat ? 'Editar matéria' : 'Nova matéria'}</DialogTitle>
+        <TituloDialogo onFechar={salvando ? undefined : fecharForm}>{form?.cod_mat ? 'Editar matéria' : 'Nova matéria'}</TituloDialogo>
         <DialogContent>
           {form && (
             <Grid container spacing={1.5} sx={{ mt: 0 }}>

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent,
-  DialogTitle, Grid, LinearProgress, MenuItem, TextField, Typography,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, Grid, LinearProgress,
+  MenuItem, TextField, Typography
 } from '@mui/material'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  DialogoConfirmacao, EstadoErro, LinhaCartao, cardSx, useDialogoTelaCheia,
+  DialogoConfirmacao, EstadoErro, LinhaCartao, TituloDialogo, cardSx,
+  useDialogoTelaCheia
 } from '../ui'
 import { useUnsavedChanges } from '../UnsavedChanges'
 import { emailValido, formatarCepInput, formatarCpfInput, formatarDataBr, formatarTelefoneInput } from '../formatters'
@@ -147,7 +148,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
   return (
     <>
       <Dialog open={aberto} onClose={pedirFechar} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle sx={{ pb: 1.5 }}>
+        <TituloDialogo onFechar={pedirFechar} sx={{ pb: 1.5 }}>
           <Typography component="div" variant="h2" sx={{ fontSize: { xs: TOV.type.title, sm: TOV.type.titleLg } }}>
             {aluno ? `Editar aluno ${aluno.cod_alu}` : 'Novo aluno'}
           </Typography>
@@ -165,7 +166,7 @@ export default function AlunoForm({ aberto, aoFechar, aoSalvar, aluno }) {
             aria-label={`Etapa ${etapa + 1} de ${ETAPAS.length}`}
             sx={{ mt: 1, height: 8, borderRadius: TOV.radiusFull, bgcolor: TOV.coralTint }}
           />
-        </DialogTitle>
+        </TituloDialogo>
 
         <DialogContent>
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2.5 }}>

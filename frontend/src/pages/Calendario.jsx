@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
-  MenuItem, Snackbar, TextField, Typography,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, MenuItem, Snackbar,
+  TextField, Typography
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
@@ -15,7 +15,10 @@ import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined'
 import { api, baixarArquivo } from '../api'
 import { TOV, focusRing } from '../theme'
-import { CabecalhoPagina, DialogoConfirmacao, EstadoErro, cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
+import {
+  CabecalhoPagina, DialogoConfirmacao, EstadoErro, TituloDialogo, cardSx,
+  useDialogoTelaCheia, useTelaDesktop
+} from '../ui'
 import CalendarioGrade, { CalendarioAgenda, intervaloGrade, isoLocal } from './CalendarioGrade'
 import { useDirtyForm } from '../UnsavedChanges'
 
@@ -382,7 +385,7 @@ export default function Calendario() {
       </Box>
 
       <Dialog open={compartilharAberto} onClose={() => setCompartilharAberto(false)} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle sx={{ pb: 1 }}>Compartilhar calendário</DialogTitle>
+        <TituloDialogo onFechar={() => setCompartilharAberto(false)} sx={{ pb: 1 }}>Compartilhar calendário</TituloDialogo>
         <DialogContent>
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2.5 }}>
             Escolha a turma do grupo. O link abrirá uma agenda limpa, sem acesso a notas ou dados dos alunos.
@@ -392,7 +395,7 @@ export default function Calendario() {
               <Typography variant="overline" sx={{ color: TOV.caption, display: 'block', mb: 1 }}>1. Escolha a turma</Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {!turmasCompartilhamento.length && (
-                  <Box sx={{ p: 2, border: `1px dashed ${TOV.border}`, borderRadius: TOV.radiusSm, bgcolor: TOV.canvas }}>
+                  <Box sx={{ p: 2, border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusSm, bgcolor: TOV.canvas }}>
                     <Typography sx={{ fontWeight: 700, fontSize: TOV.type.body }}>Nenhuma turma disponível</Typography>
                     <Typography sx={{ color: TOV.caption, fontSize: TOV.type.caption, mt: 0.5 }}>Vincule uma matéria a uma turma para criar a agenda dela.</Typography>
                   </Box>
@@ -466,7 +469,7 @@ export default function Calendario() {
                   </Box>
                 </Box>
               ) : (
-                <Box sx={{ minHeight: 250, display: 'grid', placeItems: 'center', textAlign: 'center', border: `1px dashed ${TOV.border}`, borderRadius: TOV.radiusMd, p: 3, bgcolor: TOV.canvas }}>
+                <Box sx={{ minHeight: 250, display: 'grid', placeItems: 'center', textAlign: 'center', border: `1px solid ${TOV.border}`, borderRadius: TOV.radiusMd, p: 3, bgcolor: TOV.canvas }}>
                   <Box>
                     <Box sx={{ width: 52, height: 52, display: 'grid', placeItems: 'center', mx: 'auto', mb: 1.5, borderRadius: TOV.radiusFull, bgcolor: TOV.surface, color: TOV.graphite, border: `1px solid ${TOV.border}` }}>
                       <SchoolOutlinedIcon />
@@ -485,7 +488,7 @@ export default function Calendario() {
       </Dialog>
 
       <Dialog open={dialogo} onClose={salvando ? undefined : fecharDialogo} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{editando ? 'Editar aula' : 'Nova aula'}</DialogTitle>
+        <TituloDialogo onFechar={salvando ? undefined : fecharDialogo}>{editando ? 'Editar aula' : 'Nova aula'}</TituloDialogo>
         <DialogContent>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5, mt: 1 }}>
             <TextField select label="Turma · matéria · professor" value={form.docturma_id} onChange={(e) => setForm({ ...form, docturma_id: e.target.value })} sx={{ gridColumn: { sm: '1 / -1' } }} required>

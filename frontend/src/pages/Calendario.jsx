@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent,
   MenuItem, Snackbar, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
@@ -15,7 +15,7 @@ import SchoolOutlinedIcon from '@mui/icons-material/SchoolOutlined'
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined'
 import { api, baixarArquivo } from '../api'
 import { TOV, focusRing } from '../theme'
-import { CabecalhoPagina, DialogoConfirmacao, EstadoErro, cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
+import { DialogoTitulo, CabecalhoPagina, DialogoConfirmacao, EstadoErro, cardSx, useDialogoTelaCheia, useTelaDesktop } from '../ui'
 import CalendarioGrade, { CalendarioAgenda, intervaloGrade, isoLocal } from './CalendarioGrade'
 import { useDirtyForm } from '../UnsavedChanges'
 
@@ -382,7 +382,7 @@ export default function Calendario() {
       </Box>
 
       <Dialog open={compartilharAberto} onClose={() => setCompartilharAberto(false)} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle sx={{ pb: 1 }}>Compartilhar calendário</DialogTitle>
+        <DialogoTitulo onFechar={() => setCompartilharAberto(false)} sx={{ pb: 1 }}>Compartilhar calendário</DialogoTitulo>
         <DialogContent>
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2.5 }}>
             Escolha a turma do grupo. O link abrirá uma agenda limpa, sem acesso a notas ou dados dos alunos.
@@ -485,7 +485,7 @@ export default function Calendario() {
       </Dialog>
 
       <Dialog open={dialogo} onClose={salvando ? undefined : fecharDialogo} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{editando ? 'Editar aula' : 'Nova aula'}</DialogTitle>
+        <DialogoTitulo onFechar={fecharDialogo} desabilitado={salvando}>{editando ? 'Editar aula' : 'Nova aula'}</DialogoTitulo>
         <DialogContent>
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, gap: 1.5, mt: 1 }}>
             <TextField select label="Turma · matéria · professor" value={form.docturma_id} onChange={(e) => setForm({ ...form, docturma_id: e.target.value })} sx={{ gridColumn: { sm: '1 / -1' } }} required>

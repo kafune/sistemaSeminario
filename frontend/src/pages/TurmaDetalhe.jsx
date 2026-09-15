@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, Autocomplete, Box, Button, Dialog, DialogActions, DialogContent,
-  DialogTitle, Grid, IconButton, MenuItem, Snackbar, Tab, Table, TableBody,
+  Grid, IconButton, MenuItem, Snackbar, Tab, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
@@ -13,7 +13,7 @@ import MenuBookOutlinedIcon from '@mui/icons-material/MenuBookOutlined'
 import { api, abrirArquivo } from '../api'
 import { TOV } from '../theme'
 import {
-  CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao, Regua,
+  DialogoTitulo, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao, Regua,
   LinkVoltar, SkeletonCards, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 
@@ -337,7 +337,7 @@ export default function TurmaDetalhe() {
       )}
 
       <Dialog open={dlgMatricula} onClose={() => setDlgMatricula(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Matricular aluno</DialogTitle>
+        <DialogoTitulo onFechar={() => setDlgMatricula(false)} desabilitado={salvandoDlg}>Matricular aluno</DialogoTitulo>
         <DialogContent>
           {transferencia && (
             <Alert severity="warning" sx={{ mt: 1 }}>
@@ -365,7 +365,7 @@ export default function TurmaDetalhe() {
       </Dialog>
 
       <Dialog open={dlgMateria} onClose={() => setDlgMateria(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Adicionar matéria à turma</DialogTitle>
+        <DialogoTitulo onFechar={() => setDlgMateria(false)} desabilitado={salvandoDlg}>Adicionar matéria à turma</DialogoTitulo>
         <DialogContent>
           <Grid container spacing={1.5} sx={{ mt: 0 }}>
             <Grid item xs={12}>

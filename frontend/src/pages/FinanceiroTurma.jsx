@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, FormControlLabel, InputAdornment, Snackbar, Switch, Table,
+  FormControlLabel, InputAdornment, Snackbar, Switch, Table,
   TableBody, TableCell, TableContainer, TableHead, TableRow, TextField,
   Typography,
 } from '@mui/material'
@@ -14,7 +14,7 @@ import SwapHorizOutlinedIcon from '@mui/icons-material/SwapHorizOutlined'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
+  DialogoTitulo, CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
   GrupoSegmentado, LinhasSkeleton, Metadado, SkeletonCards, StatusBadge,
   LinkVoltar, Superficie, cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
@@ -465,7 +465,7 @@ export default function FinanceiroTurma() {
         onClose={salvandoCondicao ? undefined : () => setAlunoCondicao(null)}
         maxWidth="sm" fullWidth fullScreen={telaCheia}
       >
-        <DialogTitle>Condição de pagamento — {alunoCondicao?.nome}</DialogTitle>
+        <DialogoTitulo onFechar={() => setAlunoCondicao(null)} desabilitado={salvandoCondicao}>Condição de pagamento — {alunoCondicao?.nome}</DialogoTitulo>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
           <GrupoSegmentado
             rotulo="Condição do aluno"

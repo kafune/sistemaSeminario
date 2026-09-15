@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, Grid,
   Snackbar, TextField, Typography,
 } from '@mui/material'
 import AddIcon from '@mui/icons-material/Add'
 import { api } from '../api'
 import { TOV, focusRing } from '../theme'
 import {
-  CabecalhoPagina, DialogoConfirmacao, EstadoErro, SkeletonCards, StatusBadge,
+  DialogoTitulo, CabecalhoPagina, DialogoConfirmacao, EstadoErro, SkeletonCards, StatusBadge,
   resetBotao, useDialogoTelaCheia,
 } from '../ui'
 import { useClearUnsavedChanges, useDirtyForm } from '../UnsavedChanges'
@@ -142,7 +142,7 @@ export default function Turmas() {
       </Box>
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Nova turma</DialogTitle>
+        <DialogoTitulo onFechar={fecharForm} desabilitado={salvando}>Nova turma</DialogoTitulo>
         <DialogContent>
           {form && (
             <Grid container spacing={1.5} sx={{ mt: 0 }}>

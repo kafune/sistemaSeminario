@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, Grid,
   InputAdornment, Snackbar, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, TextField,
 } from '@mui/material'
@@ -10,7 +10,7 @@ import { api } from '../api'
 import { TOV } from '../theme'
 import { useDirtyForm } from '../UnsavedChanges'
 import {
-  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao,
+  DialogoTitulo, CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao,
   LinhasSkeleton, SkeletonCards, acaoTabelaSx, useDialogoTelaCheia,
   useTelaDesktop,
 } from '../ui'
@@ -204,7 +204,7 @@ export default function Materias() {
       </TableContainer>}
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{form?.cod_mat ? 'Editar matéria' : 'Nova matéria'}</DialogTitle>
+        <DialogoTitulo onFechar={fecharForm} desabilitado={salvando}>{form?.cod_mat ? 'Editar matéria' : 'Nova matéria'}</DialogoTitulo>
         <DialogContent>
           {form && (
             <Grid container spacing={1.5} sx={{ mt: 0 }}>

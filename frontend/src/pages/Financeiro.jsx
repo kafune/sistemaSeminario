@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Alert, Box, Button, Checkbox, CircularProgress, Dialog, DialogActions,
-  DialogContent, DialogTitle, InputAdornment, LinearProgress, MenuItem,
+  DialogContent, InputAdornment, LinearProgress, MenuItem,
   Snackbar, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   TextField, Typography,
 } from '@mui/material'
@@ -15,7 +15,7 @@ import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CardMetrica, CartaoLista,
+  DialogoTitulo, BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CardMetrica, CartaoLista,
   EstadoErro, EstadoVazio, LinhasSkeleton, SkeletonCards, StatusBadge, Superficie,
   cardSx, resetBotao, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
@@ -592,7 +592,7 @@ export default function Financeiro() {
       />
 
       <Dialog open={novaAberta} onClose={processando ? undefined : () => setNovaAberta(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Nova cobrança avulsa</DialogTitle>
+        <DialogoTitulo onFechar={() => setNovaAberta(false)} desabilitado={processando}>Nova cobrança avulsa</DialogoTitulo>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
           <Alert severity="info">
             Matrícula e mensalidades saem do plano da turma. Use a avulsa para taxas pontuais, como segunda via ou material.

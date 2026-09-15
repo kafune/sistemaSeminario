@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, Grid,
   Snackbar, Table, TableBody, TableCell, TableContainer, TableHead,
   TableRow, TextField, MenuItem, Chip, Typography,
 } from '@mui/material'
@@ -9,7 +9,7 @@ import { api, getUser } from '../api'
 import { TOV } from '../theme'
 import { formatarDataHora } from '../formatters'
 import {
-  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
+  DialogoTitulo, CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio,
   LinhasSkeleton, SkeletonCards, acaoTabelaSx, iniciais, useDialogoTelaCheia,
   useTelaDesktop,
 } from '../ui'
@@ -296,7 +296,7 @@ export default function Usuarios() {
       </Box>
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="xs" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{form?.novo ? 'Novo usuário' : `Gerenciar acesso — ${form?.user}`}</DialogTitle>
+        <DialogoTitulo onFechar={fecharForm} desabilitado={salvando}>{form?.novo ? 'Novo usuário' : `Gerenciar acesso — ${form?.user}`}</DialogoTitulo>
         <DialogContent>
           {form && (
             <Grid container spacing={1.5} sx={{ mt: 0 }}>

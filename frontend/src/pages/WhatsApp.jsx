@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Alert, Autocomplete, Box, Button, Checkbox, Chip, CircularProgress, Dialog,
-  DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel,
+  DialogActions, DialogContent, Divider, FormControlLabel,
   IconButton, LinearProgress, MenuItem, Pagination, Snackbar, TextField, Typography,
 } from '@mui/material'
 import WhatsAppIcon from '@mui/icons-material/WhatsApp'
@@ -16,7 +16,7 @@ import UploadFileIcon from '@mui/icons-material/UploadFile'
 import { api, enviarArquivoJson, getPerfil } from '../api'
 import { TOV, focusRing } from '../theme'
 import {
-  CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio, Eyebrow, StatusBadge,
+  DialogoTitulo, CabecalhoPagina, DialogoConfirmacao, EstadoErro, EstadoVazio, Eyebrow, StatusBadge,
   cardSx, useDialogoTelaCheia,
 } from '../ui'
 import { dataDaApi, formatarDataHora } from '../formatters'
@@ -1089,7 +1089,7 @@ function Compositor({
         </>
       )}
       <Dialog open={templateAberto} onClose={() => setTemplateAberto(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Salvar template</DialogTitle>
+        <DialogoTitulo onFechar={() => setTemplateAberto(false)} desabilitado={salvandoTemplate}>Salvar template</DialogoTitulo>
         <DialogContent>
           <TextField autoFocus fullWidth label="Nome do template" value={nomeTemplate} onChange={(e) => setNomeTemplate(e.target.value)} sx={{ mt: 1 }} />
           <TextField fullWidth label="Categoria" value={categoriaTemplate} onChange={(e) => setCategoriaTemplate(e.target.value)} sx={{ mt: 2 }} />
@@ -1107,7 +1107,7 @@ function Compositor({
         </DialogActions>
       </Dialog>
       <Dialog open={confirmarTeste} onClose={testando ? undefined : () => setConfirmarTeste(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Enviar teste para o número conectado?</DialogTitle>
+        <DialogoTitulo onFechar={() => setConfirmarTeste(false)} desabilitado={testando}>Enviar teste para o número conectado?</DialogoTitulo>
         <DialogContent>
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body }}>
             A composição completa será enviada somente para o WhatsApp da secretaria, sem entrar no histórico de disparos.
@@ -1521,7 +1521,7 @@ export default function WhatsApp() {
       <Historico itens={historico} erro={erroHistorico} onTentarNovamente={carregarHistorico} onAbrir={abrirDetalhe} />
 
       <Dialog open={criacaoAberta} onClose={() => setCriacaoAberta(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Criar instância do WhatsApp</DialogTitle>
+        <DialogoTitulo onFechar={() => setCriacaoAberta(false)} desabilitado={salvando}>Criar instância do WhatsApp</DialogoTitulo>
         <DialogContent>
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2 }}>
             Será criada uma única instância na UazAPI para o Centro TOV.
@@ -1540,7 +1540,7 @@ export default function WhatsApp() {
       </Dialog>
 
       <Dialog open={qrAberto} onClose={() => setQrAberto(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Conectar WhatsApp</DialogTitle>
+        <DialogoTitulo onFechar={() => setQrAberto(false)}>Conectar WhatsApp</DialogoTitulo>
         <DialogContent sx={{ textAlign: 'center' }}>
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mb: 2 }}>
             No celular, abra WhatsApp → Aparelhos conectados → Conectar um aparelho.
@@ -1567,7 +1567,7 @@ export default function WhatsApp() {
       </Dialog>
 
       <Dialog open={!!previa} onClose={salvando ? undefined : () => setPrevia(null)} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Revisar disparo</DialogTitle>
+        <DialogoTitulo onFechar={() => setPrevia(null)} desabilitado={salvando}>Revisar disparo</DialogoTitulo>
         <DialogContent>
           {previa && (
             <>
@@ -1622,9 +1622,11 @@ export default function WhatsApp() {
       </Dialog>
 
       <Dialog open={!!detalhe} onClose={() => setDetalhe(null)} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          Disparo #{detalhe?.id} {detalhe && <PilulaDisparo status={detalhe.status} />}
-        </DialogTitle>
+        <DialogoTitulo onFechar={() => setDetalhe(null)}>
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+            Disparo #{detalhe?.id} {detalhe && <PilulaDisparo status={detalhe.status} />}
+          </Box>
+        </DialogoTitulo>
         <DialogContent>
           {detalhe && (
             <>
@@ -1733,7 +1735,7 @@ export default function WhatsApp() {
       </Dialog>
 
       <Dialog open={reagendamentoAberto} onClose={() => setReagendamentoAberto(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Reagendar campanha</DialogTitle>
+        <DialogoTitulo onFechar={() => setReagendamentoAberto(false)} desabilitado={sincronizando}>Reagendar campanha</DialogoTitulo>
         <DialogContent>
           <TextField
             autoFocus fullWidth type="datetime-local" label="Nova data e hora"

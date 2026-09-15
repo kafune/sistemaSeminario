@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent,
   IconButton, MenuItem, Snackbar, Switch, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
@@ -13,7 +13,7 @@ import TuneIcon from '@mui/icons-material/Tune'
 import { api, abrirArquivo, getPerfil } from '../api'
 import { TOV } from '../theme'
 import {
-  BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CartaoLista,
+  DialogoTitulo, BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CartaoLista,
   DialogoConfirmacao, EstadoErro, EstadoVazio, LinhasSkeleton, Metadado, SkeletonCards,
   StatusBadge,
   cardSx, useAtalhoSalvar, useTelaDesktop,
@@ -645,12 +645,12 @@ export default function Notas() {
       />
 
       <Dialog open={configuracaoAberta} onClose={fecharConfiguracao} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ pb: 1 }}>
+        <DialogoTitulo onFechar={fecharConfiguracao} desabilitado={salvandoConfiguracao} sx={{ pb: 1, alignItems: 'flex-start' }}>
           Composição da nota
           <Typography sx={{ color: TOV.caption, fontSize: TOV.type.body, mt: 1 }}>
             Adicione quantas leituras, trabalhos e provas precisar. A soma pode chegar a 10 pontos.
           </Typography>
-        </DialogTitle>
+        </DialogoTitulo>
         <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           {atividadesEdicao.length === 0 && (
             <Box sx={{ py: 2, textAlign: 'center' }}>

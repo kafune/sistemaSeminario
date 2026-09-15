@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Alert, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Grid,
+  Alert, Box, Button, Dialog, DialogActions, DialogContent, Grid,
   InputAdornment, MenuItem, Snackbar, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField,
 } from '@mui/material'
@@ -13,7 +13,7 @@ import { TOV } from '../theme'
 import { emailValido, formatarCepInput, formatarCpfInput, formatarDataHora, formatarTelefoneInput } from '../formatters'
 import { useDirtyForm } from '../UnsavedChanges'
 import {
-  CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao,
+  DialogoTitulo, CabecalhoPagina, CartaoLista, DialogoConfirmacao, EstadoErro, EstadoVazio, LinhaCartao,
   LinhasSkeleton, PilulaStatus, SkeletonCards, acaoTabelaSx,
   useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
@@ -287,7 +287,7 @@ export default function Professores() {
       </TableContainer>}
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="md" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{form?.cod_pro ? 'Editar professor' : 'Novo professor'}</DialogTitle>
+        <DialogoTitulo onFechar={fecharForm} desabilitado={salvando}>{form?.cod_pro ? 'Editar professor' : 'Novo professor'}</DialogoTitulo>
         <DialogContent>
           {form && (
             <Grid container spacing={1.5} sx={{ mt: 0 }}>
@@ -402,7 +402,7 @@ export default function Professores() {
       />
 
       <Dialog open={!!convite} onClose={() => setConvite(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>{convite?.tipo === 'acesso' ? 'Link de acesso às notas' : 'Link de autocadastro'}</DialogTitle>
+        <DialogoTitulo onFechar={() => setConvite(null)}>{convite?.tipo === 'acesso' ? 'Link de acesso às notas' : 'Link de autocadastro'}</DialogoTitulo>
         <DialogContent>
           <Box sx={{ color: TOV.graphite, fontSize: TOV.type.body, mb: 2 }}>
             {convite?.tipo === 'acesso'

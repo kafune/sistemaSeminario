@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, InputAdornment, MenuItem, TextField, Typography,
+  InputAdornment, MenuItem, TextField, Typography,
 } from '@mui/material'
 import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined'
 import { TOV } from '../theme'
-import { StatusBadge, useDialogoTelaCheia } from '../ui'
+import { DialogoTitulo, StatusBadge, useDialogoTelaCheia } from '../ui'
 import { formatarDataBr, formatarMoeda } from '../formatters'
 
 /** Vocabulário único de situação: mesma palavra e mesma cor em toda a área. */
@@ -118,7 +118,7 @@ export function DialogoPagamento({ cobranca, processando, onConfirmar, onFechar 
 
   return (
     <Dialog open={!!cobranca} onClose={processando ? undefined : onFechar} maxWidth="xs" fullWidth fullScreen={telaCheia}>
-      <DialogTitle>Registrar pagamento</DialogTitle>
+      <DialogoTitulo onFechar={onFechar} desabilitado={processando}>Registrar pagamento</DialogoTitulo>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
         {cobranca && (
           <Box sx={{ border: `1px solid ${TOV.divider}`, borderRadius: TOV.radiusSm, p: 2 }}>

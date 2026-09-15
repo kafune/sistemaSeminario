@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
+  Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent,
   Grid, InputAdornment, MenuItem, Pagination, Snackbar, Table, TableBody,
   TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
@@ -10,7 +10,7 @@ import SearchIcon from '@mui/icons-material/Search'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  AvatarIniciais, BarraFiltros, CabecalhoPagina, CartaoLista, EstadoErro, EstadoVazio,
+  DialogoTitulo, AvatarIniciais, BarraFiltros, CabecalhoPagina, CartaoLista, EstadoErro, EstadoVazio,
   DialogoConfirmacao, LinhaCartao, StatusBadge, acaoTabelaSx, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import ImportarLeadsDialog from './ImportarLeadsDialog'
@@ -340,7 +340,7 @@ export default function Leads() {
       />
 
       <Dialog open={!!form} onClose={salvando ? undefined : fecharForm} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>{leadEditando ? 'Editar lead' : 'Novo lead'}</DialogTitle>
+        <DialogoTitulo onFechar={fecharForm} desabilitado={salvando}>{leadEditando ? 'Editar lead' : 'Novo lead'}</DialogoTitulo>
         <DialogContent>{form && <FormLead form={form} setForm={setForm} />}</DialogContent>
         <DialogActions sx={{ p: 3, pt: 1 }}>
           <Button variant="outlined" onClick={fecharForm} disabled={salvando}>Cancelar</Button>

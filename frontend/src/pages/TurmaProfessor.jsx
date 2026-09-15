@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, MenuItem, Snackbar, Tab, Tabs, Table, TableBody, TableCell,
+  MenuItem, Snackbar, Tab, Tabs, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, TextField, Typography,
 } from '@mui/material'
 import CampaignOutlinedIcon from '@mui/icons-material/CampaignOutlined'
@@ -17,7 +17,7 @@ import NoteAddOutlinedIcon from '@mui/icons-material/NoteAddOutlined'
 import { api, baixarArquivo } from '../api'
 import { TOV } from '../theme'
 import {
-  CabecalhoPagina, CardMetrica, DialogoConfirmacao, EstadoErro, EstadoVazio, LinkVoltar, StatusBadge,
+  DialogoTitulo, CabecalhoPagina, CardMetrica, DialogoConfirmacao, EstadoErro, EstadoVazio, LinkVoltar, StatusBadge,
   cardSx, useDialogoTelaCheia, useTelaDesktop,
 } from '../ui'
 import { FUSO_INSTITUICAO, formatarDataHora } from '../formatters'
@@ -290,7 +290,7 @@ export default function TurmaProfessor() {
       )}
 
       <Dialog open={!!aulaPlanejar} onClose={salvandoPlano ? undefined : () => setAulaPlanejar(null)} maxWidth="md" fullWidth fullScreen={dialogoTelaCheia}>
-        <DialogTitle>Planejamento da aula · {aulaPlanejar ? dataCurta(aulaPlanejar.data) : ''}</DialogTitle>
+        <DialogoTitulo onFechar={() => setAulaPlanejar(null)} desabilitado={salvandoPlano}>Planejamento da aula · {aulaPlanejar ? dataCurta(aulaPlanejar.data) : ''}</DialogoTitulo>
         <DialogContent sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' }, gap: 2, pt: '12px !important' }}>
           <TextField multiline minRows={4} label="Objetivos da aula" value={planejamento.objetivos} onChange={(e) => setPlanejamento({ ...planejamento, objetivos: e.target.value })} />
           <TextField multiline minRows={4} label="Conteúdo previsto" value={planejamento.conteudo} onChange={(e) => setPlanejamento({ ...planejamento, conteudo: e.target.value })} />
@@ -301,7 +301,7 @@ export default function TurmaProfessor() {
       </Dialog>
 
       <Dialog open={comunicadoAberto} onClose={salvandoComunicado ? undefined : () => setComunicadoAberto(false)} maxWidth="sm" fullWidth fullScreen={dialogoTelaCheia}>
-        <DialogTitle>{comunicadoEditando ? 'Editar comunicado' : 'Novo comunicado'}</DialogTitle>
+        <DialogoTitulo onFechar={() => setComunicadoAberto(false)} desabilitado={salvandoComunicado}>{comunicadoEditando ? 'Editar comunicado' : 'Novo comunicado'}</DialogoTitulo>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
           <TextField label="Título" value={comunicadoForm.titulo} onChange={(e) => setComunicadoForm({ ...comunicadoForm, titulo: e.target.value })} inputProps={{ maxLength: 150 }} />
           <TextField multiline minRows={5} label="Mensagem" value={comunicadoForm.mensagem} onChange={(e) => setComunicadoForm({ ...comunicadoForm, mensagem: e.target.value })} inputProps={{ maxLength: 5000 }} />

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Alert, Box, Button, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, FormControlLabel, InputAdornment, MenuItem, Snackbar, Switch,
+  FormControlLabel, InputAdornment, MenuItem, Snackbar, Switch,
   TextField, Typography,
 } from '@mui/material'
 import AddCardOutlinedIcon from '@mui/icons-material/AddCardOutlined'
@@ -12,7 +12,7 @@ import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined'
 import { api } from '../api'
 import { TOV } from '../theme'
 import {
-  BarraFiltros, CabecalhoPagina, EstadoErro, EstadoVazio, GrupoSegmentado, SkeletonCards,
+  DialogoTitulo, BarraFiltros, CabecalhoPagina, EstadoErro, EstadoVazio, GrupoSegmentado, SkeletonCards,
   LinkVoltar, StatusBadge, Superficie, cardSx, useDialogoTelaCheia,
 } from '../ui'
 import { formatarDataBr, formatarMoeda } from '../formatters'
@@ -343,7 +343,7 @@ export default function FinanceiroConciliacao() {
       </Box>
 
       <Dialog open={manualAberto} onClose={processando ? undefined : () => setManualAberto(false)} maxWidth="sm" fullWidth fullScreen={telaCheia}>
-        <DialogTitle>Lançar recebimento do extrato</DialogTitle>
+        <DialogoTitulo onFechar={() => setManualAberto(false)} desabilitado={processando}>Lançar recebimento do extrato</DialogoTitulo>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: '12px !important' }}>
           <Alert severity="info">
             Passa pela mesma identificação automática do banco: com o código da cobrança ou o CPF do pagador, a baixa

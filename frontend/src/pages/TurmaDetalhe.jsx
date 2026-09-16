@@ -237,17 +237,19 @@ export default function TurmaDetalhe() {
             })}>
             Editar turma
           </Button>
-          <Button variant="outlined" startIcon={<HowToRegRoundedIcon />}
-            onClick={() => navigate(`/turmas/${codTur}/presencas`)}>
-            Fazer chamada
-          </Button>
           <Button variant="outlined" startIcon={<PictureAsPdfIcon />}
             onClick={() => abrirArquivo(`/relatorios/lista-turma/${codTur}`).catch((e) => avisar(e.message))}>
             Lista de alunos
           </Button>
-          <Button variant="contained" startIcon={<PictureAsPdfIcon />}
+          <Button variant="outlined" startIcon={<PictureAsPdfIcon />}
             onClick={() => abrirArquivo(`/relatorios/boletim-turma/${codTur}`).catch((e) => avisar(e.message))}>
             Boletins (ZIP)
+          </Button>
+          {/* A primária é a ação do dia, não a exportação em lote — e é a
+              mesma hierarquia de /turmas/:id/diario (AUDITORIA_VISUAL.md E4). */}
+          <Button variant="contained" startIcon={<HowToRegRoundedIcon />}
+            onClick={() => navigate(`/turmas/${codTur}/presencas`)}>
+            Fazer chamada
           </Button>
         </Box>
       </Box>

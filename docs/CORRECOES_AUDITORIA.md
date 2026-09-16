@@ -91,8 +91,12 @@ notas exibe um aviso com as matrículas afetadas.
 - As tabelas `matprof` e `titprof` deixaram de ser criadas, mas **não são
   derrubadas** num banco existente: o DROP é destrutivo e fica a cargo de
   quem opera (ver README).
-- O job `backend-mysql` do CI ainda não rodou de verdade: não havia MySQL
-  disponível nesta máquina. A primeira execução no GitHub é o teste dele.
+- O job `backend-mysql` do CI ainda não rodou contra um MySQL de verdade:
+  não havia servidor disponível nesta máquina. O caminho de
+  `TOV_TEST_DATABASE_URL` foi exercitado com um SQLite em arquivo (222
+  testes, 7m37s), o que valida o `drop_all` por caso e o motor configurado,
+  mas não o SQL específico do MySQL. A primeira execução no GitHub é o
+  teste dele.
 
 ## AUDITORIA_VISUAL.md
 
@@ -106,7 +110,7 @@ A3 (Snackbar em bottom/center com alerta opaco, via tema), A7 (passo de corpo em
 
 ### Médios/baixos corrigidos
 
-A4, A5, A6, A8, B4, B5, B11, B13, C8, D2, D3, D4, D5, D6, D9, E3, E4 (parcial), E8, E13, E16, F5 (folha de impressão), G1 (`GrupoSegmentado` 46px), G6, I1, I2, I3, I4, I5, I7, J2 (parcial: fonte mono).
+A4, A5, A6, A8, B4, B5, B11, B13, C8, D2, D3, D4, D5, D6, D9, E3, E8, E13, E16, F5 (folha de impressão), G1 (`GrupoSegmentado` 46px), G6, I1, I2, I3, I4, I5, I7, J2 (parcial: fonte mono).
 
 ### Segunda rodada (também corrigidos)
 
@@ -139,7 +143,9 @@ ficam recolhidos no celular. **H8** as ações de `/whatsapp` ocupam a linha
 inteira no celular. **H10** o nome da atividade sai da caixa alta e para em
 duas linhas; "Aluno" ganha piso de 200px. **H11** a faixa do título do
 autocadastro usa a calha do miolo, a linha de contato fecha e o texto de
-ajuda deixa de começar 4px à direita do campo. **H12** a faixa escura do
+ajuda deixa de começar 4px à direita do campo. **E4** em `/turmas/:id`, "Fazer chamada" vira a primária no lugar de
+"Boletins (ZIP)" — a mesma hierarquia de `/turmas/:id/diario`.
+**H12** a faixa escura do
 login acompanha a largura. **I6** `/turmas`, `/materias` e `/professores`
 deixaram de mostrar o id do banco. **J1** preload de Bricolage 700 e Open
 Sans 400/600, injetado do bundle por um plugin do Vite. **J2** o peso 400 do

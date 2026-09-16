@@ -143,6 +143,24 @@ padrão `SECRETARIA`). Um administrador é criado com `... criar_usuario.py NOME
 Para o importador da planilha, monte o arquivo no container — veja
 [docs/financeiro.md](docs/financeiro.md).
 
+#### Tabelas aposentadas: `matprof` e `titprof`
+
+`matprof` foi substituída pelo texto livre `professor.materias_atuacao` — os
+vínculos que valem são os de `docturma` — e `titprof` nunca teve endpoint de
+escrita. Desde a terceira rodada de correções elas saíram do código: um banco
+novo não as cria mais. Num banco que já existe elas continuam paradas, e o
+DROP é manual porque é destrutivo. Confira que estão vazias antes:
+
+```bash
+docker compose --env-file .env exec db   mysql -uroot -p"$TOV_DB_ROOT_PASSWORD" tov   -e "SELECT (SELECT COUNT(*) FROM matprof) AS matprof, (SELECT COUNT(*) FROM titprof) AS titprof;"
+```
+
+Com as duas em zero (ou depois de guardar um dump), derrube:
+
+```bash
+docker compose --env-file .env exec db   mysql -uroot -p"$TOV_DB_ROOT_PASSWORD" tov   -e "DROP TABLE IF EXISTS matprof, titprof;"
+```
+
 O script atualiza `origin/main`, prepara o virtualenv do backend, instala as
 dependências, gera o frontend, reinicia o serviço systemd `tov`, valida
 `http://127.0.0.1:8000/health`, publica o build em `/var/www/tov` e recarrega o

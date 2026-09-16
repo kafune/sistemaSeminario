@@ -8,24 +8,30 @@ turma, e `matprof`/`titprof` não existem mais no modelo.
 import unittest
 
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import inspect
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 import app.models as modelos
 from app.database import Base, get_db
 from app.main import app
-from app.models import DocTurma, Materia, Professor, Turma, Usuario
+from app.models import (
+    Aluno,
+    AluNota,
+    AluTurma,
+    DocTurma,
+    Materia,
+    Professor,
+    Turma,
+    Usuario,
+)
+from app.routers.notas import grade_por_vinculo
 from app.security import gerar_hash
+from tests import SEM_LOGIN, criar_engine_de_teste
 
 
 class RodadaTresTest(unittest.TestCase):
     def setUp(self):
-        self.engine = create_engine(
-            "sqlite://",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
+        self.engine = criar_engine_de_teste()
         Base.metadata.create_all(self.engine)
         self.sessao = sessionmaker(bind=self.engine, expire_on_commit=False)
         self.db = self.sessao()
@@ -129,6 +135,74 @@ class RodadaTresTest(unittest.TestCase):
         )
         self.assertEqual(resposta.status_code, 200, resposta.text)
         self.assertEqual(resposta.json()["cod_pro"], outro.cod_pro)
+
+
+
+
+class LancamentoLegadoAmbiguoTest(unittest.TestCase):
+    """C7 — a mesma matéria em dois períodos e um lançamento legado sem vínculo."""
+
+    def setUp(self):
+        self.engine = criar_engine_de_teste()
+        Base.metadata.create_all(self.engine)
+        self.db = sessionmaker(bind=self.engine, expire_on_commit=False)()
+        turma = Turma(nome="Turma 2026.1", qtalu=0)
+        materia = Materia(NOME="Grego Bíblico")
+        aluno = Aluno(nome="Ana Souza")
+        self.db.add_all([turma, materia, aluno])
+        self.db.commit()
+        self.turma, self.materia, self.aluno = turma, materia, aluno
+        self.db.add(AluTurma(cod_tur=turma.cod_tur, cod_alu=aluno.cod_alu))
+        self.vinculos = []
+        for semestre in ("1", "2"):
+            vinculo = DocTurma(
+                cod_tur=turma.cod_tur,
+                cod_mat=materia.cod_mat,
+                Ano="2026",
+                semestre=semestre,
+            )
+            self.db.add(vinculo)
+            self.vinculos.append(vinculo)
+        self.db.commit()
+
+    def tearDown(self):
+        self.db.close()
+        self.engine.dispose()
+
+    def test_legado_sozinho_aparece_sem_alarme_nos_dois_vinculos(self):
+        self.db.add(AluNota(
+            cod_alu=self.aluno.cod_alu, cod_tur=self.turma.cod_tur,
+            cod_mat=self.materia.cod_mat, nota=7, status="L",
+        ))
+        self.db.commit()
+        for vinculo in self.vinculos:
+            grade = grade_por_vinculo(vinculo.id, db=self.db, user=SEM_LOGIN)
+            self.assertEqual(grade["alunos"][0]["nota"], 7)
+            self.assertEqual(grade["lancamentos_ambiguos"], [])
+
+    def test_lancamento_do_vinculo_ganha_do_legado_e_a_grade_avisa(self):
+        self.db.add_all([
+            AluNota(
+                cod_alu=self.aluno.cod_alu, cod_tur=self.turma.cod_tur,
+                cod_mat=self.materia.cod_mat, nota=7, status="L",
+            ),
+            AluNota(
+                cod_alu=self.aluno.cod_alu, cod_tur=self.turma.cod_tur,
+                cod_mat=self.materia.cod_mat, docturma_id=self.vinculos[1].id,
+                nota=9, status="L",
+            ),
+        ])
+        self.db.commit()
+
+        segundo = grade_por_vinculo(self.vinculos[1].id, db=self.db, user=SEM_LOGIN)
+        self.assertEqual(segundo["alunos"][0]["nota"], 9)
+        self.assertEqual(segundo["lancamentos_ambiguos"], [self.aluno.cod_alu])
+        self.assertTrue(segundo["alunos"][0]["lancamento_ambiguo"])
+
+        # O outro vínculo continua vendo só o legado, sem ambiguidade.
+        primeiro = grade_por_vinculo(self.vinculos[0].id, db=self.db, user=SEM_LOGIN)
+        self.assertEqual(primeiro["alunos"][0]["nota"], 7)
+        self.assertEqual(primeiro["lancamentos_ambiguos"], [])
 
 
 if __name__ == "__main__":

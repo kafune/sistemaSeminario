@@ -1,9 +1,7 @@
 import unittest
 
 from fastapi import HTTPException
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.database import Base
 from app.models import (
@@ -30,15 +28,12 @@ from app.routers.presencas import (
     abrir_chamada,
     listar_chamadas,
 )
+from tests import criar_engine_de_teste
 
 
 class PortalProfessorTest(unittest.TestCase):
     def setUp(self):
-        self.engine = create_engine(
-            "sqlite://",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
+        self.engine = criar_engine_de_teste()
         Base.metadata.create_all(self.engine)
         self.db = sessionmaker(bind=self.engine, expire_on_commit=False)()
 

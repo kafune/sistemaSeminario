@@ -162,21 +162,7 @@ def _grade_vinculo(db: Session, vinculo: DocTurma) -> dict:
             .order_by(Aluno.nome)
         )
     )
-    notas = {
-        n.cod_alu: n
-        for n in db.scalars(
-            select(AluNota).where(
-                or_(
-                    AluNota.docturma_id == vinculo.id,
-                    (
-                        AluNota.docturma_id.is_(None)
-                        & (AluNota.cod_tur == vinculo.cod_tur)
-                        & (AluNota.cod_mat == vinculo.cod_mat)
-                    ),
-                )
-            )
-        )
-    }
+    notas, notas_ambiguas = _lancamentos_do_vinculo(db, vinculo)
     faltas = faltas_do_vinculo(db, vinculo.id)
     atividades = _atividades_do_vinculo(db, vinculo.id)
     ids_atividades = [atividade.id for atividade in atividades]
@@ -205,6 +191,7 @@ def _grade_vinculo(db: Session, vinculo: DocTurma) -> dict:
                 "dispensa": n.dispensa if n else None,
                 "cursou": n.cursou if n else None,
                 "ja_lancado": n is not None,
+                "lancamento_ambiguo": cod_alu in notas_ambiguas,
                 "notas_atividades": notas_atividades.get(cod_alu, []),
             }
         )
@@ -212,7 +199,52 @@ def _grade_vinculo(db: Session, vinculo: DocTurma) -> dict:
         "docturma": row_to_dict(vinculo),
         "atividades": [row_to_dict(atividade) for atividade in atividades],
         "alunos": linhas,
+        "lancamentos_ambiguos": sorted(notas_ambiguas),
     }
+
+
+def _lancamentos_do_vinculo(
+    db: Session,
+    vinculo: DocTurma,
+    codigos_alunos: list[int] | None = None,
+) -> tuple[dict[int, AluNota], set[int]]:
+    """Lançamentos que valem para este vínculo, por aluno.
+
+    Além dos que apontam para o vínculo, entram os legados (``docturma_id``
+    nulo) que casam por ``(cod_tur, cod_mat)``. Quando a mesma matéria é dada
+    em dois períodos, um legado casa com os dois vínculos — e o ``dict`` ficava
+    com o último lido, sem aviso (AUDITORIA.md C7). Agora a preferência é
+    explícita (o lançamento do próprio vínculo ganha) e os alunos com mais de
+    um candidato voltam no segundo item, para a tela avisar.
+    """
+    consulta = select(AluNota).where(
+        or_(
+            AluNota.docturma_id == vinculo.id,
+            (
+                AluNota.docturma_id.is_(None)
+                & (AluNota.cod_tur == vinculo.cod_tur)
+                & (AluNota.cod_mat == vinculo.cod_mat)
+            ),
+        )
+    )
+    if codigos_alunos is not None:
+        if not codigos_alunos:
+            return {}, set()
+        consulta = consulta.where(AluNota.cod_alu.in_(codigos_alunos))
+    # `docturma_id` nulo por último: o lançamento do vínculo vence o legado.
+    consulta = consulta.order_by(
+        AluNota.cod_alu,
+        AluNota.docturma_id.is_(None),
+        AluNota.id,
+    )
+    escolhidos: dict[int, AluNota] = {}
+    ambiguos: set[int] = set()
+    for registro in db.scalars(consulta):
+        if registro.cod_alu in escolhidos:
+            ambiguos.add(registro.cod_alu)
+            continue
+        escolhidos[registro.cod_alu] = registro
+    return escolhidos, ambiguos
 
 
 def _validar_referencias_nota(db: Session, dados: NotaInput) -> None:
@@ -431,22 +463,7 @@ def lancar(
             "Aluno(s) não matriculado(s) na turma: "
             + ", ".join(map(str, nao_matriculados)),
         )
-    existentes = {
-        registro.cod_alu: registro
-        for registro in db.scalars(
-            select(AluNota).where(
-                or_(
-                    AluNota.docturma_id == vinculo.id,
-                    (
-                        AluNota.docturma_id.is_(None)
-                        & (AluNota.cod_tur == vinculo.cod_tur)
-                        & (AluNota.cod_mat == vinculo.cod_mat)
-                    ),
-                ),
-                AluNota.cod_alu.in_(codigos_alunos),
-            )
-        )
-    } if codigos_alunos else {}
+    existentes, _ambiguos = _lancamentos_do_vinculo(db, vinculo, codigos_alunos)
     tem_notas_parciais = any(
         lanc.notas_atividades is not None for lanc in dados.alunos
     )

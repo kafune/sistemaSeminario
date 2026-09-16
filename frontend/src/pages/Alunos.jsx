@@ -281,11 +281,14 @@ export default function Alunos() {
         <Table sx={{ minWidth: 760 }}>
           <TableHead>
             <TableRow>
-              <TableCell align="right" sx={{ width: 120 }}>Matrícula</TableCell>
-              <TableCell>Nome</TableCell>
-              <TableCell>Telefone</TableCell>
-              <TableCell>Celular</TableCell>
-              <TableCell sx={{ width: 140 }}>Situação</TableCell>
+              {/* A largura vai para o nome, que é longo e variável; matrícula,
+                  telefone e situação têm tamanho conhecido e param de empurrar
+                  o nome para quatro linhas (AUDITORIA_VISUAL.md H4). */}
+              <TableCell align="right" sx={{ width: 96 }}>Matrícula</TableCell>
+              <TableCell sx={{ minWidth: 220 }}>Nome</TableCell>
+              <TableCell sx={{ width: 148 }}>Telefone</TableCell>
+              <TableCell sx={{ width: 148 }}>Celular</TableCell>
+              <TableCell sx={{ width: 128 }}>Situação</TableCell>
               <TableCell align="right" sx={{ width: 108 }}>Ações</TableCell>
             </TableRow>
           </TableHead>

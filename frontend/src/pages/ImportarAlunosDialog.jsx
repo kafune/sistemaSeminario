@@ -405,14 +405,17 @@ export default function ImportarAlunosDialog({ aberto, aoFechar, aoImportar }) {
                   onClick={() => inputArquivo.current?.click()}>
                   Selecionar arquivo
                 </Button>
-                <Typography sx={{ color: arquivo ? TOV.ink : TOV.caption, fontSize: TOV.type.body, overflowWrap: 'anywhere' }}>
-                  {arquivo?.name || 'Nenhum arquivo selecionado'}
-                </Typography>
                 <Button variant="contained" disabled={!arquivo || !!processando || previaPronta} onClick={importarArquivo}
                   startIcon={enviandoArquivo ? <CircularProgress size={16} color="inherit" /> : null}>
                   {enviandoArquivo ? 'Importando…' : 'Importar arquivo'}
                 </Button>
               </Box>
+              {/* O nome do arquivo ficava entre os dois botões, na mesma linha
+                  de base e com o mesmo espaçamento: lia como um terceiro botão
+                  desabilitado (AUDITORIA_VISUAL.md E14). */}
+              <Typography sx={{ mt: 1, color: arquivo ? TOV.ink : TOV.caption, fontSize: TOV.type.bodySm, overflowWrap: 'anywhere' }}>
+                {arquivo ? `Arquivo escolhido: ${arquivo.name}` : 'Nenhum arquivo selecionado ainda.'}
+              </Typography>
               <Resumo resultado={resultadoArquivo} />
             </Box>
           </Box>

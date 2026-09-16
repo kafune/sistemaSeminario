@@ -2,9 +2,7 @@ import unittest
 from datetime import date, datetime, time
 
 from fastapi import HTTPException
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
 from app.database import Base
 from app.models import Aula, CalendarioPublico, Chamada, DocTurma, Materia, Professor, Turma
@@ -17,15 +15,12 @@ from app.routers.calendario import (
     excluir_aula,
     renovar_compartilhamento,
 )
+from tests import criar_engine_de_teste
 
 
 class CalendarioPublicoTest(unittest.TestCase):
     def setUp(self):
-        self.engine = create_engine(
-            "sqlite://",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
+        self.engine = criar_engine_de_teste()
         Base.metadata.create_all(self.engine)
         self.db = sessionmaker(bind=self.engine, expire_on_commit=False)()
 
@@ -133,11 +128,7 @@ class CalendarioPublicoTest(unittest.TestCase):
 
 class AulasTest(unittest.TestCase):
     def setUp(self):
-        self.engine = create_engine(
-            "sqlite://",
-            connect_args={"check_same_thread": False},
-            poolclass=StaticPool,
-        )
+        self.engine = criar_engine_de_teste()
         Base.metadata.create_all(self.engine)
         self.db = sessionmaker(bind=self.engine, expire_on_commit=False)()
         turma = Turma(nome="T")

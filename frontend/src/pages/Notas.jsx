@@ -65,6 +65,9 @@ export default function Notas() {
   const [semestre, setSemestre] = useState('')
 
   const [linhas, setLinhas] = useState([])
+  // Lançamentos legados (sem vínculo) que casam com mais de um período desta
+  // matéria: a grade mostra um deles e avisa (AUDITORIA.md C7).
+  const [ambiguos, setAmbiguos] = useState([])
   const [atividades, setAtividades] = useState([])
   const [atividadesEdicao, setAtividadesEdicao] = useState([])
   const [configuracaoAberta, setConfiguracaoAberta] = useState(false)
@@ -111,6 +114,7 @@ export default function Notas() {
     api.get(`/notas/vinculo/${doc.id}`)
       .then((r) => {
         setAtividades(r.atividades || [])
+        setAmbiguos(r.lancamentos_ambiguos || [])
         setLinhas(r.alunos.map((a) => ({
           cod_alu: a.cod_alu,
           nome: a.nome,
@@ -482,6 +486,16 @@ export default function Notas() {
         </Box>
       ) : (
         <>
+          {ambiguos.length > 0 && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {ambiguos.length === 1
+                ? 'Um aluno tem mais de um lançamento antigo para esta matéria'
+                : `${ambiguos.length} alunos têm mais de um lançamento antigo para esta matéria`}
+              {' '}(matrícula {ambiguos.join(', ')}). A grade mostra o deste vínculo; salvar aqui
+              não altera o outro. Ajuste os lançamentos na ficha do aluno.
+            </Alert>
+          )}
+
           {/* Grade em cards — celular/tablet */}
           {!telaDesktop && <Box>
             <Box sx={{ ...cardSx, p: '16px 20px', mb: 1.5 }}>

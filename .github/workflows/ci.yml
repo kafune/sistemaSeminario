@@ -23,6 +23,39 @@ jobs:
       - run: ruff check .
       - run: python -m unittest discover -s tests -t . -v
 
+  # A produção é MySQL; a suíte em SQLite deixava de fora `with_for_update`,
+  # `skip_locked`, o LONGBLOB, o `func.replace` aninhado e a colação do LIKE
+  # (AUDITORIA.md F2). A mesma suíte roda contra um MySQL de verdade.
+  backend-mysql:
+    name: Backend (unittest em MySQL)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: teste
+          MYSQL_DATABASE: tov_teste
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pteste"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      TOV_TEST_DATABASE_URL: mysql+pymysql://root:teste@127.0.0.1:3306/tov_teste?charset=utf8mb4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -t . -v
+
   frontend:
     name: Frontend (design check, build, bundle budget)
     runs-on: ubuntu-latest

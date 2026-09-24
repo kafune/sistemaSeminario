@@ -16,8 +16,11 @@ import json
 import secrets
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
+from io import BytesIO
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
@@ -818,6 +821,87 @@ def situacao_da_turma(cod_tur: int, db: Session = Depends(get_db)):
         "matriculados": len(matriculados),
         "transferencias": sum(1 for aluno in alunos if aluno["transferencia"]),
     }
+
+
+ROTULO_SITUACAO_ALUNO = {
+    "VENCIDA": "Em atraso",
+    "EM_DIA": "Em dia",
+    "QUITADO": "Quitado",
+    "SEM_COBRANCA": "Sem cobrança",
+}
+
+
+@router.get("/exportar-alunos")
+def exportar_situacao_dos_alunos(
+    cod_tur: int | None = None, db: Session = Depends(get_db)
+):
+    """Planilha com todos os alunos e a situação financeira de cada um.
+
+    Entra todo aluno do cadastro, pague ou não, com ou sem cobrança; a
+    situação usa a mesma régua do painel da turma, somando os títulos do
+    aluno em qualquer turma. Com ``cod_tur``, só os alunos daquela turma.
+    """
+    hoje = hoje_local()
+    consulta = (
+        select(Aluno.cod_alu, Aluno.nome, Turma.nome)
+        .join(Turma, Turma.cod_tur == Aluno.cod_tur, isouter=True)
+        .order_by(Aluno.nome, Aluno.cod_alu)
+    )
+    if cod_tur is not None:
+        consulta = consulta.where(Aluno.cod_tur == cod_tur)
+    alunos = list(db.execute(consulta))
+
+    por_aluno = {
+        cod_alu: {"cobrancas": 0, "vencidas": 0, "total": servico.ZERO, "pago": servico.ZERO}
+        for cod_alu, _, _ in alunos
+    }
+    filtros = [Cobranca.status.notin_(("CANCELADA", "ISENTA"))]
+    if cod_tur is not None:
+        filtros.append(Cobranca.cod_alu.in_(list(por_aluno) or [0]))
+    for cobranca, pago in _cobrancas_com_pagamento(db, filtros):
+        dados = por_aluno.get(cobranca.cod_alu)
+        if dados is None:
+            continue
+        valor = servico.dinheiro(cobranca.valor)
+        dados["cobrancas"] += 1
+        dados["total"] += valor
+        dados["pago"] += min(pago, valor)
+        if servico.situacao_de(cobranca, pago, hoje) == "VENCIDA":
+            dados["vencidas"] += 1
+
+    workbook = Workbook()
+    planilha = workbook.active
+    planilha.title = "Alunos"
+    planilha.append(["Matrícula", "Nome", "Turma", "Situação financeira"])
+    for cod_alu, nome, turma in alunos:
+        dados = por_aluno[cod_alu]
+        if dados["cobrancas"] == 0:
+            situacao = "SEM_COBRANCA"
+        elif dados["vencidas"]:
+            situacao = "VENCIDA"
+        elif dados["total"] - dados["pago"] <= servico.ZERO:
+            situacao = "QUITADO"
+        else:
+            situacao = "EM_DIA"
+        planilha.append([cod_alu, nome or "", turma or "", ROTULO_SITUACAO_ALUNO[situacao]])
+    planilha.freeze_panes = "A2"
+    planilha.auto_filter.ref = planilha.dimensions
+    planilha.column_dimensions["A"].width = 12
+    planilha.column_dimensions["B"].width = 40
+    planilha.column_dimensions["C"].width = 30
+    planilha.column_dimensions["D"].width = 22
+
+    conteudo = BytesIO()
+    workbook.save(conteudo)
+    conteudo.seek(0)
+    nome_arquivo = (
+        f"situacao-alunos-turma-{cod_tur}.xlsx" if cod_tur is not None else "situacao-alunos.xlsx"
+    )
+    return StreamingResponse(
+        conteudo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{nome_arquivo}"'},
+    )
 
 
 @router.put("/turmas/{cod_tur}/plano")

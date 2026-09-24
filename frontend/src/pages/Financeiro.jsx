@@ -8,11 +8,12 @@ import {
 } from '@mui/material'
 import AccountBalanceOutlinedIcon from '@mui/icons-material/AccountBalanceOutlined'
 import AddIcon from '@mui/icons-material/Add'
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined'
 import EventBusyOutlinedIcon from '@mui/icons-material/EventBusyOutlined'
 import PaidOutlinedIcon from '@mui/icons-material/PaidOutlined'
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined'
 import TrendingUpOutlinedIcon from '@mui/icons-material/TrendingUpOutlined'
-import { api } from '../api'
+import { api, baixarArquivo } from '../api'
 import { TOV } from '../theme'
 import {
   BarraAcaoFixa, BarraFiltros, CabecalhoPagina, CardMetrica, CartaoLista,
@@ -227,8 +228,31 @@ export default function Financeiro() {
   const podeCriar = nova.cod_alu && nova.descricao.trim() && numeroDoCampo(nova.valor) > 0 && nova.vencimento
   const alternarRecorte = (proxima) => setSituacao((atual) => (atual === proxima ? '' : proxima))
 
+  // A planilha traz todo aluno, pago ou não, com a situação financeira; só a
+  // turma escolhida no filtro recorta a lista.
+  const [exportando, setExportando] = useState(false)
+  const exportarAlunos = async () => {
+    setExportando(true)
+    try {
+      const caminho = turma ? `/financeiro/exportar-alunos?cod_tur=${turma}` : '/financeiro/exportar-alunos'
+      await baixarArquivo(caminho, 'situacao-alunos.xlsx')
+    } catch (e) {
+      avisar(e.message)
+    } finally {
+      setExportando(false)
+    }
+  }
+
   const acoes = (
     <>
+      <Button
+        variant="outlined"
+        startIcon={exportando ? <CircularProgress size={16} /> : <FileDownloadOutlinedIcon />}
+        onClick={exportarAlunos}
+        disabled={exportando}
+      >
+        Exportar alunos
+      </Button>
       <Button
         variant="outlined"
         startIcon={<AccountBalanceOutlinedIcon />}

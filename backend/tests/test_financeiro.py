@@ -31,6 +31,7 @@ from app.routers.financeiro import (
     criar_cobranca,
     estornar_pagamento,
     excluir_cobranca,
+    exportar_situacao_dos_alunos,
     extrato_do_aluno,
     extrato_publico,
     gerar_acesso_do_aluno,
@@ -971,3 +972,49 @@ class SegredoDoWebhookTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExportacaoSituacaoAlunosTest(BaseFinanceiroTest):
+    def linhas(self, **filtros):
+        import asyncio
+        from io import BytesIO
+
+        from openpyxl import load_workbook
+
+        resposta = exportar_situacao_dos_alunos(db=self.db, **filtros)
+
+        async def ler():
+            return b"".join([parte async for parte in resposta.body_iterator])
+
+        planilha = load_workbook(BytesIO(asyncio.run(ler()))).active
+        return [list(linha) for linha in planilha.iter_rows(values_only=True)]
+
+    def test_lista_todos_os_alunos_pagos_ou_nao(self):
+        vencida = Cobranca(
+            cod_alu=self.ana.cod_alu, cod_tur=self.manha.cod_tur, tipo="AVULSA",
+            descricao="Taxa", valor=Decimal("50.00"),
+            vencimento=date.today() - timedelta(days=5), status="ABERTA",
+        )
+        paga = Cobranca(
+            cod_alu=self.bruno.cod_alu, cod_tur=self.manha.cod_tur, tipo="AVULSA",
+            descricao="Taxa", valor=Decimal("50.00"),
+            vencimento=date.today() - timedelta(days=5), status="ABERTA",
+        )
+        self.db.add_all([vencida, paga])
+        self.db.flush()
+        self.db.add(Pagamento(cobranca_id=paga.id, valor=Decimal("50.00"), data_pagamento=date.today(), forma="PIX"))
+        self.db.commit()
+
+        linhas = self.linhas()
+        self.assertEqual(linhas[0], ["Matrícula", "Nome", "Turma", "Situação financeira"])
+        self.assertEqual(
+            [(nome, turma, situacao) for _, nome, turma, situacao in linhas[1:]],
+            [
+                ("Ana Souza", "Turma da manhã", "Em atraso"),
+                ("Bruno Lima", "Turma da manhã", "Quitado"),
+                ("Carla Dias", "Turma da noite", "Sem cobrança"),
+            ],
+        )
+
+        so_noite = self.linhas(cod_tur=self.noite.cod_tur)
+        self.assertEqual([linha[1] for linha in so_noite[1:]], ["Carla Dias"])

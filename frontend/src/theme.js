@@ -24,6 +24,10 @@ export const TOV = {
   coralActive: '#9E1D1D',
   primaryActive: '#9E1D1D',
   coralOnDark: '#FF9A9A',
+  // Coral da marca (logo do Centro TOV de Formação). Só no símbolo: ação e
+  // seleção continuam no `coral` da interface.
+  marca: '#F24849',
+  onMarca: '#FFFFFF',
   caption: '#525D63',
   border: '#D8CEC4',
   borderHover: '#BFB5AD',

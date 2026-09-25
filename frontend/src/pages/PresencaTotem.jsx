@@ -16,6 +16,7 @@ import WifiOffRoundedIcon from '@mui/icons-material/WifiOffRounded'
 import { getPublico, postPublico } from '../api'
 import { TOV } from '../theme'
 import { AvatarIniciais, resetBotao } from '../ui'
+import { SeloTov } from '../Marca'
 import { FUSO_INSTITUICAO } from '../formatters'
 
 function normalizar(texto) {
@@ -320,7 +321,7 @@ export default function PresencaTotem() {
     return (
       <Box sx={{ minHeight: '100dvh', display: 'grid', placeItems: 'center', bgcolor: TOV.canvas, p: 3 }}>
         <Box sx={{ textAlign: 'center' }}>
-          <Box sx={{ width: 64, height: 64, mx: 'auto', mb: 2.5, display: 'grid', placeItems: 'center', borderRadius: TOV.radiusLg, bgcolor: TOV.graphite, color: TOV.onDark, fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.section }}>TOV</Box>
+          <SeloTov tamanho={64} titulo="Centro TOV de Formação" sx={{ mx: 'auto', mb: 2.5, borderRadius: TOV.radiusLg }} />
           <CircularProgress size={36} thickness={4.5} />
           <Typography sx={{ mt: 2, color: TOV.caption, fontWeight: 700 }}>Preparando a chamada…</Typography>
         </Box>

@@ -6,6 +6,7 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff'
 import { api, setSession } from '../api'
 import { TOV } from '../theme'
 import { Eyebrow, Regua, Superficie } from '../ui'
+import { SeloTov } from '../Marca'
 
 export default function Login() {
   const [user, setUser] = useState('')
@@ -57,7 +58,8 @@ export default function Login() {
       >
         <Box aria-hidden="true" sx={{ position: 'absolute', inset: 0, opacity: 0.26, backgroundImage: TOV.loginGrid, backgroundSize: '44px 44px' }} />
         <Box aria-hidden="true" sx={{ position: 'absolute', top: 0, left: 0, width: 4, height: '38%', bgcolor: TOV.onDarkBorderHover }} />
-        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1.5, position: 'relative' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, position: 'relative' }}>
+          <SeloTov tamanho={48} />
           <Typography component="span" sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.displaySm, letterSpacing: '-.035em' }}>TOV</Typography>
           <Typography component="span" sx={{ fontSize: TOV.type.bodySm, color: TOV.onDarkMuted }}>acadêmico</Typography>
         </Box>
@@ -84,11 +86,12 @@ export default function Login() {
           variante="raised"
           sx={{ width: '100%', maxWidth: 440, p: { xs: 3, sm: 4.5 } }}
         >
-          <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', gap: 1, mb: 4 }}>
-            <Box aria-hidden="true" sx={{ width: 4, height: 24, bgcolor: TOV.graphite, borderRadius: TOV.radiusFull }} />
-            <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm }}>TOV</Typography>
-            <Typography sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>acadêmico</Typography>
-          </Box>
+          <Box
+            component="img"
+            src="/logo-ctft-horizontal.svg"
+            alt="Centro TOV de Formação"
+            sx={{ display: { xs: 'block', md: 'none' }, height: 56, width: 'auto', mb: 4 }}
+          />
           <Eyebrow sx={{ mb: 1.5 }}>Acesso restrito</Eyebrow>
           <Typography component="h1" variant="h2">Entrar</Typography>
           <Typography sx={{ mt: 1.5, fontSize: TOV.type.body, color: TOV.caption }}>Use suas credenciais de acesso.</Typography>

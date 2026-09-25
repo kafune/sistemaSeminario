@@ -28,6 +28,7 @@ import { TOV, focusRingOnDark } from './theme'
 import {
   DialogoConfirmacao, TituloDialogo, iniciais, resetBotao, useDialogoTelaCheia
 } from './ui'
+import { SeloTov, SimboloTov } from './Marca'
 import NotificationCenter, { BotaoInstalarPwa, BotaoNotificacoes, useNotificacoes } from './NotificationCenter'
 import { UnsavedChangesContext } from './UnsavedChanges'
 
@@ -158,9 +159,7 @@ function SeletorSistema({ onTrocar }) {
           '&:focus-visible': focusRingOnDark,
         }}
       >
-        <Box sx={{ width: 36, height: 36, borderRadius: TOV.radiusSm, bgcolor: TOV.onDarkSurfaceHover, color: TOV.onDarkStrong, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-          <SchoolIcon sx={{ fontSize: TOV.type.section }} />
-        </Box>
+        <SeloTov tamanho={36} />
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
           <Box sx={{ fontSize: TOV.type.micro, lineHeight: 1.2, opacity: 0.72, letterSpacing: '.08em', textTransform: 'uppercase' }}>
             Sistema atual
@@ -187,7 +186,7 @@ function SeletorSistema({ onTrocar }) {
         MenuListProps={{ 'aria-label': 'Selecionar sistema', sx: { p: 1 } }}
       >
         <MenuItem selected onClick={fechar} sx={{ borderRadius: TOV.radiusSm, py: 1 }}>
-          <ListItemIcon><SchoolIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon><SimboloTov altura={20} reforco={12} /></ListItemIcon>
           <ListItemText primary="TOV Acadêmico" secondary="Sistema atual" />
           <CheckIcon color="primary" fontSize="small" />
         </MenuItem>
@@ -582,7 +581,7 @@ export default function Layout({ children }) {
       >
         <Toolbar sx={{ gap: 1, minHeight: { xs: 60 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-            <Box aria-hidden="true" sx={{ width: 4, height: 24, borderRadius: TOV.radiusFull, bgcolor: TOV.graphite }} />
+            <SeloTov tamanho={28} />
             <Typography sx={{ fontFamily: TOV.fontHead, fontWeight: 700, fontSize: TOV.type.titleSm, letterSpacing: '-.025em' }}>TOV</Typography>
             {tituloForaDaTela && (
               <Typography noWrap sx={{ fontSize: TOV.type.caption, color: TOV.caption }}>{tituloAtual}</Typography>

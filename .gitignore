@@ -11,3 +11,8 @@ backend/output/
 *.log
 *.mdb
 /TS3 TURMA 2.xls
+
+# variáveis de ambiente (nunca versionar)
+.env
+.env.*
+!.env.example
